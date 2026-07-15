@@ -38,7 +38,22 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast:
+            "group toast group-[.toaster]:bg-card group-[.toaster]:text-card-foreground group-[.toaster]:border-border group-[.toaster]:shadow-card-large group-[.toaster]:rounded-card group-[.toaster]:p-xl group-[.toaster]:flex group-[.toaster]:gap-lg group-[.toaster]:items-center group-[.toaster]:border",
+          title: "!text-label-sm !font-semibold !text-neutral-900 dark:!text-white",
+          description: "!text-neutral-500 dark:!text-neutral-400 !text-paragraph-xs",
+          actionButton:
+            "group-[.toast]:bg-brand-medium group-[.toast]:text-white group-[.toast]:rounded-button group-[.toast]:text-label-sm group-[.toast]:px-md group-[.toast]:py-sm hover:group-[.toast]:bg-brand-dark transition-all",
+          cancelButton:
+            "group-[.toast]:bg-neutral-100 group-[.toast]:text-neutral-600 group-[.toast]:rounded-button group-[.toast]:text-label-sm group-[.toast]:px-md group-[.toast]:py-sm hover:group-[.toast]:bg-neutral-200 transition-all",
+          success:
+            "!bg-success-light !text-success-dark !border-success-dark/20",
+          error:
+            "!bg-error-light !text-error-dark !border-error-dark/20",
+          warning:
+            "!bg-warning-light !text-warning-dark !border-warning-dark/20",
+          info:
+            "!bg-info-light !text-info-dark !border-info-dark/20",
         },
       }}
       {...props}

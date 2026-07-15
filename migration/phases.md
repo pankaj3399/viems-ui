@@ -9,8 +9,8 @@
 | # | Phase | Status | Description |
 | :---: | :--- | :---: | :--- |
 | 0 | Pre-Flight Checks | `[ ]` | Verify backend works, database has data, tools are ready |
-| 1 | Figma Design Token Extraction | `[ ]` | Extract colors, fonts, spacing, radii from Figma |
-| 2 | Next.js Project Configuration | `[ ]` | Configure proxy, env, fonts, Tailwind theme |
+| 1 | Figma Design Token Extraction | `[x]` | Extract colors, fonts, spacing, radii from Figma |
+| 2 | Next.js Project Configuration | `[x]` | Configure proxy, env, fonts, Tailwind theme |
 | 3 | Core Library Files | `[ ]` | Build auth, API client, types, constants |
 | 4 | Authentication Pages | `[ ]` | Login, register, password reset, OTP |
 | 5 | Application Shell | `[ ]` | Sidebar, header, layout, auth guard, WebSocket |
@@ -50,51 +50,84 @@ Before writing any code, confirm the development environment is ready.
 Extract every visual value from Figma. Do NOT start coding until this phase is complete — you need these values to configure Tailwind.
 
 ### Colors
-- [ ] Extract **primary color** (hex/HSL) from Figma variables or the most prominent brand color.
-- [ ] Extract **background color** (page background, card backgrounds).
-- [ ] Extract **foreground/text color** (primary text, secondary/muted text).
-- [ ] Extract **border colors** (card borders, input borders, dividers).
-- [ ] Extract **accent/success/warning/error colors** (status badges, alerts, toast notifications).
-- [ ] Extract **sidebar background** and **sidebar text/icon** colors.
-- [ ] Document all colors in a table:
-  ```
-  | Token Name       | Hex       | HSL                    | Usage                 |
-  | background       | #0A0A0A   | hsl(0 0% 4%)          | Page background       |
-  | foreground       | #FAFAFA   | hsl(0 0% 98%)         | Primary text          |
-  | primary          | #6366F1   | hsl(239 84% 67%)      | Buttons, links        |
-  | ...              | ...       | ...                    | ...                   |
-  ```
+- [x] Extract **primary color** (hex/HSL) from Figma variables or the most prominent brand color.
+- [x] Extract **background color** (page background, card backgrounds).
+- [x] Extract **foreground/text color** (primary text, secondary/muted text).
+- [x] Extract **border colors** (card borders, input borders, dividers).
+- [x] Extract **accent/success/warning/error colors** (status badges, alerts, toast notifications).
+- [x] Extract **sidebar background** and **sidebar text/icon** colors.
+- [x] Document all colors in a table:
+  | Token Name | Hex Value | Usage |
+  | :--- | :--- | :--- |
+  | brand-light | #EFEBFF | Badge backgrounds, accent links bg |
+  | brand-medium | #7D52F4 | Primary buttons, active markers, sidebar selection |
+  | brand-dark | #351A75 | Button hover states, text links |
+  | success-light | #E3F7EC | Success badge backgrounds (approved status) |
+  | success-dark | #0B4627 | Success badge text colors |
+  | warning-light | #FFFAEB | Warning badge backgrounds (pending check status) |
+  | warning-dark | #624C18 | Warning badge text colors |
+  | error-light | #FFEBEC | Error badge backgrounds, destructive invalid inputs bg |
+  | error-dark | #681219 | Destructive buttons, error borders, invalid state text |
+  | info-light | #EBF1FF | Info badge backgrounds |
+  | info-dark | #122368 | Info badge text colors |
+  | neutral-50 | #F7F7F7 | Mockup outer framework, collapsible sidebar bg |
+  | neutral-100 | #F5F5F5 | Card body grey variant, divider lines |
+  | neutral-200 | #EBEBEB | Standard border separator lines, input borders |
+  | neutral-300 | #D1D1D1 | Disabled text labels |
+  | neutral-400 | #A3A3A3 | Secondary muted descriptions |
+  | neutral-500 | #7B7B7B | Sublabel helper caption colors |
+  | neutral-600 | #5C5C5C | Secondary body text |
+  | neutral-700 | #333333 | Sidebar custom action hover bg |
+  | neutral-800 | #262626 | Important buttons bg, dark theme card backgrounds |
+  | neutral-900 | #171717 | Primary body text |
 
 ### Typography
-- [ ] Identify **font family** (e.g., Inter, Outfit, Geist). Note which weights are used (400, 500, 600, 700).
-- [ ] Extract **heading sizes** (h1 through h4 — font-size, line-height, font-weight).
-- [ ] Extract **body text size** (font-size, line-height).
-- [ ] Extract **small/caption text size** (labels, helper text, timestamps).
-- [ ] Extract **letter-spacing** if any headers use tracked-out text.
+- [x] Identify **font family** (e.g., Inter, Outfit, Geist). Note which weights are used (400, 500, 600, 700).
+- [x] Extract **heading sizes** (h1 through h4 — font-size, line-height, font-weight).
+- [x] Extract **body text size** (font-size, line-height).
+- [x] Extract **small/caption text size** (labels, helper text, timestamps).
+- [x] Extract **letter-spacing** if any headers use tracked-out text.
+  | Style Class | Font Family | Size | Weight | Line Height | Tracking |
+  | :--- | :--- | :---: | :---: | :---: | :---: |
+  | `.text-h3-title` | Mona Sans | 40px | 600 (SemiBold) | 48px | -0.01em |
+  | `.text-h5-title` | Mona Sans | 24px | 600 (SemiBold) | 32px | -0.005em |
+  | `.text-h6-title` | Inter | 20px | 550 (Medium) | 28px | -0.006em |
+  | `.text-label-xl` | Inter | 24px | 500 (Medium) | 32px | -0.015em |
+  | `.text-label-lg` | Inter | 18px | 500 (Medium) | 24px | -0.015em |
+  | `.text-label-md` | Inter | 16px | 500 (Medium) | 24px | -0.011em |
+  | `.text-label-sm` | Inter | 14px | 500 (Medium) | 20px | -0.006em |
+  | `.text-label-xs` | Inter | 12px | 500 (Medium) | 16px | - |
+  | `.text-label-compact` | Inter | 13px | 500 (Medium) | 20px | -0.006em |
+  | `.text-paragraph-md` | Inter | 16px | 400 (Regular) | 24px | -0.011em |
+  | `.text-paragraph-sm` | Inter | 14px | 400 (Regular) | 20px | -0.006em |
+  | `.text-paragraph-xs` | Inter | 12px | 400 (Regular) | 16px | - |
+  | `.text-paragraph-compact` | Inter | 13px | 400 (Regular) | 20px | -0.006em |
+  | `.text-subheading-2xs` | Inter | 11px | 500 (Medium) | 12px | 0.02em (UPPER) |
+  | `.text-subheading-xs` | Inter | 12px | 500 (Medium) | 16px | 0.04em (UPPER) |
 
 ### Spacing & Layout
-- [ ] Identify the **spacing scale** (is it 4px increments? 8px? Check padding and gaps).
-- [ ] Extract **page padding** (distance from viewport edge to content area).
-- [ ] Extract **card padding** (inner padding of card components).
-- [ ] Extract **grid gap** (spacing between cards in a grid).
-- [ ] Extract **sidebar width** (fixed width in pixels).
-- [ ] Extract **header height** (fixed height in pixels).
+- [x] Identify the **spacing scale** (is it 4px increments? 8px? Check padding and gaps).
+- [x] Extract **page padding** (distance from viewport edge to content area).
+- [x] Extract **card padding** (inner padding of card components).
+- [x] Extract **grid gap** (spacing between cards in a grid).
+- [x] Extract **sidebar width** (fixed width in pixels).
+- [x] Extract **header height** (fixed height in pixels).
 
 ### Border Radii
-- [ ] Extract border radius for **cards** (usually 8px, 12px, or 16px).
-- [ ] Extract border radius for **buttons** (usually 6px or 8px).
-- [ ] Extract border radius for **inputs** (usually 6px or 8px).
-- [ ] Extract border radius for **avatars** (usually `50%` / fully rounded).
+- [x] Extract border radius for **cards** (usually 8px, 12px, or 16px).
+- [x] Extract border radius for **buttons** (usually 6px or 8px).
+- [x] Extract border radius for **inputs** (usually 6px or 8px).
+- [x] Extract border radius for **avatars** (usually `50%` / fully rounded).
 
 ### Shadows & Effects
-- [ ] Extract **card shadow** (box-shadow values from Figma effects panel).
-- [ ] Extract **dropdown/popover shadow** (usually deeper than card shadow).
-- [ ] Note any **backdrop blur** effects (glassmorphism on modals, etc.).
+- [x] Extract **card shadow** (box-shadow values from Figma effects panel).
+- [x] Extract **dropdown/popover shadow** (usually deeper than card shadow).
+- [x] Note any **backdrop blur** effects (glassmorphism on modals, etc.).
 
 ### Breakpoints
-- [ ] Confirm **desktop artboard width** (usually 1440px or 1920px).
-- [ ] Check if there is a **mobile artboard** (usually 375px).
-- [ ] Check if there is a **tablet artboard** (usually 768px or 1024px).
+- [x] Confirm **desktop artboard width** (usually 1440px or 1920px).
+- [x] Check if there is a **mobile artboard** (usually 375px).
+- [x] Check if there is a **tablet artboard** (usually 768px or 1024px).
 
 ---
 
@@ -103,27 +136,27 @@ Extract every visual value from Figma. Do NOT start coding until this phase is c
 Apply the design tokens to the project infrastructure.
 
 ### API Proxy
-- [ ] Update `nextjs/next.config.ts` with `rewrites()` rule: `/api/:path*` → `http://localhost:8081/:path*`.
-- [ ] Verify the rewrite works: start both backend and frontend, open browser DevTools, make a fetch to `/api/initdata/start` and confirm it returns data (not a 404).
+- [x] Update `nextjs/next.config.ts` with `rewrites()` rule: `/api/:path*` → `http://localhost:8081/:path*`.
+- [x] Verify the rewrite works: start both backend and frontend, open browser DevTools, make a fetch to `/api/initdata/start` and confirm it returns data (not a 404).
 
 ### Environment Variables
-- [ ] Create `nextjs/.env.local` with:
+- [x] Create `nextjs/.env.local` with:
   ```
   NEXT_PUBLIC_API_URL=/api
   NEXT_PUBLIC_WS_URL=http://localhost:8082
   ```
-- [ ] Add `.env.local` to `.gitignore` (confirm it's already there).
+- [x] Add `.env.local` to `.gitignore` (confirm it's already there).
 
 ### Fonts
-- [ ] Install the font identified in Phase 1 using `next/font/google` in `layout.tsx`.
-- [ ] Set the CSS variable (e.g., `--font-sans`) on the `<html>` element.
-- [ ] Verify the font loads — inspect any text element in browser DevTools → Computed tab → `font-family` should show the correct font, not a system fallback.
+- [x] Install the font identified in Phase 1 using `next/font/google` in `layout.tsx`.
+- [x] Set the CSS variable (e.g., `--font-sans`) on the `<html>` element.
+- [x] Verify the font loads — inspect any text element in browser DevTools → Computed tab → `font-family` should show the correct font, not a system fallback.
 
 ### Tailwind Theme
-- [ ] Update `src/app/globals.css` `@theme` block with all color tokens from Phase 1.
-- [ ] Add font-family variables to the theme.
-- [ ] Add custom border-radius values if they differ from Tailwind defaults.
-- [ ] Verify the theme works: create a test `<div className="bg-primary text-primary-foreground p-6 rounded-lg">Hello</div>` and confirm it renders with the correct Figma colors.
+- [x] Update `src/app/globals.css` `@theme` block with all color tokens from Phase 1.
+- [x] Add font-family variables to the theme.
+- [x] Add custom border-radius values if they differ from Tailwind defaults.
+- [x] Verify the theme works: create a test `<div className="bg-primary text-primary-foreground p-6 rounded-lg">Hello</div>` and confirm it renders with the correct Figma colors.
 
 ---
 
