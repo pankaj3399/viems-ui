@@ -8,7 +8,7 @@ import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, EyeOff, Lock, Mail, KeyRound, AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, KeyRound, AlertCircle, ArrowLeft, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
@@ -127,8 +127,8 @@ export default function LoginPage() {
     e.preventDefault();
     setOtpError("");
 
-    if (!otp || otp.length < 8) {
-      setOtpError("Enter the 8-digit access code");
+    if (!otp || otp.length < 4) {
+      setOtpError("Enter the 4-digit access code");
       return;
     }
 
@@ -343,84 +343,87 @@ export default function LoginPage() {
 
       {/* ─── STATE 2: OTP Verification (Canvas Integrated) ─────────────────── */}
       {viewState === "otp" && (
-        <div className="flex flex-col w-full animate-fade-in">
+        <div className="flex flex-col w-full animate-fade-in max-w-[392px] mx-auto">
           {/* Back button above form title */}
-          <div className="self-center w-full max-w-[392px] mb-lg">
+          <div className="flex justify-start mb-[86px] md:-ml-[39px]">
             <button
               type="button"
               onClick={() => setViewState("login")}
-              className="inline-flex items-center gap-xs px-3 py-1.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-compact shadow-x-small text-label-xs font-semibold transition-colors cursor-pointer"
+              className="group inline-flex items-center gap-lg text-label-sm text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
               disabled={isLoading}
             >
-              <ArrowLeft className="size-3.5" />
-              Back
+              <span className="flex items-center justify-center size-7 bg-white group-hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-compact shadow-x-small transition-colors">
+                <ArrowLeft className="size-4 shrink-0" />
+              </span>
+              <span>Back</span>
             </button>
           </div>
 
-          <div className="text-center pb-xl max-w-[392px] mx-auto">
-            <h1 className="text-h5-title font-bold tracking-tight text-neutral-900">
-              Enter verification code
-            </h1>
-            <p className="text-paragraph-sm text-neutral-500 mt-sm">
-              We've sent a code to <strong>{email}</strong>
-            </p>
-          </div>
+          <div className="flex flex-col gap-2xl w-full">
+            <div className="flex flex-col gap-sm text-center pb-lg border-b border-neutral-200">
+              <h1 className="text-h5-title font-bold tracking-tight text-neutral-900">
+                Enter verification code
+              </h1>
+              <p className="text-paragraph-md text-neutral-500">
+                We've sent a code to <strong className="font-semibold text-neutral-900">{email}</strong>
+              </p>
+            </div>
 
-          <div className="w-full max-w-[392px] mx-auto flex flex-col gap-xl">
-            <form onSubmit={handleOtpSubmit} className="flex flex-col gap-xl">
-              <div onPaste={handleOtpPaste} className="w-full flex justify-center">
-                <InputOTP
-                  maxLength={8}
-                  value={otp}
-                  onChange={(val) => setOtp(val)}
-                  disabled={isLoading}
-                  autoFocus
-                >
-                  <InputOTPGroup className="gap-sm">
-                    <InputOTPSlot index={0} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={1} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={2} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={3} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={4} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={5} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={6} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                    <InputOTPSlot index={7} className="size-11 border text-base rounded-input border-neutral-200 bg-white data-[active=true]:border-ring data-[active=true]:ring-3 data-[active=true]:ring-ring/50" />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-              {otpError && (
-                <FieldError className="flex items-center gap-xs text-error-dark text-center justify-center">
-                  <AlertCircle className="size-3 shrink-0" />
-                  {otpError}
-                </FieldError>
-              )}
-
-              <Button
-                type="submit"
-                variant="default"
-                className="w-full h-11 font-medium bg-[#7D52F4] text-white hover:bg-brand-dark rounded-button shadow-x-small transition-colors justify-center"
-                disabled={isLoading || otp.length < 8}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin shrink-0" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify"
+            <div className="flex flex-col gap-2xl">
+              <form onSubmit={handleOtpSubmit} className="flex flex-col gap-2xl">
+                <div onPaste={handleOtpPaste} className="w-full flex justify-center">
+                  <InputOTP
+                    maxLength={4}
+                    value={otp}
+                    onChange={(val) => setOtp(val)}
+                    disabled={isLoading}
+                    autoFocus
+                    containerClassName="w-full justify-center"
+                  >
+                    <InputOTPGroup className="w-full max-w-[392px] grid grid-cols-4 gap-[10px] justify-between">
+                      <InputOTPSlot index={0} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={1} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={2} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={3} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                {otpError && (
+                  <FieldError className="flex items-center gap-xs text-error-dark text-center justify-center">
+                    <AlertCircle className="size-3 shrink-0" />
+                    {otpError}
+                  </FieldError>
                 )}
-              </Button>
-            </form>
 
-            <div className="text-center text-paragraph-xs text-neutral-500 flex flex-col gap-xs">
-              <span>Experiencing issues receiving the code?</span>
-              <button
-                type="button"
-                className="font-semibold text-neutral-800 hover:text-brand-dark hover:underline transition-colors bg-transparent border-0 cursor-pointer"
-                disabled={isLoading}
-              >
-                Resend code
-              </button>
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="w-full h-9 font-semibold bg-[#7D52F4] text-white hover:bg-brand-dark rounded-[8px] shadow-x-small transition-colors justify-center disabled:bg-[#7D52F4] disabled:text-white disabled:opacity-50"
+                  disabled={isLoading || otp.length < 4}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin shrink-0" />
+                      Verifying...
+                    </>
+                  ) : (
+                    "Verify"
+                  )}
+                </Button>
+              </form>
+
+              <div className="flex flex-col items-center gap-xs">
+                <span className="text-paragraph-sm text-neutral-500 font-medium">
+                  Experiencing issues receiving the code?
+                </span>
+                <button
+                  type="button"
+                  className="text-label-sm font-medium text-neutral-900 underline hover:text-neutral-700 transition-colors bg-transparent border-0 cursor-pointer"
+                  disabled={isLoading}
+                >
+                  Resend code
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -428,85 +431,91 @@ export default function LoginPage() {
 
       {/* ─── STATE 3: Reset Password (Canvas Integrated) ────────────────────── */}
       {viewState === "forgot-password" && (
-        <div className="flex flex-col w-full animate-fade-in">
+        <div className="flex flex-col w-full animate-fade-in max-w-[392px] mx-auto">
           {/* Back button above form title */}
-          <div className="self-center w-full max-w-[392px] mb-lg">
+          <div className="flex justify-start mb-[86px] md:-ml-[39px]">
             <button
               type="button"
               onClick={() => setViewState("login")}
-              className="inline-flex items-center gap-xs px-3 py-1.5 bg-white hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-compact shadow-x-small text-label-xs font-semibold transition-colors cursor-pointer"
+              className="group inline-flex items-center gap-lg text-label-sm text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer"
               disabled={isLoading}
             >
-              <ArrowLeft className="size-3.5" />
-              Back
+              <span className="flex items-center justify-center size-7 bg-white group-hover:bg-neutral-50 text-neutral-800 border border-neutral-200 rounded-compact shadow-x-small transition-colors">
+                <ArrowLeft className="size-4 shrink-0" />
+              </span>
+              <span>Back</span>
             </button>
           </div>
 
-          <div className="text-center pb-xl max-w-[392px] mx-auto">
-            <h1 className="text-h5-title font-bold tracking-tight text-neutral-900">
-              Reset Password
-            </h1>
-            <p className="text-paragraph-sm text-neutral-500 mt-sm">
-              Enter your email to reset your password.
-            </p>
-          </div>
+          <div className="flex flex-col gap-2xl w-full">
+            <div className="flex flex-col gap-sm text-center pb-lg border-b border-neutral-200">
+              <h1 className="text-h5-title font-bold tracking-tight text-neutral-900">
+                Reset Password
+              </h1>
+              <p className="text-paragraph-md text-neutral-500">
+                Enter your email to reset your password.
+              </p>
+            </div>
 
-          <div className="w-full max-w-[392px] mx-auto flex flex-col gap-xl">
-            <form onSubmit={handleResetSubmit} className="flex flex-col gap-xl">
-              <Field>
-                <FieldLabel className="text-label-sm font-semibold text-neutral-800">
-                  Email Address
-                </FieldLabel>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@company.com"
-                    className="pl-10 rounded-input border-neutral-200 bg-white focus-visible:border-neutral-900 focus-visible:shadow-important-focus w-full"
-                    disabled={isLoading}
-                  />
-                </div>
-                {emailError && (
-                  <FieldError className="flex items-center gap-xs text-error-dark mt-xs">
-                    <AlertCircle className="size-3" />
-                    {emailError}
-                  </FieldError>
-                )}
-                {/* Info Tip below input */}
-                <div className="flex items-center gap-xs text-neutral-500 mt-xs text-[11px] leading-normal font-medium select-none">
-                  <AlertCircle className="size-3 text-neutral-400 shrink-0" />
-                  Enter the email that you used to register with.
-                </div>
-              </Field>
+            <div className="flex flex-col gap-2xl">
+              <form onSubmit={handleResetSubmit} className="flex flex-col gap-2xl">
+                <Field>
+                  <FieldLabel className="text-label-sm font-semibold text-neutral-800">
+                    Email Address
+                  </FieldLabel>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-5 text-neutral-400" />
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="pl-11 h-10 rounded-input border-neutral-200 bg-white focus-visible:border-neutral-900 focus-visible:shadow-important-focus w-full text-paragraph-sm"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {emailError && (
+                    <FieldError className="flex items-center gap-xs text-error-dark mt-xs">
+                      <AlertCircle className="size-3" />
+                      {emailError}
+                    </FieldError>
+                  )}
+                  {/* Info Tip below input */}
+                  <div className="flex items-start gap-xs text-neutral-500 mt-sm select-none">
+                    <Info className="size-4 text-neutral-400 shrink-0 mt-[2px]" />
+                    <span className="text-paragraph-xs leading-normal">
+                      Enter the email that you used to register with.
+                    </span>
+                  </div>
+                </Field>
 
-              <Button
-                type="submit"
-                variant="default"
-                className="w-full h-11 font-medium bg-[#262626] text-white hover:bg-neutral-800 rounded-button shadow-x-small transition-colors justify-center"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin shrink-0" />
-                    Sending...
-                  </>
-                ) : (
-                  "Reset password"
-                )}
-              </Button>
-            </form>
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="w-full h-11 font-medium bg-[#262626] text-white hover:bg-neutral-800 rounded-button shadow-x-small transition-colors justify-center"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin shrink-0" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Reset password"
+                  )}
+                </Button>
+              </form>
 
-            <div className="text-center text-paragraph-xs text-neutral-500 flex flex-col gap-xs">
-              <span>Don't have access anymore?</span>
-              <button
-                type="button"
-                className="font-semibold text-neutral-800 hover:text-brand-dark hover:underline transition-colors bg-transparent border-0 cursor-pointer"
-                disabled={isLoading}
-              >
-                Try another method
-              </button>
+              <div className="flex flex-col items-center gap-xs">
+                <span className="text-paragraph-sm text-neutral-500 font-medium">Don't have access anymore?</span>
+                <button
+                  type="button"
+                  className="text-label-sm font-medium text-neutral-900 underline hover:text-neutral-700 transition-colors bg-transparent border-0 cursor-pointer"
+                  disabled={isLoading}
+                >
+                  Try another method
+                </button>
+              </div>
             </div>
           </div>
         </div>

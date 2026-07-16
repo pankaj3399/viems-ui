@@ -130,21 +130,19 @@ export default function Sidebar({ userInfo }: SidebarProps) {
   };
 
   return (
-    <aside className="w-[272px] h-screen sticky top-0 flex flex-col bg-[#171717] border-r border-neutral-800 text-white select-none shrink-0 font-sans">
+    <aside className="w-20 h-full flex flex-col bg-[#171717] rounded-[16px] text-white select-none shrink-0 font-sans">
       {/* ─── Sidebar Header [Sidebar] [1.1] ──────────────────────────────────── */}
-      <div className="h-[88px] w-full flex items-center justify-start px-xl gap-md border-b border-neutral-800 bg-[#171717] shrink-0">
-        <div className="flex items-center gap-md w-full">
-          {/* Synergy Logo Icon (simple dark neutral circle matching the screenshot) */}
-          <div className="size-10 rounded-full bg-neutral-700 shrink-0" />
-          <span className="text-h5-title font-semibold text-white tracking-tight">
-            Viems
-          </span>
+      <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] shrink-0">
+        {/* Header Card [Sidebar] [1.0] */}
+        <div className="size-16 rounded-[10px] bg-[#171717] flex items-center justify-center">
+          {/* Synergy Logo Icon */}
+          <div className="size-10 rounded-full bg-[#262626] shrink-0" />
         </div>
       </div>
 
       {/* ─── Content Navigation Group ────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col px-xl py-xl gap-xl bg-[#171717] overflow-y-auto">
-        <nav className="flex flex-col gap-sm">
+      <div className="flex-1 flex flex-col items-center py-6 gap-6 bg-[#171717] overflow-y-auto">
+        <nav className="flex flex-col gap-2 items-center">
           {mainNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
@@ -153,31 +151,26 @@ export default function Sidebar({ userInfo }: SidebarProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`relative flex items-center gap-md px-[10px] py-[8px] h-9 rounded-lg transition-colors text-label-sm font-semibold select-none group border-0 ${
+                className={`relative flex items-center justify-center size-12 rounded-[8px] transition-colors border-0 group ${
                   isActive
                     ? "bg-[#262626] text-white"
-                    : "text-neutral-400 hover:bg-[#1f1f1f] hover:text-white"
+                    : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
                 }`}
+                title={item.name}
               >
-                {/* Active Indicator Bar (Rectangle 1 from Figma specs) */}
-                {isActive && (
-                  <div className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-1 h-5 bg-[#7D52F4] rounded-r-md" />
-                )}
-
                 <Icon
-                  className={`size-5 shrink-0 transition-colors ${
+                  className={`size-6 shrink-0 transition-colors ${
                     isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                   }`}
                 />
-                <span className="truncate">{item.name}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* ─── Supporting Content Group (Pushes to bottom) ───────────────────── */}
-        <div className="mt-auto flex flex-col gap-sm">
-          <nav className="flex flex-col gap-sm">
+        <div className="mt-auto flex flex-col gap-6 items-center">
+          <nav className="flex flex-col gap-2 items-center">
             {supportNavItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -186,23 +179,18 @@ export default function Sidebar({ userInfo }: SidebarProps) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`relative flex items-center gap-md px-[10px] py-[8px] h-9 rounded-lg transition-colors text-label-sm font-semibold select-none group border-0 ${
+                  className={`relative flex items-center justify-center size-12 rounded-[8px] transition-colors border-0 group ${
                     isActive
                       ? "bg-[#262626] text-white"
-                      : "text-neutral-400 hover:bg-[#1f1f1f] hover:text-white"
+                      : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
                   }`}
+                  title={item.name}
                 >
-                  {/* Active Indicator Bar */}
-                  {isActive && (
-                    <div className="absolute left-[-12px] top-1/2 -translate-y-1/2 w-1 h-5 bg-[#7D52F4] rounded-r-md" />
-                  )}
-
                   <Icon
-                    className={`size-5 shrink-0 transition-colors ${
+                    className={`size-6 shrink-0 transition-colors ${
                       isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                     }`}
                   />
-                  <span className="truncate">{item.name}</span>
                 </Link>
               );
             })}
@@ -211,36 +199,19 @@ export default function Sidebar({ userInfo }: SidebarProps) {
       </div>
 
       {/* ─── Sidebar Footer [Sidebar] [1.1] ──────────────────────────────────── */}
-      <div className="h-[88px] w-full flex items-center justify-center px-xl border-t border-neutral-800 bg-[#171717] shrink-0">
+      <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] border-t border-[#262626]/20 shrink-0">
         {/* User Profile Card [Sidebar] [1.1] */}
-        <div className="w-[248px] h-[64px] rounded-lg border border-neutral-800 bg-[#171717] p-3 flex items-center justify-between gap-md select-none">
-          <div className="flex items-center gap-md min-w-0">
-            {/* Avatar [1.1] */}
-            <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-label-md flex items-center justify-center shrink-0">
-              {getInitials()}
-            </div>
-
-            {/* Text details */}
-            <div className="flex flex-col min-w-0">
-              <span className="text-label-sm font-semibold text-white truncate max-w-[120px]">
-                {getFullName()}
-              </span>
-              <span className="text-paragraph-xs text-neutral-400 truncate max-w-[120px]">
-                {getEmail()}
-              </span>
-            </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="size-16 rounded-[10px] border border-[#262626] bg-[#171717] flex items-center justify-center transition-colors hover:bg-[#262626] cursor-pointer"
+          title="Log Out (Click to logout)"
+        >
+          {/* Avatar [1.1] */}
+          <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center shrink-0">
+            {getInitials()}
           </div>
-
-          {/* Logout Button (replacing the right arrow button for functional logout) */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="size-7 rounded-md hover:bg-[#262626] flex items-center justify-center text-neutral-500 hover:text-white transition-colors border-0 bg-transparent cursor-pointer shrink-0"
-            title="Log Out"
-          >
-            <LogOut className="size-4" />
-          </button>
-        </div>
+        </button>
       </div>
     </aside>
   );
