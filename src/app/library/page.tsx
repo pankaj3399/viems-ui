@@ -258,11 +258,11 @@ export default function LibraryPage() {
                   <h4 className="text-subheading-2xs font-bold text-neutral-400 mb-lg">Typography System</h4>
                   <div className="flex flex-col gap-xl">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">
-                      <span className="text-h3-title text-neutral-900 dark:text-white">Title/H3 Title (Mona Sans)</span>
+                      <span className="text-h3-title text-neutral-900 dark:text-white">Title/H3 Title (Aeonik)</span>
                       <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 40px / line-height: 48px / weight: 600</span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">
-                      <span className="text-h5-title text-neutral-900 dark:text-white">Title/H5 Title (Mona Sans)</span>
+                      <span className="text-h5-title text-neutral-900 dark:text-white">Title/H5 Title (Aeonik)</span>
                       <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 24px / line-height: 32px / weight: 600</span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">

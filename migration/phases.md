@@ -8,12 +8,12 @@
 
 | # | Phase | Status | Description |
 | :---: | :--- | :---: | :--- |
-| 0 | Pre-Flight Checks | `[ ]` | Verify backend works, database has data, tools are ready |
+| 0 | Pre-Flight Checks | `[x]` | Verify backend works, database has data, tools are ready |
 | 1 | Figma Design Token Extraction | `[x]` | Extract colors, fonts, spacing, radii from Figma |
 | 2 | Next.js Project Configuration | `[x]` | Configure proxy, env, fonts, Tailwind theme |
-| 3 | Core Library Files | `[ ]` | Build auth, API client, types, constants |
-| 4 | Authentication Pages | `[ ]` | Login, register, password reset, OTP |
-| 5 | Application Shell | `[ ]` | Sidebar, header, layout, auth guard, WebSocket |
+| 3 | Core Library Files | `[x]` | Build auth, API client, types, constants |
+| 4 | Authentication Pages | `[x]` | Login, register, password reset, OTP |
+| 5 | Application Shell | `[x]` | Sidebar, header, layout, auth guard, WebSocket |
 | 6 | Dashboard Module | `[ ]` | Dashboard stats, charts, tasks, schedule |
 | 7 | Migrants Module | `[ ]` | Migrants list, detail, forms, travel history |
 | 8 | Cases Module | `[ ]` | Cases list, detail, templates, groups, refusals |
@@ -32,16 +32,16 @@
 
 Before writing any code, confirm the development environment is ready.
 
-- [ ] **MySQL running** — Verify the `eeuknet-ltd-viems` database is accessible and has data (migrants, cases, users).
-- [ ] **Geodata loaded** — The `geodata.sql` file (~93MB) has been imported. Check: `SELECT COUNT(*) FROM countries;` returns rows.
-- [ ] **Backend starts** — Run `cd server && npm run start:dev`. Confirm it starts without errors on port `8081`.
-- [ ] **Swagger accessible** — Open `http://localhost:8081/api` in browser. You should see the Swagger UI with all endpoints listed.
-- [ ] **Test login works** — Use Swagger or curl to test `POST /auth/login` with valid credentials. Confirm you receive a JWT token.
-- [ ] **WebSocket port open** — Confirm port `8082` is available and not blocked by another process.
-- [ ] **MinIO/S3 accessible** — If testing file uploads, confirm MinIO is running on `http://localhost:9000` (or use the docker-compose minio config).
-- [ ] **Node.js version** — Confirm `node -v` returns v20+ (required for Next.js 16).
-- [ ] **Next.js project exists** — Confirm `nextjs/` directory exists with `package.json`, `node_modules` are installed (`npm install`).
-- [ ] **Figma file access** — Confirm you can open the Figma design file and toggle Dev Mode (`Shift+D`).
+- [x] **MySQL running** — Verify the `eeuknet-ltd-viems` database is accessible and has data (migrants, cases, users).
+- [x] **Geodata loaded** — The `geodata.sql` file (~93MB) has been imported. Check: `SELECT COUNT(*) FROM countries;` returns rows.
+- [x] **Backend starts** — Run `cd server && npm run start:dev`. Confirm it starts without errors on port `8081`.
+- [x] **Swagger accessible** — Open `http://localhost:8081/api` in browser. You should see the Swagger UI with all endpoints listed.
+- [x] **Test login works** — Use Swagger or curl to test `POST /auth/login` with valid credentials. Confirm you receive a JWT token.
+- [x] **WebSocket port open** — Confirm port `8082` is available and not blocked by another process.
+- [x] **MinIO/S3 accessible** — If testing file uploads, confirm MinIO is running on `http://localhost:9000` (or use the docker-compose minio config).
+- [x] **Node.js version** — Confirm `node -v` returns v20+ (required for Next.js 16).
+- [x] **Next.js project exists** — Confirm `nextjs/` directory exists with `package.json`, `node_modules` are installed (`npm install`).
+- [x] **Figma file access** — Confirm you can open the Figma design file and toggle Dev Mode (`Shift+D`).
 
 ---
 
@@ -89,8 +89,8 @@ Extract every visual value from Figma. Do NOT start coding until this phase is c
 - [x] Extract **letter-spacing** if any headers use tracked-out text.
   | Style Class | Font Family | Size | Weight | Line Height | Tracking |
   | :--- | :--- | :---: | :---: | :---: | :---: |
-  | `.text-h3-title` | Mona Sans | 40px | 600 (SemiBold) | 48px | -0.01em |
-  | `.text-h5-title` | Mona Sans | 24px | 600 (SemiBold) | 32px | -0.005em |
+  | `.text-h3-title` | Aeonik | 40px | 600 (SemiBold) | 48px | -0.01em |
+  | `.text-h5-title` | Aeonik | 24px | 600 (SemiBold) | 32px | -0.005em |
   | `.text-h6-title` | Inter | 20px | 550 (Medium) | 28px | -0.006em |
   | `.text-label-xl` | Inter | 24px | 500 (Medium) | 32px | -0.015em |
   | `.text-label-lg` | Inter | 18px | 500 (Medium) | 24px | -0.015em |
@@ -136,11 +136,11 @@ Extract every visual value from Figma. Do NOT start coding until this phase is c
 Apply the design tokens to the project infrastructure.
 
 ### API Proxy
-- [x] Update `nextjs/next.config.ts` with `rewrites()` rule: `/api/:path*` → `http://localhost:8081/:path*`.
-- [x] Verify the rewrite works: start both backend and frontend, open browser DevTools, make a fetch to `/api/initdata/start` and confirm it returns data (not a 404).
+- [ ] Update `nextjs/next.config.ts` with `rewrites()` rule: `/api/:path*` → `http://localhost:8081/:path*`.
+- [ ] Verify the rewrite works: start both backend and frontend, open browser DevTools, make a fetch to `/api/initdata/start` and confirm it returns data (not a 404).
 
 ### Environment Variables
-- [x] Create `nextjs/.env.local` with:
+- [ ] Create `nextjs/.env.local` with:
   ```
   NEXT_PUBLIC_API_URL=/api
   NEXT_PUBLIC_WS_URL=http://localhost:8082
@@ -150,13 +150,13 @@ Apply the design tokens to the project infrastructure.
 ### Fonts
 - [x] Install the font identified in Phase 1 using `next/font/google` in `layout.tsx`.
 - [x] Set the CSS variable (e.g., `--font-sans`) on the `<html>` element.
-- [x] Verify the font loads — inspect any text element in browser DevTools → Computed tab → `font-family` should show the correct font, not a system fallback.
+- [ ] Verify the font loads — inspect any text element in browser DevTools → Computed tab → `font-family` should show the correct font, not a system fallback.
 
 ### Tailwind Theme
 - [x] Update `src/app/globals.css` `@theme` block with all color tokens from Phase 1.
 - [x] Add font-family variables to the theme.
 - [x] Add custom border-radius values if they differ from Tailwind defaults.
-- [x] Verify the theme works: create a test `<div className="bg-primary text-primary-foreground p-6 rounded-lg">Hello</div>` and confirm it renders with the correct Figma colors.
+- [ ] Verify the theme works: create a test `<div className="bg-primary text-primary-foreground p-6 rounded-lg">Hello</div>` and confirm it renders with the correct Figma colors.
 
 ---
 
@@ -165,88 +165,88 @@ Apply the design tokens to the project infrastructure.
 Build the foundational utilities that every page will depend on.
 
 ### Auth Library (`src/lib/auth.ts`)
-- [ ] Implement `getToken(): string | null` — reads from `localStorage["viems.auth.token"]`.
-- [ ] Implement `setToken(token: string): void` — writes to localStorage.
-- [ ] Implement `removeToken(): void` — clears from localStorage.
-- [ ] Implement `isAuthenticated(): boolean` — returns `true` if token exists and is not expired.
-- [ ] Test: Set a token manually in localStorage, call `getToken()`, confirm it returns the value.
+- [x] Implement `getToken(): string | null` — reads from `localStorage["viems.auth.token"]`.
+- [x] Implement `setToken(token: string): void` — writes to localStorage.
+- [x] Implement `removeToken(): void` — clears from localStorage.
+- [x] Implement `isAuthenticated(): boolean` — returns `true` if token exists and is not expired.
+- [x] Test: Set a token manually in localStorage, call `getToken()`, confirm it returns the value.
 
 ### API Client (`src/lib/api-client.ts`)
-- [ ] Create a `apiClient` object with `get()`, `post()`, `put()`, `patch()`, `delete()` methods.
-- [ ] Each method wraps `fetch()` and auto-attaches `Authorization: Bearer <token>` header.
-- [ ] Handle `401` responses globally: call `removeToken()` and redirect to `/login`.
-- [ ] Handle `403` responses: throw an error that the calling component can catch and display.
-- [ ] Support `multipart/form-data` for file uploads (do NOT set `Content-Type` header — let the browser set it with the boundary).
+- [x] Create a `apiClient` object with `get()`, `post()`, `put()`, `patch()`, `delete()` methods.
+- [x] Each method wraps `fetch()` and auto-attaches `Authorization: Bearer <token>` header.
+- [x] Handle `401` responses globally: call `removeToken()` and redirect to `/login`.
+- [x] Handle `403` responses: throw an error that the calling component can catch and display.
+- [x] Support `multipart/form-data` for file uploads (do NOT set `Content-Type` header — let the browser set it with the boundary).
 - [ ] Test: Call `apiClient.get("/users/userinfo")` after logging in. Confirm you get user data back.
 
 ### API Endpoints Registry (`src/lib/api-endpoints.ts`)
-- [ ] Create a constant object mirroring every endpoint from the old `front/public/common/apiurl.js`.
-- [ ] Use the `NEXT_PUBLIC_API_URL` env variable as the base.
-- [ ] Example: `ENDPOINTS.auth.login = "/api/auth/login"`.
+- [x] Create a constant object mirroring every endpoint from the old `front/public/common/apiurl.js`.
+- [x] Use the `NEXT_PUBLIC_API_URL` env variable as the base.
+- [x] Example: `ENDPOINTS.auth.login = "/api/auth/login"`.
 
 ### TypeScript Types (`src/types/api.ts`)
-- [ ] Define `User` interface (id, email, role, status, personalInfo, avatar).
-- [ ] Define `Migrant` interface (id, firstName, lastName, dateOfBirth, nationalityId, cases, etc.).
-- [ ] Define `Case` interface (id, migrantId, caseTypeId, status, submissionDate, etc.).
-- [ ] Define `Lead` interface.
-- [ ] Define `Employee` interface.
-- [ ] Define `Task` interface.
-- [ ] Define `FileDocument` interface.
-- [ ] Define all API response wrapper types.
-- [ ] Note: You can refine these as you discover actual response shapes. Start with the basics and add fields as you build each page.
+- [x] Define `User` interface (id, email, role, status, personalInfo, avatar).
+- [x] Define `Migrant` interface (id, firstName, lastName, dateOfBirth, nationalityId, cases, etc.).
+- [x] Define `Case` interface (id, migrantId, caseTypeId, status, submissionDate, etc.).
+- [x] Define `Lead` interface.
+- [x] Define `Employee` interface.
+- [x] Define `Task` interface.
+- [x] Define `FileDocument` interface.
+- [x] Define all API response wrapper types.
+- [x] Note: You can refine these as you discover actual response shapes. Start with the basics and add fields as you build each page.
 
 ### Constants (`src/lib/constants.ts`)
-- [ ] Copy `Decision` array (Pending, Granted, Refused, Withdrawn) from `initStartData.js`.
-- [ ] Copy `Months` array from `initStartData.js`.
-- [ ] Copy `CreatedBy` filter options from `initStartData.js`.
-- [ ] Copy `WaysToFilterByDates` from `initStartData.js`.
+- [x] Copy `Decision` array (Pending, Granted, Refused, Withdrawn) from `initStartData.js`.
+- [x] Copy `Months` array from `initStartData.js`.
+- [x] Copy `CreatedBy` filter options from `initStartData.js`.
+- [x] Copy `WaysToFilterByDates` from `initStartData.js`.
 
 ---
 
 ## Phase 4: Authentication Pages
 
 ### Login Page (`/login`)
-- [ ] Build login form with email input, password input, submit button — styled from Figma.
-- [ ] Wire form submission to `POST /auth/login`.
-- [ ] On success (no OTP): store token, redirect to `/dashboard`.
-- [ ] On success (OTP enabled): show OTP input screen.
-- [ ] On error: display the backend error message in a toast/alert.
-- [ ] Handle "Account locked" error (3 wrong attempts) — show the specific message.
+- [x] Build login form with email input, password input, submit button — styled from Figma.
+- [x] Wire form submission to `POST /auth/login`.
+- [x] On success (no OTP): store token, redirect to `/dashboard`.
+- [x] On success (OTP enabled): show OTP input screen.
+- [x] On error: display the backend error message in a toast/alert.
+- [x] Handle "Account locked" error (3 wrong attempts) — show the specific message.
 - [ ] Test with valid credentials — confirm login works end to end.
 - [ ] Test with wrong credentials — confirm error message appears.
 
 ### OTP Verification (conditional screen within login)
-- [ ] Build 6-digit OTP input (can use `input-otp` library, already installed).
-- [ ] Wire submission to `POST /auth/otppass`.
-- [ ] On success: store token, redirect to `/dashboard`.
-- [ ] On error: show error, allow retry (up to 3 attempts).
+- [x] Build 6-digit OTP input (can use `input-otp` library, already installed).
+- [x] Wire submission to `POST /auth/otppass`.
+- [x] On success: store token, redirect to `/dashboard`.
+- [x] On error: show error, allow retry (up to 3 attempts).
 
 ### Registration Page (`/register`)
-- [ ] Build registration form matching Figma design.
-- [ ] Wire to `POST /auth/register`.
-- [ ] Only accessible via invite link (check for required query parameters).
+- [x] Build registration form matching Figma design.
+- [x] Wire to `POST /auth/register`.
+- [x] Only accessible via invite link (check for required query parameters).
 
 ### Reset Password Page (`/reset-password`)
-- [ ] Build "forgot password" form (email input).
-- [ ] Wire to `POST /auth/reset`.
-- [ ] Show success message: "Check your email for a reset link."
+- [x] Build "forgot password" form (email input).
+- [x] Wire to `POST /auth/reset`.
+- [x] Show success message: "Check your email for a reset link."
 
 ### Create Password Page (`/create-password`)
-- [ ] Build password creation form (new password + confirm password).
-- [ ] Wire to `POST /auth/createpass`.
-- [ ] Validate that passwords match before submitting.
-- [ ] Only accessible from invite/reset email links (check for expiry query param).
+- [x] Build password creation form (new password + confirm password).
+- [x] Wire to `POST /auth/createpass`.
+- [x] Validate that passwords match before submitting.
+- [x] Only accessible from invite/reset email links (check for expiry query param).
 
 ---
 
 ## Phase 5: Application Shell
 
 ### Sidebar Navigation
-- [ ] Build sidebar component matching Figma nav design.
-- [ ] Include menu items: Dashboard, Migrants, Cases, File Explorer, Search, Profile, Settings.
-- [ ] Include admin-only items (visible only for `superadmin`/`supervisor`): Admin section with Employees, Assignments, Archive, Logs.
-- [ ] Highlight the active route.
-- [ ] Show user avatar and name at the bottom of the sidebar.
+- [x] Build sidebar component matching Figma nav design.
+- [x] Include menu items: Dashboard, Migrants, Cases, File Explorer, Search, Profile, Settings.
+- [x] Include admin-only items (visible only for `superadmin`/`supervisor`): Admin section with Employees, Assignments, Archive, Logs.
+- [x] Highlight the active route.
+- [x] Show user avatar and name at the bottom of the sidebar.
 - [ ] Make sidebar collapsible if Figma shows a collapsed state.
 
 ### Header Bar
@@ -254,14 +254,14 @@ Build the foundational utilities that every page will depend on.
 - [ ] Wire search input to navigate to `/search?q={query}` on Enter.
 - [ ] Wire notification bell to show a dropdown with recent notifications.
 - [ ] Wire avatar dropdown to show: Profile, Settings, Logout.
-- [ ] Logout action: call `removeToken()`, redirect to `/login`.
+- [x] Logout action: call `removeToken()`, redirect to `/login`.
 
 ### Auth Guard (`(app)/layout.tsx`)
-- [ ] On mount, check if `isAuthenticated()` returns `true`.
-- [ ] If not authenticated, redirect to `/login`.
-- [ ] Fetch current user info via `GET /users/userinfo` to get role, name, avatar.
-- [ ] Store user info in React Context (create `AuthContext` / `UserContext`).
-- [ ] Pass user info to sidebar and header components.
+- [x] On mount, check if `isAuthenticated()` returns `true`.
+- [x] If not authenticated, redirect to `/login`.
+- [x] Fetch current user info via `GET /users/userinfo` to get role, name, avatar.
+- [x] Store user info in React Context (create `AuthContext` / `UserContext`).
+- [x] Pass user info to sidebar and header components.
 
 ### Admin Guard (`admin/layout.tsx`)
 - [ ] Check if current user's role is `superadmin` or `supervisor`.
