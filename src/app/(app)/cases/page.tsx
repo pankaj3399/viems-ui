@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Filter,
@@ -173,6 +174,7 @@ const mockCases: CaseRow[] = [
 ];
 
 export default function CasesPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<"cases" | "groups" | "refusals">("cases");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
@@ -545,7 +547,8 @@ export default function CasesPage() {
               {filteredCases.map((row) => (
                 <div
                   key={row.caseId}
-                  className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all"
+                  onClick={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
+                  className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
                 >
                   <div className="basis-[70px] shrink-0 grow-0 font-medium text-[#5C5C5C] font-mono text-paragraph-sm">
                     {row.caseId}
