@@ -37,7 +37,24 @@ function mapBackendCaseToDetail(c: any) {
   const name = [c.migrant?.firstName, c.migrant?.lastName].filter(Boolean).join(" ") || c.migrant?.stageName || "Unknown Migrant";
   
   // Nationality mapping
-  const country = (c.migrant?.nationality?.value || "US").toUpperCase();
+  const nationalityToCountryCode: Record<string, string> = {
+    american: "US",
+    indian: "IN",
+    chinese: "CN",
+    french: "FR",
+    "south african": "SA",
+    british: "GB",
+    nepalese: "NP",
+    us: "US",
+    cn: "CN",
+    in: "IN",
+    fr: "FR",
+    sa: "SA",
+    za: "ZA",
+    gb: "GB",
+    np: "NP",
+  };
+  const country = (nationalityToCountryCode[c.migrant?.nationality?.value?.toLowerCase()] || c.migrant?.nationality?.value || "US").toUpperCase();
   const flagMap: Record<string, string> = {
     US: "🇺🇸",
     CN: "🇨🇳",

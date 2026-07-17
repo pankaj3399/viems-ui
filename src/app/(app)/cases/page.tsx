@@ -81,7 +81,24 @@ function mapBackendCaseToRow(c: any): CaseRow {
   }
 
   // Country flags mapping
-  const countryVal = (c.nationality_value || "US").toUpperCase();
+  const nationalityToCountryCode: Record<string, string> = {
+    american: "US",
+    indian: "IN",
+    chinese: "CN",
+    french: "FR",
+    "south african": "SA",
+    british: "GB",
+    nepalese: "NP",
+    us: "US",
+    cn: "CN",
+    in: "IN",
+    fr: "FR",
+    sa: "SA",
+    za: "ZA",
+    gb: "GB",
+    np: "NP",
+  };
+  const countryVal = (nationalityToCountryCode[c.nationality_value?.toLowerCase()] || c.nationality_value || "US").toUpperCase();
   const flagMap: Record<string, string> = {
     US: "🇺🇸",
     CN: "🇨🇳",
@@ -291,7 +308,7 @@ export default function CasesPage() {
     switch (country.toUpperCase()) {
       case "US":
         return (
-          <svg className="size-5 rounded-full border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
+          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
             <rect width="24" height="24" fill="#F0F0F0" />
             <rect y="1.8" width="24" height="1.8" fill="#D80027" />
             <rect y="5.4" width="24" height="1.8" fill="#D80027" />
@@ -312,7 +329,7 @@ export default function CasesPage() {
         );
       case "CN":
         return (
-          <svg className="size-5 rounded-full border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
+          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
             <rect width="24" height="24" fill="#D80027" />
             <polygon points="5,3 5.5,4.5 7,4.5 5.8,5.5 6.2,7 5,6 3.8,7 4.2,5.5 3,4.5 4.5,4.5" fill="#FFDA44" />
             <polygon points="9,2 9.2,2.6 9.8,2.6 9.3,3 9.5,3.6 9,3.2 8.5,3.6 8.7,3 8.2,2.6 8.8,2.6" fill="#FFDA44" transform="scale(0.8) translate(2, 0.5)" />
@@ -323,7 +340,7 @@ export default function CasesPage() {
         );
       case "IN":
         return (
-          <svg className="size-5 rounded-full border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
+          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
             <rect width="24" height="8" fill="#FF9933" />
             <rect y="8" width="24" height="8" fill="#FFFFFF" />
             <rect y="16" width="24" height="8" fill="#128807" />
@@ -333,7 +350,7 @@ export default function CasesPage() {
         );
       case "FR":
         return (
-          <svg className="size-5 rounded-full border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
+          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
             <rect width="8" height="24" fill="#002395" />
             <rect x="8" width="8" height="24" fill="#FFFFFF" />
             <rect x="16" width="8" height="24" fill="#ED2939" />
@@ -342,7 +359,7 @@ export default function CasesPage() {
       case "SA":
       case "ZA":
         return (
-          <svg className="size-5 rounded-full border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
+          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
             <rect width="24" height="24" fill="#E21C21" />
             <rect y="12" width="24" height="12" fill="#002395" />
             <path d="M0 0 L10 12 L0 24" fill="none" stroke="#FFFFFF" strokeWidth="3" />
