@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PageHeader } from "@/components/ui/page-header"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
 import { 
   Avatar, 
   AvatarImage, 
@@ -387,18 +388,18 @@ export default function LibraryPage() {
                       <div className="flex flex-col gap-lg">
                         <h4 className="text-subheading-2xs font-bold text-neutral-400">Interactive Radio Group</h4>
                         <RadioGroup defaultValue="option-1" className="flex flex-col gap-lg">
-                          <label className="flex items-center gap-lg cursor-pointer">
+                          <Label className="flex items-center gap-lg cursor-pointer">
                             <RadioGroupItem value="option-1" />
                             <span className="text-paragraph-sm font-medium text-neutral-800 dark:text-neutral-100">Option One (Selected)</span>
-                          </label>
-                          <label className="flex items-center gap-lg cursor-pointer">
+                          </Label>
+                          <Label className="flex items-center gap-lg cursor-pointer">
                             <RadioGroupItem value="option-2" />
                             <span className="text-paragraph-sm font-medium text-neutral-800 dark:text-neutral-100">Option Two</span>
-                          </label>
-                          <label className="flex items-center gap-lg cursor-not-allowed opacity-50">
+                          </Label>
+                          <Label className="flex items-center gap-lg cursor-not-allowed opacity-50">
                             <RadioGroupItem value="option-3" disabled />
                             <span className="text-paragraph-sm font-medium text-neutral-800 dark:text-neutral-100">Option Three (Disabled)</span>
-                          </label>
+                          </Label>
                         </RadioGroup>
                       </div>
                       <div className="flex flex-col gap-lg border-t md:border-t-0 md:border-l border-border pt-xl md:pt-0 md:pl-2xl">
@@ -739,14 +740,14 @@ export default function LibraryPage() {
                               key={c.id}
                               className="flex items-center justify-between px-xl py-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer"
                             >
-                              <label className="flex items-center gap-lg flex-1 cursor-pointer">
+                              <Label className="flex items-center gap-lg flex-1 cursor-pointer">
                                 <Checkbox 
                                   checked={!!selectedCountries[c.id]}
                                   onCheckedChange={(checked) => handleSelectCountry(c.id, !!checked)}
                                 />
                                 <FlagIcon />
                                 <span className="text-paragraph-sm text-neutral-800 dark:text-neutral-100">{c.name}</span>
-                              </label>
+                              </Label>
                               {c.count !== undefined && (
                                 <Badge variant="success" className="text-subheading-2xs px-xs bg-success-light text-success-dark rounded-full font-bold select-none h-4 min-w-4 justify-center">
                                   {c.count}
@@ -765,31 +766,34 @@ export default function LibraryPage() {
 
                     {/* Context Menu Actions Dropdown */}
                     <div className="w-[200px] border border-border rounded-input bg-card text-card-foreground shadow-custom-medium py-sm flex flex-col h-fit">
-                      <button 
+                      <Button 
+                        variant="ghost"
                         onClick={() => toast.info("Archiving case...")}
-                        className="flex items-center justify-between px-lg py-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-paragraph-sm text-neutral-800 dark:text-neutral-100 w-full cursor-pointer transition-colors"
+                        className="flex items-center justify-between px-lg py-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-paragraph-sm text-neutral-800 dark:text-neutral-100 w-full cursor-pointer transition-colors h-auto rounded-none"
                       >
                         <span className="flex items-center gap-sm">
                           <Archive className="size-4 text-neutral-400" />
                           Archive
                         </span>
                         <kbd className="text-subheading-2xs text-neutral-400 bg-neutral-50 dark:bg-neutral-800 border border-border px-xs rounded-compact">⌘1</kbd>
-                      </button>
-                      <button 
+                      </Button>
+                      <Button 
+                        variant="ghost"
                         onClick={() => toast.success("Uploading documents...")}
-                        className="flex items-center gap-sm px-lg py-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-paragraph-sm text-neutral-800 dark:text-neutral-100 w-full cursor-pointer transition-colors"
+                        className="flex items-center gap-sm px-lg py-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-paragraph-sm text-neutral-800 dark:text-neutral-100 w-full cursor-pointer transition-colors h-auto rounded-none justify-start"
                       >
                         <Upload className="size-4 text-neutral-400" />
                         Upload documents
-                      </button>
+                      </Button>
                       <span className="h-px bg-neutral-100 dark:bg-neutral-800 my-xs w-full" />
-                      <button 
+                      <Button 
+                        variant="ghost"
                         onClick={() => toast.error("Case deletion triggered.")}
-                        className="flex items-center gap-sm px-lg py-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-paragraph-sm text-error-dark w-full cursor-pointer font-medium transition-colors"
+                        className="flex items-center gap-sm px-lg py-sm text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 text-paragraph-sm text-error-dark w-full cursor-pointer font-medium transition-colors h-auto rounded-none justify-start"
                       >
                         <Trash2 className="size-4" />
                         Delete case
-                      </button>
+                      </Button>
                     </div>
 
                   </CardContent>
@@ -813,9 +817,9 @@ export default function LibraryPage() {
                           <h4 className="text-label-sm text-neutral-900 dark:text-neutral-100 font-medium truncate">Taylor Johnson</h4>
                           <p className="text-paragraph-xs text-neutral-400 truncate">AX Studios</p>
                         </div>
-                        <button className="p-xs hover:bg-neutral-50 rounded-compact text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 cursor-pointer">
+                        <Button variant="ghost" size="icon-xs" className="p-xs hover:bg-neutral-50 rounded-compact text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 cursor-pointer">
                           <MoreHorizontal className="size-5" />
-                        </button>
+                        </Button>
                       </div>
 
                       {/* Visa Status Row */}
@@ -832,12 +836,13 @@ export default function LibraryPage() {
                           <h4 className="text-label-sm text-neutral-900 dark:text-neutral-100 font-medium truncate">taylor_docs.pdf</h4>
                           <p className="text-paragraph-xs text-neutral-400 truncate">1.9 MB</p>
                         </div>
-                        <button 
+                        <Button 
+                          variant="brand-link"
                           onClick={() => toast.success("Downloading document...")}
-                          className="text-label-sm text-brand-medium hover:text-brand-dark hover:underline cursor-pointer"
+                          className="text-label-sm text-brand-medium hover:text-brand-dark hover:underline cursor-pointer p-0 h-auto"
                         >
                           Download
-                        </button>
+                        </Button>
                       </div>
 
                     </div>
