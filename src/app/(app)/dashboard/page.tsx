@@ -9,6 +9,8 @@ import {
   CalendarDays,
   CheckCircle2,
 } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
 export default function DashboardPage() {
   const currentDateStr = new Date().toLocaleDateString("en-US", {
@@ -18,32 +20,76 @@ export default function DashboardPage() {
     day: "numeric",
   });
 
+  const [stats, setStats] = React.useState<any>(null);
+  const [recentCases, setRecentCases] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let active = true;
+    async function loadStatsAndCases() {
+      try {
+        setLoading(true);
+        const [statsData, casesData] = await Promise.all([
+          apiClient.get<any>(ENDPOINTS.statistics.dashboard, {
+            params: { filter: "all" }
+          }),
+          apiClient.get<{ data: any[]; count: number }>(ENDPOINTS.cases.base, {
+            params: { take: "3", sort_by: "creation_date.DESC" }
+          })
+        ]);
+        if (active) {
+          setStats(statsData);
+          setRecentCases(casesData.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load dashboard statistics/cases:", err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    loadStatsAndCases();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center min-h-[400px] text-neutral-500 font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>
+        <p className="text-paragraph-sm font-medium">Loading dashboard stats...</p>
+      </div>
+    );
+  }
+
   const cardsData = [
     {
       title: "Total Working Cases",
-      value: "148",
-      description: "+12.4% from last month",
+      value: stats?.migrants?.active?.toString() || "0",
+      description: "Active visa cases in progress",
       icon: Briefcase,
       color: "text-[#7D52F4]",
     },
     {
-      title: "Active Migrants Profiles",
-      value: "1,204",
-      description: "64 active cases this week",
+      title: "Migrants In UK / Out UK",
+      value: `${stats?.migrants?.in || 0} / ${stats?.migrants?.out || 0}`,
+      description: "Based on travel history reports",
       icon: Users,
       color: "text-[#CAC0FF]",
     },
     {
-      title: "Tasks Completed",
-      value: "92%",
-      description: "+4% increase in completion speed",
+      title: "Expiring Visa Alerts (<14d)",
+      value: (stats?.leave?.expiring7Days + stats?.leave?.expiring14Days || 0).toString(),
+      description: "Visas expiring within two weeks",
       icon: CheckCircle2,
       color: "text-emerald-500",
     },
     {
-      title: "Upcoming Appointments",
-      value: "18",
-      description: "Next appointment scheduled at 10 AM",
+      title: "Urgent/High Priority Tasks",
+      value: stats?.tasksStats?.high?.toString() || "0",
+      description: "Requires immediate attention",
       icon: CalendarDays,
       color: "text-blue-500",
     },
@@ -123,28 +169,26 @@ export default function DashboardPage() {
               Live System Activity
             </CardTitle>
             <CardDescription className="text-paragraph-sm text-neutral-400">
-              Recent events across active agent assignments.
+              Recent case additions in the system.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-lg border-t border-neutral-100 pt-lg">
-            <div className="flex gap-md text-paragraph-xs">
-              <span className="text-neutral-400 select-none font-semibold">10:45 AM</span>
-              <span className="text-neutral-700 font-medium">
-                <strong>Sophia Williams</strong> assigned case <span className="text-[#7D52F4] font-semibold underline">#89204</span>
-              </span>
-            </div>
-            <div className="flex gap-md text-paragraph-xs">
-              <span className="text-neutral-400 select-none font-semibold">09:12 AM</span>
-              <span className="text-neutral-700 font-medium">
-                Migrant profile <strong>Juan Gomez</strong> updated by Agent 04
-              </span>
-            </div>
-            <div className="flex gap-md text-paragraph-xs">
-              <span className="text-neutral-400 select-none font-semibold">Yesterday</span>
-              <span className="text-neutral-700 font-medium">
-                System backup completed automatically in TZ UTC
-              </span>
-            </div>
+            {recentCases.length === 0 ? (
+              <p className="text-paragraph-xs text-neutral-400">No recent system activity.</p>
+            ) : (
+              recentCases.map((c, i) => {
+                const dateStr = c.creation_date ? new Date(c.creation_date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Recently";
+                const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown Migrant";
+                return (
+                  <div key={i} className="flex gap-md text-paragraph-xs">
+                    <span className="text-neutral-400 select-none font-semibold w-[80px] shrink-0">{dateStr}</span>
+                    <span className="text-neutral-700 font-medium truncate">
+                      Case <strong className="text-[#7D52F4] font-semibold underline">#{c.caseIdDisplay || c.caseNumber || c.id}</strong> added for <strong>{name}</strong>
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>

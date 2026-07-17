@@ -31,7 +31,7 @@ export default function AuthLayout({
       <main className="flex-1 flex flex-col mx-sm mb-sm rounded-card bg-[#F7F7F7] border border-neutral-200 overflow-hidden shadow-card-large min-h-[calc(100vh-80px-8px)]">
         {/* Children Container */}
         <div className="flex-1 flex flex-col items-center justify-start p-xl overflow-y-auto pt-[34px]">
-          <div className="w-full max-w-[440px] pb-xl">
+          <div className="w-full max-w-[440px] pb-xl flex-1 flex flex-col">
             {children}
           </div>
         </div>

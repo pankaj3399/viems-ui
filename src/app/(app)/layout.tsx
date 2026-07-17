@@ -16,6 +16,22 @@ export default function ProtectedAppLayout({
   const router = useRouter();
   const [isChecking, setIsChecking] = React.useState(true);
   const [userInfo, setUserInfo] = React.useState<any>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem("viems-sidebar-open");
+    if (stored !== null) {
+      setIsSidebarOpen(stored === "true");
+    }
+  }, []);
+
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem("viems-sidebar-open", String(next));
+      return next;
+    });
+  };
 
   React.useEffect(() => {
     // 1. Client-side Authentication Check
@@ -68,7 +84,7 @@ export default function ProtectedAppLayout({
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#171717] font-sans select-none">
       {/* Sidebar Navigation */}
-      <Sidebar userInfo={userInfo} />
+      <Sidebar userInfo={userInfo} isOpen={isSidebarOpen} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 pr-sm pb-sm pt-0">
@@ -77,8 +93,9 @@ export default function ProtectedAppLayout({
           {/* Left side: Sidebar Collapse Toggle Button */}
           <button
             type="button"
+            onClick={handleToggleSidebar}
             className="size-12 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
-            title="Toggle Sidebar"
+            title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
           >
             <svg
               width="20"

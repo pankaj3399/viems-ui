@@ -43,9 +43,10 @@ interface SidebarProps {
       value?: string;
     } | null;
   } | null;
+  isOpen?: boolean;
 }
 
-export default function Sidebar({ userInfo }: SidebarProps) {
+export default function Sidebar({ userInfo, isOpen = true }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -130,19 +131,41 @@ export default function Sidebar({ userInfo }: SidebarProps) {
   };
 
   return (
-    <aside className="w-20 h-full flex flex-col bg-[#171717] rounded-[16px] text-white select-none shrink-0 font-sans">
+    <aside
+      className={`h-full flex flex-col bg-[#171717] rounded-[16px] text-white select-none shrink-0 font-sans overflow-hidden transition-all duration-300 ease-in-out ${
+        isOpen ? "w-64" : "w-20"
+      }`}
+    >
       {/* ─── Sidebar Header [Sidebar] [1.1] ──────────────────────────────────── */}
-      <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] shrink-0">
+      <div
+        className={`h-[88px] w-full flex items-center bg-[#171717] shrink-0 transition-all duration-300 ${
+          isOpen ? "px-6 justify-start gap-3" : "justify-center"
+        }`}
+      >
         {/* Header Card [Sidebar] [1.0] */}
-        <div className="size-16 rounded-[10px] bg-[#171717] flex items-center justify-center">
-          {/* Synergy Logo Icon */}
-          <div className="size-10 rounded-full bg-[#262626] shrink-0" />
-        </div>
+        <div className="size-10 rounded-full bg-[#262626] shrink-0" />
+        <span
+          className={`text-title-aeonik text-white whitespace-nowrap transition-all duration-300 ${
+            isOpen
+              ? "opacity-100 translate-x-0"
+              : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+          }`}
+        >
+          Viems
+        </span>
       </div>
 
       {/* ─── Content Navigation Group ────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col items-center py-6 gap-6 bg-[#171717] overflow-y-auto">
-        <nav className="flex flex-col gap-2 items-center">
+      <div
+        className={`flex-1 flex flex-col py-6 gap-6 bg-[#171717] overflow-y-auto transition-all duration-300 ${
+          isOpen ? "items-stretch" : "items-center"
+        }`}
+      >
+        <nav
+          className={`flex flex-col gap-2 transition-all duration-300 ${
+            isOpen ? "items-start px-6" : "items-center"
+          }`}
+        >
           {mainNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
@@ -151,7 +174,9 @@ export default function Sidebar({ userInfo }: SidebarProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`relative flex items-center justify-center size-12 rounded-[8px] transition-colors border-0 group ${
+                className={`relative flex items-center rounded-[8px] transition-all duration-300 border-0 group ${
+                  isOpen ? "w-[208px] h-12 px-4 justify-start gap-3" : "size-12 justify-center"
+                } ${
                   isActive
                     ? "bg-[#262626] text-white"
                     : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
@@ -163,14 +188,31 @@ export default function Sidebar({ userInfo }: SidebarProps) {
                     isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                   }`}
                 />
+                <span
+                  className={`text-paragraph-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                    isOpen
+                      ? "opacity-100 translate-x-0"
+                      : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+                  }`}
+                >
+                  {item.name}
+                </span>
               </Link>
             );
           })}
         </nav>
 
         {/* ─── Supporting Content Group (Pushes to bottom) ───────────────────── */}
-        <div className="mt-auto flex flex-col gap-6 items-center">
-          <nav className="flex flex-col gap-2 items-center">
+        <div
+          className={`mt-auto flex flex-col gap-6 transition-all duration-300 ${
+            isOpen ? "items-stretch" : "items-center"
+          }`}
+        >
+          <nav
+            className={`flex flex-col gap-2 transition-all duration-300 ${
+              isOpen ? "items-start px-6" : "items-center"
+            }`}
+          >
             {supportNavItems.map((item) => {
               const isActive = pathname === item.href;
               const Icon = item.icon;
@@ -179,7 +221,9 @@ export default function Sidebar({ userInfo }: SidebarProps) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`relative flex items-center justify-center size-12 rounded-[8px] transition-colors border-0 group ${
+                  className={`relative flex items-center rounded-[8px] transition-all duration-300 border-0 group ${
+                    isOpen ? "w-[208px] h-12 px-4 justify-start gap-3" : "size-12 justify-center"
+                  } ${
                     isActive
                       ? "bg-[#262626] text-white"
                       : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
@@ -191,6 +235,15 @@ export default function Sidebar({ userInfo }: SidebarProps) {
                       isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                     }`}
                   />
+                  <span
+                    className={`text-paragraph-sm font-medium whitespace-nowrap transition-all duration-300 ${
+                      isOpen
+                        ? "opacity-100 translate-x-0"
+                        : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+                    }`}
+                  >
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}
@@ -204,12 +257,28 @@ export default function Sidebar({ userInfo }: SidebarProps) {
         <button
           type="button"
           onClick={handleLogout}
-          className="size-16 rounded-[10px] border border-[#262626] bg-[#171717] flex items-center justify-center transition-colors hover:bg-[#262626] cursor-pointer"
+          className={`rounded-[10px] border border-[#262626] bg-[#171717] flex items-center transition-all duration-300 hover:bg-[#262626] cursor-pointer ${
+            isOpen ? "w-[208px] h-16 px-3 justify-start gap-3" : "size-16 justify-center"
+          }`}
           title="Log Out (Click to logout)"
         >
           {/* Avatar [1.1] */}
           <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center shrink-0">
             {getInitials()}
+          </div>
+          <div
+            className={`flex flex-col items-start text-left min-w-0 transition-all duration-300 ${
+              isOpen
+                ? "opacity-100 translate-x-0"
+                : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+            }`}
+          >
+            <span className="font-sans text-paragraph-sm font-semibold text-white truncate w-full">
+              {getFullName()}
+            </span>
+            <span className="text-paragraph-xs text-neutral-400 truncate w-full">
+              {getEmail()}
+            </span>
           </div>
         </button>
       </div>

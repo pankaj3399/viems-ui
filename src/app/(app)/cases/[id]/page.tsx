@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +22,9 @@ import {
   GitBranch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
 // -- CasesIcon (same as sidebar) --
 const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -30,69 +33,119 @@ const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 );
 
-// -- Mock Data --
-const migrant = {
-  id: "430",
-  name: "Taylor Johnson",
-  employer: "AX Studios",
-  caseId: "#430/2026",
-  cosRef: "COS 2026-00430",
-  avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
-  visaStatus: "VISA ACTIVE",
-  location: "IN UK",
-  approvalStatus: "VISA APPROVED",
-  personalInfo: {
-    fullName: "Taylor Johnson",
-    gender: "Male",
-    dob: "14 Jun 1990",
-    nationality: "US",
-    nationalityFlag: "🇺🇸",
-    employer: "AX Studios",
-    jobTitle: "Singer",
-    address: ["742 Evergreen Terrace", "Los Angeles", "CA 90026"],
-  },
-  passport: {
-    number: "LQ41932345",
-    issueDate: "22 Nov 2022",
-    expiryDate: "22 Nov 2027",
-  },
-  cos: {
-    status: "ASSIGNED",
-    reference: "COS2026-00430",
-    salary: "$48,000",
-    startDate: "15 Mar 2026",
-    socCode: "3416 — Arts / Ent...",
-  },
-  visa: {
-    daysLeft: 325,
-    totalDays: 365 + 16, // ~381 days total
-    startDate: "15 Mar 2026",
-    endDate: "31 Mar 2027",
-    renewalWindow: "Starts Jan 2027",
-    visaType: "Creative Worker",
-  },
-  timeline: [
-    { icon: "note", title: "Phone call with Taylor", by: "Nathan Wood", time: "TODAY, 01:12 PM" },
-    { icon: "task", title: "Action created; Complete RTW...", by: "System", time: "TODAY, 01:12 PM" },
-    { icon: "migration", title: "Migration status: In the UK", by: "System", time: "23 MAR, 09:30 AM" },
-  ],
-  priorityActions: [
-    { color: "#E54D2E", title: "Complete RTW check", desc: "No share code result uploaded. Needed for right to work verification." },
-    { color: "#F59E0B", title: "Upload Migrant Signed Docs (MSDs)", desc: "Upload documents that have been reviewed and signed by the migrant." },
-    { color: "#3B82F6", title: "Plan visa renewal", desc: "Visa expires 31 Mar 2027. Renewal window opens in approximately 10 months." },
-  ],
-  compliance: {
-    percentage: 75,
-    tasks: 3,
-    docs: 4,
-    items: [
-      { icon: "error", label: "Right to work check" },
-      { icon: "error", label: "Documents" },
-      { icon: "success", label: "Salary" },
-      { icon: "bell", label: "SMS reports", extra: "None yet" },
+function mapBackendCaseToDetail(c: any) {
+  const name = [c.migrant?.firstName, c.migrant?.lastName].filter(Boolean).join(" ") || c.migrant?.stageName || "Unknown Migrant";
+  
+  // Nationality mapping
+  const country = (c.migrant?.nationality?.value || "US").toUpperCase();
+  const flagMap: Record<string, string> = {
+    US: "🇺🇸",
+    CN: "🇨🇳",
+    IN: "🇮🇳",
+    FR: "🇫🇷",
+    SA: "🇿🇦",
+    ZA: "🇿🇦",
+    GB: "🇬🇧",
+    NP: "🇳🇵",
+  };
+  const nationalityFlag = flagMap[country] || "🇺🇸";
+
+  // Visa Status
+  let visaStatus = "VISA INACTIVE";
+  const visaEndDate = c.decision?.granted?.visaEndDate;
+  if (visaEndDate) {
+    const end = new Date(visaEndDate);
+    if (end > new Date()) {
+      visaStatus = "VISA ACTIVE";
+    }
+  }
+
+  // Location
+  let location = "OUTSIDE UK";
+  if (c.flightEntered?.isEntered) {
+    location = "IN UK";
+  }
+
+  // Case status / Approval Status
+  let approvalStatus = "PENDING";
+  if (c.decision?.id === "Granted") {
+    approvalStatus = "VISA APPROVED";
+  } else if (c.decision?.id === "Refused") {
+    approvalStatus = "VISA REFUSED";
+  }
+
+  // Calculate days left
+  let daysLeft = 0;
+  let totalDays = 365;
+  if (c.decision?.granted?.visaStartDate && c.decision?.granted?.visaEndDate) {
+    const start = new Date(c.decision.granted.visaStartDate);
+    const end = new Date(c.decision.granted.visaEndDate);
+    totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    daysLeft = Math.max(0, Math.ceil((end.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+  }
+
+  return {
+    id: c.id.toString(),
+    name,
+    employer: c.personal?.groupName || "Unknown Employer",
+    caseId: c.caseIdNumber && c.relatedYear ? `#${c.caseIdNumber}/${c.relatedYear}` : c.caseNumber || `#${c.id}`,
+    cosRef: c.cosStatus?.assigned?.cosNumber || "N/A",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+    visaStatus,
+    location,
+    approvalStatus,
+    personalInfo: {
+      fullName: name,
+      gender: c.migrant?.gender || "Male",
+      dob: c.migrant?.dateOfBirth || "N/A",
+      nationality: country,
+      nationalityFlag,
+      employer: c.personal?.groupName || "N/A",
+      jobTitle: c.personal?.jobTitle || "N/A",
+      address: c.migrant?.contacts?.address_line_1 
+        ? [c.migrant.contacts.address_line_1, c.migrant.contacts.city, c.migrant.contacts.zip_code].filter(Boolean)
+        : ["No address provided"],
+    },
+    passport: {
+      number: c.migrant?.passportNumber || "N/A",
+      issueDate: c.migrant?.issuePassportDate || "N/A",
+      expiryDate: c.migrant?.expiredPassportDate || "N/A",
+    },
+    cos: {
+      status: c.cosStatus?.id || "N/A",
+      reference: c.cosStatus?.assigned?.cosNumber || "N/A",
+      salary: c.personal?.jobPay || "N/A",
+      startDate: c.cosStatus?.assigned?.assignedDate || "N/A",
+      socCode: "N/A",
+    },
+    visa: {
+      daysLeft,
+      totalDays,
+      startDate: c.decision?.granted?.visaStartDate || "N/A",
+      endDate: c.decision?.granted?.visaEndDate || "N/A",
+      renewalWindow: "Starts " + (c.decision?.granted?.visaEndDate ? new Date(new Date(c.decision.granted.visaEndDate).setMonth(new Date(c.decision.granted.visaEndDate).getMonth() - 2)).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "N/A"),
+      visaType: "Creative Worker",
+    },
+    timeline: [
+      { icon: "task", title: "Case created in the system", by: "System", time: c.creation_date || "N/A" }
     ],
-  },
-};
+    priorityActions: c.decision?.id === "Refused" ? [
+      { color: "#E54D2E", title: "Visa refused", desc: "The visa application was refused by UKVI." }
+    ] : [
+      { color: "#3B82F6", title: "Case created", desc: "No critical actions pending." }
+    ],
+    compliance: {
+      percentage: c.decision?.id === "Granted" ? 100 : 50,
+      notes: 0,
+      tasks: 0,
+      docs: c.documents?.length || 0,
+      items: [
+        { icon: c.decision?.id === "Granted" ? "success" : "error", label: "Visa outcome" },
+        { icon: "success", label: "Salary" },
+      ],
+    },
+  };
+}
 
 const tabs = [
   { label: "Overview", icon: LayoutGrid },
@@ -121,13 +174,16 @@ function SectionHeader({ title, badge, action }: { title: string; badge?: React.
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-sm">
-        <h2 className="font-sans text-[20px] font-medium text-[#171717] leading-[32px]">{title}</h2>
+        <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">{title}</h2>
         {badge}
       </div>
       {action && (
-        <button className="text-[14px] font-medium text-[#5C5C5C] tracking-[-0.006em] hover:text-[#171717] transition-colors cursor-pointer bg-transparent border-0 p-0">
+        <Button
+          variant="link"
+          className="text-[14px] font-medium text-[#5C5C5C] tracking-[-0.006em] hover:text-[#171717] p-0 h-auto cursor-pointer"
+        >
           {action}
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -186,7 +242,55 @@ function DonutChart({ percentage }: { percentage: number }) {
 
 export default function MigrantOverviewPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id as string;
   const [activeTab, setActiveTab] = React.useState("Overview");
+
+  const [migrant, setMigrant] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!id) return;
+    let active = true;
+    async function loadCaseDetail() {
+      try {
+        setLoading(true);
+        const response = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
+        if (active) {
+          const detail = mapBackendCaseToDetail(response);
+          setMigrant(detail);
+        }
+      } catch (err) {
+        console.error("Failed to fetch case detail:", err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    loadCaseDetail();
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center min-h-[400px] text-neutral-500 font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>
+        <p className="text-paragraph-sm font-medium">Loading migrant profile...</p>
+      </div>
+    );
+  }
+
+  if (!migrant) {
+    return (
+      <div className="w-full flex items-center justify-center min-h-[400px] text-neutral-500 font-sans">
+        <p className="text-paragraph-sm font-medium">Migrant profile not found.</p>
+      </div>
+    );
+  }
+
   const visaProgress = ((migrant.visa.totalDays - migrant.visa.daysLeft) / migrant.visa.totalDays) * 100;
 
   return (
@@ -216,7 +320,7 @@ export default function MigrantOverviewPage() {
             <div className="flex flex-col gap-xs flex-1 min-w-0">
               {/* Name Row */}
               <div className="flex items-center gap-[9px]">
-                <h1 className="text-[24px] font-medium leading-[32px] text-[#171717] font-sans">{migrant.name}</h1>
+                <h1 className="text-title-aeonik text-[#171717]">{migrant.name}</h1>
                 <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
                   {migrant.visaStatus}
                 </Badge>
@@ -248,15 +352,23 @@ export default function MigrantOverviewPage() {
             </div>
 
             {/* Edit Button */}
-            <button className="h-9 px-sm bg-[#F5F5F5] rounded-[8px] flex items-center gap-xs cursor-pointer hover:bg-neutral-200 transition-colors border-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="h-9 px-sm bg-[#F5F5F5] rounded-[8px] flex items-center gap-xs cursor-pointer hover:bg-neutral-200 transition-colors border-0"
+            >
               <Pencil className="size-5 text-[#5C5C5C]" />
               <span className="text-[14px] font-medium text-[#5C5C5C] tracking-[-0.006em] px-xs">Edit</span>
-            </button>
+            </Button>
 
             {/* More Button */}
-            <button className="size-9 bg-[#F5F5F5] rounded-input flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0">
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              className="size-9 bg-[#F5F5F5] rounded-input flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
+            >
               <MoreVertical className="size-5 text-[#5C5C5C]" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -266,10 +378,11 @@ export default function MigrantOverviewPage() {
             const Icon = tab.icon;
             const isActive = activeTab === tab.label;
             return (
-              <button
+              <Button
                 key={tab.label}
+                variant="ghost"
                 onClick={() => setActiveTab(tab.label)}
-                className={`h-full flex items-center gap-[6px] border-b-2 text-[14px] font-medium tracking-[-0.006em] transition-all cursor-pointer bg-transparent border-t-0 border-l-0 border-r-0 px-0 pb-0 pt-0 ${
+                className={`h-full flex items-center gap-[6px] border-b-2 text-[14px] font-medium tracking-[-0.006em] transition-all cursor-pointer rounded-none bg-transparent border-t-0 border-l-0 border-r-0 px-0 pb-0 pt-0 hover:bg-transparent ${
                   isActive
                     ? "border-[#171717] text-[#171717]"
                     : "border-transparent text-[#5C5C5C] hover:text-[#171717]"
@@ -277,7 +390,7 @@ export default function MigrantOverviewPage() {
               >
                 <Icon className="size-5" />
                 <span>{tab.label}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -297,22 +410,34 @@ export default function MigrantOverviewPage() {
                 alt={migrant.name}
                 className="size-20 rounded-full object-cover mb-xl"
               />
-              <h3 className="text-[24px] font-medium text-[#171717] font-sans leading-[32px] mb-xs">{migrant.name}</h3>
+              <h3 className="text-title-aeonik text-[#171717] mb-xs">{migrant.name}</h3>
               <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] mb-lg">{migrant.employer}</span>
               <Badge variant="success" withDot className="h-5 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px] mb-2xl">
                 {migrant.visaStatus}
               </Badge>
               {/* Action Buttons */}
               <div className="flex items-center gap-sm">
-                <button className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0">
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
+                >
                   <Upload className="size-5 text-[#5C5C5C]" />
-                </button>
-                <button className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0">
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon-sm"
+                  className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
+                >
                   <ClipboardList className="size-5 text-[#5C5C5C]" />
-                </button>
-                <button className="size-8 bg-[#171717] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-800 transition-colors border-0">
+                </Button>
+                <Button
+                  variant="primary-neutral"
+                  size="icon-sm"
+                  className="size-8 rounded-[8px] flex items-center justify-center cursor-pointer transition-colors border-0"
+                >
                   <StickyNote className="size-5 text-white" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -366,7 +491,7 @@ export default function MigrantOverviewPage() {
               <SectionHeader title="Timeline" action="View all" />
               <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
                 <div className="flex flex-col gap-xl">
-                  {migrant.timeline.map((item, i) => (
+                  {migrant.timeline.map((item: any, i: number) => (
                     <div key={i} className="flex items-start gap-lg">
                       <TimelineIcon type={item.icon} />
                       <div className="flex flex-col gap-[2px] pt-[6px] min-w-0">
@@ -404,7 +529,7 @@ export default function MigrantOverviewPage() {
               <KVRow label="Job Title" value={migrant.personalInfo.jobTitle} />
               <KVRow label="Address">
                 <div className="flex flex-col items-end">
-                  {migrant.personalInfo.address.map((line, i) => (
+                  {migrant.personalInfo.address.map((line: any, i: number) => (
                     <span key={i} className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-5">{line}</span>
                   ))}
                 </div>
@@ -463,7 +588,7 @@ export default function MigrantOverviewPage() {
 
               {/* Action Items */}
               <div className="flex flex-col gap-sm">
-                {migrant.priorityActions.map((action, i) => (
+                {migrant.priorityActions.map((action: any, i: number) => (
                   <button
                     key={i}
                     className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex items-start gap-lg cursor-pointer hover:shadow-custom-medium transition-all text-left w-full"
@@ -495,7 +620,7 @@ export default function MigrantOverviewPage() {
 
                 {/* Compliance Items */}
                 <div className="flex flex-col">
-                  {migrant.compliance.items.map((item, i) => (
+                  {migrant.compliance.items.map((item: any, i: number) => (
                     <div key={i} className="flex items-center gap-lg py-lg border-t border-[#F5F5F5] first:border-t-0">
                       <ComplianceIcon type={item.icon} />
                       <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] flex-1">{item.label}</span>

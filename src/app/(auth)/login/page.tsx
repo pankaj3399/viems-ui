@@ -200,145 +200,147 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full flex flex-col">
+    <div className="w-full flex-1 flex flex-col">
       {/* ─── STATE 1: Standard Login Card ────────────────────────────────────── */}
       {viewState === "login" && (
-        <Card className="border-border bg-white text-card-foreground shadow-card-large p-xl rounded-card border border-neutral-200">
-          <CardHeader className="text-center pb-md">
-            <CardTitle className="text-h5-title font-bold tracking-tight text-neutral-900">
-              Log in to Viems
-            </CardTitle>
-            <CardDescription className="text-paragraph-sm text-neutral-400">
-              Enter your details to login.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLoginSubmit} className="flex flex-col gap-xl">
-              {/* Social Login Buttons */}
-              <div className="flex gap-md w-full">
-                <Button
-                  type="button"
-                  className="flex-1 flex items-center justify-center gap-xs bg-black !text-white hover:bg-neutral-900 h-10 rounded-button text-label-sm font-semibold border-0 transition-colors cursor-pointer"
-                  disabled={isLoading}
-                >
-                  <svg width="13" height="15" viewBox="0 0 13 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M10.2005 7.96903C10.2216 10.239 12.1919 10.9944 12.2137 11.004C12.1971 11.0573 11.8989 12.0805 11.1757 13.1374C10.5505 14.0512 9.90163 14.9616 8.87947 14.9805C7.87509 14.999 7.55213 14.3849 6.40384 14.3849C5.25591 14.3849 4.89708 14.9616 3.94633 14.999C2.95968 15.0364 2.20834 14.0109 1.57798 13.1005C0.289852 11.2382 -0.694542 7.83808 0.62725 5.54296C1.28389 4.40319 2.45735 3.68144 3.73104 3.66293C4.6999 3.64445 5.61436 4.31475 6.20666 4.31475C6.79859 4.31475 7.90986 3.50866 9.07812 3.62704C9.5672 3.6474 10.9401 3.8246 11.8216 5.11495C11.7506 5.15898 10.1835 6.07125 10.2005 7.96903ZM8.31293 2.39498C8.83675 1.76092 9.1893 0.878249 9.09312 0C8.33808 0.0303463 7.42507 0.503138 6.88349 1.13685C6.39814 1.69803 5.97308 2.59623 6.08777 3.4571C6.92935 3.52221 7.78909 3.02944 8.31293 2.39498Z" fill="white"/>
-                  </svg>
-                  Log In with Apple
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1 flex items-center justify-center gap-xs bg-[#F14336] !text-white hover:bg-[#d83529] h-10 rounded-button text-label-sm font-semibold border-0 transition-colors cursor-pointer"
-                  disabled={isLoading}
-                >
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M10.1531 8.63647V11.541H14.2718C14.091 12.4751 13.5482 13.2661 12.7342 13.7979L15.218 15.6866C16.6651 14.3775 17.5 12.4547 17.5 10.1706C17.5 9.63884 17.4513 9.12742 17.3609 8.63656L10.1531 8.63647Z" fill="white"/>
-                    <path d="M3.32103 6.63867C2.79926 7.64773 2.50012 8.78639 2.50012 10C2.50012 11.2136 2.79926 12.3523 3.32103 13.3613C3.32103 13.3681 5.86747 11.425 5.86747 11.425C5.71441 10.975 5.62394 10.4977 5.62394 9.99993C5.62394 9.50214 5.71441 9.02489 5.86747 8.57489L3.32103 6.63867Z" fill="white"/>
-                    <path d="M10.153 5.48638C11.2801 5.48638 12.2819 5.86819 13.082 6.60457L15.2736 4.45685C13.9447 3.24323 12.2194 2.5 10.153 2.5C7.16135 2.5 4.5802 4.1841 3.32092 6.63866L5.86728 8.57504C6.47254 6.80229 8.1632 5.48638 10.153 5.48638Z" fill="white"/>
-                    <path d="M5.86399 11.4277L5.30381 11.848L3.32092 13.3616C4.5802 15.8093 7.1612 17.5003 10.1528 17.5003C12.2191 17.5003 13.9515 16.8321 15.2178 15.6866L12.734 13.798C12.0522 14.248 11.1825 14.5207 10.1528 14.5207C8.16304 14.5207 6.47245 13.2048 5.86712 11.4321L5.86399 11.4277Z" fill="white"/>
-                  </svg>
-                  Log In with Google
-                </Button>
-              </div>
-
-              {/* OR Separator */}
-              <div className="flex items-center gap-sm text-neutral-400 text-label-xs font-semibold select-none">
-                <div className="h-[1px] bg-neutral-200 flex-1" />
-                OR
-                <div className="h-[1px] bg-neutral-200 flex-1" />
-              </div>
-
-              <Field>
-                <FieldLabel className="text-label-sm font-semibold text-neutral-800">
-                  Email Address
-                </FieldLabel>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="name@company.com"
-                    className="pl-10 rounded-input border-neutral-200 focus-visible:border-neutral-900 focus-visible:shadow-important-focus w-full"
+        <div className="flex-1 flex flex-col justify-center pb-30">
+          <Card className="border-border bg-white text-card-foreground shadow-card-large p-xl rounded-card border border-neutral-200">
+            <CardHeader className="text-center pb-md">
+              <CardTitle className="text-h5-title font-bold tracking-tight text-neutral-900">
+                Log in to Viems
+              </CardTitle>
+              <CardDescription className="text-paragraph-sm text-neutral-400">
+                Enter your details to login.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleLoginSubmit} className="flex flex-col gap-xl">
+                {/* Social Login Buttons */}
+                <div className="flex gap-md w-full">
+                  <Button
+                    type="button"
+                    className="flex-1 flex items-center justify-center gap-xs bg-black !text-white hover:bg-neutral-900 h-10 rounded-button text-label-sm font-semibold border-0 transition-colors cursor-pointer"
                     disabled={isLoading}
-                  />
+                  >
+                    <svg width="13" height="15" viewBox="0 0 13 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10.2005 7.96903C10.2216 10.239 12.1919 10.9944 12.2137 11.004C12.1971 11.0573 11.8989 12.0805 11.1757 13.1374C10.5505 14.0512 9.90163 14.9616 8.87947 14.9805C7.87509 14.999 7.55213 14.3849 6.40384 14.3849C5.25591 14.3849 4.89708 14.9616 3.94633 14.999C2.95968 15.0364 2.20834 14.0109 1.57798 13.1005C0.289852 11.2382 -0.694542 7.83808 0.62725 5.54296C1.28389 4.40319 2.45735 3.68144 3.73104 3.66293C4.6999 3.64445 5.61436 4.31475 6.20666 4.31475C6.79859 4.31475 7.90986 3.50866 9.07812 3.62704C9.5672 3.6474 10.9401 3.8246 11.8216 5.11495C11.7506 5.15898 10.1835 6.07125 10.2005 7.96903ZM8.31293 2.39498C8.83675 1.76092 9.1893 0.878249 9.09312 0C8.33808 0.0303463 7.42507 0.503138 6.88349 1.13685C6.39814 1.69803 5.97308 2.59623 6.08777 3.4571C6.92935 3.52221 7.78909 3.02944 8.31293 2.39498Z" fill="white"/>
+                    </svg>
+                    Log In with Apple
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 flex items-center justify-center gap-xs bg-[#F14336] !text-white hover:bg-[#d83529] h-10 rounded-button text-label-sm font-semibold border-0 transition-colors cursor-pointer"
+                    disabled={isLoading}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10.1531 8.63647V11.541H14.2718C14.091 12.4751 13.5482 13.2661 12.7342 13.7979L15.218 15.6866C16.6651 14.3775 17.5 12.4547 17.5 10.1706C17.5 9.63884 17.4513 9.12742 17.3609 8.63656L10.1531 8.63647Z" fill="white"/>
+                      <path d="M3.32103 6.63867C2.79926 7.64773 2.50012 8.78639 2.50012 10C2.50012 11.2136 2.79926 12.3523 3.32103 13.3613C3.32103 13.3681 5.86747 11.425 5.86747 11.425C5.71441 10.975 5.62394 10.4977 5.62394 9.99993C5.62394 9.50214 5.71441 9.02489 5.86747 8.57489L3.32103 6.63867Z" fill="white"/>
+                      <path d="M10.153 5.48638C11.2801 5.48638 12.2819 5.86819 13.082 6.60457L15.2736 4.45685C13.9447 3.24323 12.2194 2.5 10.153 2.5C7.16135 2.5 4.5802 4.1841 3.32092 6.63866L5.86728 8.57504C6.47254 6.80229 8.1632 5.48638 10.153 5.48638Z" fill="white"/>
+                      <path d="M5.86399 11.4277L5.30381 11.848L3.32092 13.3616C4.5802 15.8093 7.1612 17.5003 10.1528 17.5003C12.2191 17.5003 13.9515 16.8321 15.2178 15.6866L12.734 13.798C12.0522 14.248 11.1825 14.5207 10.1528 14.5207C8.16304 14.5207 6.47245 13.2048 5.86712 11.4321L5.86399 11.4277Z" fill="white"/>
+                    </svg>
+                    Log In with Google
+                  </Button>
                 </div>
-                {emailError && (
-                  <FieldError className="flex items-center gap-xs text-error-dark mt-xs">
-                    <AlertCircle className="size-3" />
-                    {emailError}
-                  </FieldError>
-                )}
-              </Field>
 
-              <Field>
-                <FieldLabel className="text-label-sm font-semibold text-neutral-800">
-                  Password
-                </FieldLabel>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pl-10 pr-10 rounded-input border-neutral-200 focus-visible:border-neutral-900 focus-visible:shadow-important-focus w-full"
-                    disabled={isLoading}
-                  />
+                {/* OR Separator */}
+                <div className="flex items-center gap-sm text-neutral-400 text-label-xs font-semibold select-none">
+                  <div className="h-[1px] bg-neutral-200 flex-1" />
+                  OR
+                  <div className="h-[1px] bg-neutral-200 flex-1" />
+                </div>
+
+                <Field>
+                  <FieldLabel className="text-label-sm font-semibold text-neutral-800">
+                    Email Address
+                  </FieldLabel>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@company.com"
+                      className="pl-10 rounded-input border-neutral-200 focus-visible:border-neutral-900 focus-visible:shadow-important-focus w-full"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {emailError && (
+                    <FieldError className="flex items-center gap-xs text-error-dark mt-xs">
+                      <AlertCircle className="size-3" />
+                      {emailError}
+                    </FieldError>
+                  )}
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-label-sm font-semibold text-neutral-800">
+                    Password
+                  </FieldLabel>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="pl-10 pr-10 rounded-input border-neutral-200 focus-visible:border-neutral-900 focus-visible:shadow-important-focus w-full"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  {passwordError && (
+                    <FieldError className="flex items-center gap-xs text-error-dark mt-xs">
+                      <AlertCircle className="size-3" />
+                      {passwordError}
+                    </FieldError>
+                  )}
+                </Field>
+
+                <div className="flex items-center justify-between -mt-sm">
+                  <div className="flex items-center gap-sm">
+                    <Checkbox id="keep-logged-in" className="size-4 rounded-compact border-neutral-300 data-[state=checked]:bg-brand-medium data-[state=checked]:border-brand-medium" />
+                    <label
+                      htmlFor="keep-logged-in"
+                      className="text-label-sm font-medium text-neutral-600 cursor-pointer select-none"
+                    >
+                      Keep me logged in
+                    </label>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors"
+                    onClick={() => setViewState("forgot-password")}
+                    className="text-label-sm font-medium text-brand-medium hover:text-brand-dark hover:underline transition-colors bg-transparent border-0 cursor-pointer"
+                    disabled={isLoading}
                   >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    Forgot password?
                   </button>
                 </div>
-                {passwordError && (
-                  <FieldError className="flex items-center gap-xs text-error-dark mt-xs">
-                    <AlertCircle className="size-3" />
-                    {passwordError}
-                  </FieldError>
-                )}
-              </Field>
 
-              <div className="flex items-center justify-between -mt-sm">
-                <div className="flex items-center gap-sm">
-                  <Checkbox id="keep-logged-in" className="size-4 rounded-compact border-neutral-300 data-[state=checked]:bg-brand-medium data-[state=checked]:border-brand-medium" />
-                  <label
-                    htmlFor="keep-logged-in"
-                    className="text-label-sm font-medium text-neutral-600 cursor-pointer select-none"
-                  >
-                    Keep me logged in
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setViewState("forgot-password")}
-                  className="text-label-sm font-medium text-brand-medium hover:text-brand-dark hover:underline transition-colors bg-transparent border-0 cursor-pointer"
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="w-full h-11 font-medium bg-brand-medium text-white hover:bg-brand-dark rounded-button shadow-x-small transition-colors justify-center"
                   disabled={isLoading}
                 >
-                  Forgot password?
-                </button>
-              </div>
-
-              <Button
-                type="submit"
-                variant="default"
-                className="w-full h-11 font-medium bg-brand-medium text-white hover:bg-brand-dark rounded-button shadow-x-small transition-colors justify-center"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin shrink-0" />
-                    Logging in...
-                  </>
-                ) : (
-                  "Log In"
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin shrink-0" />
+                      Logging in...
+                    </>
+                  ) : (
+                    "Log In"
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* ─── STATE 2: OTP Verification (Canvas Integrated) ─────────────────── */}

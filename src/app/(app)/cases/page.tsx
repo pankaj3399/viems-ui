@@ -13,9 +13,25 @@ import {
   MoreVertical,
   Plus,
   ArrowDownToLine,
+  Globe,
+  Briefcase,
+  AlertTriangle,
+  Hash,
+  ListChecks,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ChangeCaseStatusModal } from "./components/ChangeCaseStatusModal";
+import { MarkVisaRefusedModal } from "./components/MarkVisaRefusedModal";
+import { CountryFilterDropdown } from "./components/CountryFilterDropdown";
+import { StatusFilterDropdown } from "./components/StatusFilterDropdown";
+import { CaseRowMenu } from "./components/CaseRowMenu";
+import { CASE_STATUSES } from "./case-status-data";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
 interface CaseRow {
+  id?: number;
   caseId: string;
   country: string;
   flag: string;
@@ -30,148 +46,97 @@ interface CaseRow {
   actionColor: "blue" | "red" | "yellow" | "gray";
 }
 
-const mockCases: CaseRow[] = [
-  {
-    caseId: "431/2026",
-    country: "US",
-    flag: "🇺🇸",
-    name: "Alex Marin",
-    group: "AX Studios",
-    avatarText: "AM",
-    avatarUrl: "https://i.pravatar.cc/150?u=431",
-    status: "AWAITING UKVI DECISION",
-    statusColor: "warning",
-    migration: "N/A - PRE-VISA",
-    action: "Upload passport",
-    actionColor: "blue",
-  },
-  {
-    caseId: "430/2026",
-    country: "US",
-    flag: "🇺🇸",
-    name: "Taylor Johnson",
-    group: "AX Studios",
-    avatarText: "TJ",
-    avatarUrl: "https://i.pravatar.cc/150?u=430",
-    status: "VISA APPROVED",
-    statusColor: "success",
-    migration: "ARRIVED - RTW PENDING",
-    action: "Check RTW",
-    actionColor: "red",
-  },
-  {
-    caseId: "429/2026",
-    country: "CN",
-    flag: "🇨🇳",
-    name: "Gulab Singh Sidhu",
-    group: "Inderbir Sidhu",
-    avatarText: "GS",
-    avatarUrl: "https://i.pravatar.cc/150?u=429",
-    status: "VISA APPROVED",
-    statusColor: "success",
-    migration: "ACTIVE COMPLIANCE",
-    action: "Report issue",
-    actionColor: "yellow",
-  },
-  {
-    caseId: "428/2026",
-    country: "IN",
-    flag: "🇮🇳",
-    name: "Elena Petrova",
-    group: "Dhira Gill Music Video",
-    avatarText: "EP",
-    avatarUrl: "https://i.pravatar.cc/150?u=428",
-    status: "VISA APPROVED",
-    statusColor: "success",
-    migration: "VISA EXPIRING (<30 DAYS)",
-    action: "Re-verify visa (<30d)",
-    actionColor: "yellow",
-  },
-  {
-    caseId: "427/2026",
-    country: "IN",
-    flag: "🇮🇳",
-    name: "Ami Monarch",
-    group: "Dhira Gill Music Video",
-    avatarText: "AM",
-    avatarUrl: "https://i.pravatar.cc/150?u=427",
-    status: "AWAITING BIOMETRICS",
-    statusColor: "warning",
-    migration: "ACTIVE COMPLIANCE",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    caseId: "426/2026",
-    country: "FR",
-    flag: "🇫🇷",
-    name: "Wei Chen",
-    group: "Anonymous Group",
-    avatarText: "WC",
-    avatarUrl: "https://i.pravatar.cc/150?u=426",
-    status: "VISA APPROVED",
-    statusColor: "success",
-    migration: "IN UK",
-    action: "Select quarterly audit",
-    actionColor: "blue",
-  },
-  {
-    caseId: "425/2026",
-    country: "FR",
-    flag: "🇫🇷",
-    name: "James Brown",
-    group: "Anonymous Group",
-    avatarText: "JB",
-    avatarUrl: "https://i.pravatar.cc/150?u=425",
-    status: "ELIGIBILITY ASSESSMENT",
-    statusColor: "info",
-    migration: "ACTIVE COMPLIANCE",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    caseId: "424/2026",
-    country: "FR",
-    flag: "🇫🇷",
-    name: "Sofia Reyez",
-    group: "Anonymous Group",
-    avatarText: "SR",
-    avatarUrl: "https://i.pravatar.cc/150?u=424",
-    status: "VISA REFUSED",
-    statusColor: "error",
-    migration: "VISA REFUSED",
-    action: "Report event",
-    actionColor: "red",
-  },
-  {
-    caseId: "423/2026",
-    country: "SA",
-    flag: "🇿🇦",
-    name: "Juma Omondi",
-    group: "Bhai Tera Star Hai Film",
-    avatarText: "JO",
-    avatarUrl: "https://i.pravatar.cc/150?u=423",
-    status: "AWAITING APPLICANT DOCS",
-    statusColor: "warning",
-    migration: "ACTIVE COMPLIANCE",
-    action: "Upload documents",
-    actionColor: "blue",
-  },
-  {
-    caseId: "422/2026",
-    country: "CN",
-    flag: "🇨🇳",
-    name: "Ravi Patel",
-    group: "Bhai Tera Star Hai Film",
-    avatarText: "RP",
-    avatarUrl: "https://i.pravatar.cc/150?u=422",
-    status: "CASE CLOSED",
-    statusColor: "gray",
-    migration: "ARCHIVED (STATUTORY RETENTION PHASE)",
-    action: "Statutory retention phase",
-    actionColor: "gray",
-  },
-];
+function mapBackendCaseToRow(c: any): CaseRow {
+  const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown Migrant";
+  const initials = [c.first_name, c.last_name]
+    .filter(Boolean)
+    .map((n) => n[0].toUpperCase())
+    .join("");
+
+  // Map case_status / outcome to clean UI labels
+  let status = (c.case_status || "Pending").toUpperCase();
+  let statusColor: "warning" | "success" | "info" | "error" | "gray" = "gray";
+
+  if (status === "GRANTED" || status === "VISA APPROVED") {
+    status = "VISA APPROVED";
+    statusColor = "success";
+  } else if (status === "REFUSED" || status === "VISA REFUSED") {
+    status = "VISA REFUSED";
+    statusColor = "error";
+  } else if (status === "IN PROGRESS" || status === "IN_PROGRESS") {
+    status = "IN PROGRESS";
+    statusColor = "info";
+  } else if (status === "ASSIGNED") {
+    status = "AWAITING UKVI DECISION";
+    statusColor = "warning";
+  } else if (status === "WITHDRAWN") {
+    status = "CASE CLOSED";
+    statusColor = "gray";
+  } else if (status === "DONE") {
+    status = "CASE CLOSED";
+    statusColor = "gray";
+  } else if (status === "PENDING") {
+    status = "ELIGIBILITY ASSESSMENT";
+    statusColor = "info";
+  }
+
+  // Country flags mapping
+  const countryVal = (c.nationality_value || "US").toUpperCase();
+  const flagMap: Record<string, string> = {
+    US: "🇺🇸",
+    CN: "🇨🇳",
+    IN: "🇮🇳",
+    FR: "🇫🇷",
+    SA: "🇿🇦",
+    ZA: "🇿🇦",
+    GB: "🇬🇧",
+    NP: "🇳🇵",
+  };
+  const flag = flagMap[countryVal] || "🇺🇸"; // fallback
+
+  // Migration stage mapping
+  let migration = (c.migration_stage || "N/A - PRE-VISA").toUpperCase();
+  if (migration === "ENTERED") {
+    migration = "IN UK";
+  } else if (migration === "DEPARTURE") {
+    migration = "LEFT UK";
+  }
+
+  // Action mapping based on status or some logic
+  let action = "No action required";
+  let actionColor: "blue" | "red" | "yellow" | "gray" = "gray";
+
+  if (status === "VISA APPROVED" && migration !== "IN UK") {
+    action = "Check RTW";
+    actionColor = "red";
+  } else if (status === "AWAITING UKVI DECISION") {
+    action = "Upload passport";
+    actionColor = "blue";
+  } else if (status === "ELIGIBILITY ASSESSMENT") {
+    action = "No action required";
+    actionColor = "gray";
+  } else if (status === "VISA REFUSED") {
+    action = "Report event";
+    actionColor = "red";
+  }
+
+  return {
+    id: c.id,
+    caseId: c.caseIdDisplay || c.caseNumber || `${c.id}`,
+    country: countryVal,
+    flag,
+    name,
+    group: c.group_name || "No Group",
+    avatarText: initials || "UM",
+    avatarUrl: undefined,
+    status,
+    statusColor,
+    migration,
+    action,
+    actionColor,
+  };
+}
+
 
 export default function CasesPage() {
   const router = useRouter();
@@ -179,6 +144,148 @@ export default function CasesPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [needsActionOnly, setNeedsActionOnly] = React.useState(false);
+
+  // Filter states
+  const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
+  const [migrationFilter, setMigrationFilter] = React.useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = React.useState<string | null>(null);
+  const [caseIdFilter, setCaseIdFilter] = React.useState<string | null>(null);
+
+  // Popover filter panel states
+  const [filterPanelOpen, setFilterPanelOpen] = React.useState(false);
+  const [selectedCategory, setSelectedCategory] = React.useState<string>("Case status");
+  const [tempStatus, setTempStatus] = React.useState<string>("all");
+  const [tempCountry, setTempCountry] = React.useState<string>("all");
+  const [tempMigration, setTempMigration] = React.useState<string>("all");
+  const [tempSeverity, setTempSeverity] = React.useState<string>("all");
+  const [tempCaseId, setTempCaseId] = React.useState<string>("");
+
+  const handleApplyFilters = () => {
+    setStatusFilter(tempStatus === "all" ? null : tempStatus);
+    setCountryFilter(tempCountry === "all" ? null : tempCountry);
+    setMigrationFilter(tempMigration === "all" ? null : tempMigration);
+    setSeverityFilter(tempSeverity === "all" ? null : tempSeverity);
+    setCaseIdFilter(tempCaseId === "" ? null : tempCaseId);
+    setFilterPanelOpen(false);
+  };
+
+  const handleClearFilters = () => {
+    setTempStatus("all");
+    setTempCountry("all");
+    setTempMigration("all");
+    setTempSeverity("all");
+    setTempCaseId("");
+    setStatusFilter(null);
+    setCountryFilter(null);
+    setMigrationFilter(null);
+    setSeverityFilter(null);
+    setCaseIdFilter(null);
+    setFilterPanelOpen(false);
+  };
+
+  // Modal states
+  const [statusModalOpen, setStatusModalOpen] = React.useState(false);
+  const [statusModalRow, setStatusModalRow] = React.useState<CaseRow | null>(null);
+  const [refusedModalOpen, setRefusedModalOpen] = React.useState(false);
+  const [refusedModalRow, setRefusedModalRow] = React.useState<CaseRow | null>(null);
+
+  // Mutable cases state for status updates
+  const [cases, setCases] = React.useState<CaseRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let active = true;
+    async function loadCases() {
+      try {
+        setLoading(true);
+        const response = await apiClient.get<{ data: any[]; count: number }>(
+          ENDPOINTS.cases.base
+        );
+        if (active) {
+          const mapped = response.data.map(mapBackendCaseToRow);
+          setCases(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cases:", err);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    loadCases();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Filter cases by tab first
+  const tabCases = React.useMemo(() => {
+    return cases.filter((item) => {
+      const isRefused =
+        item.status.toUpperCase() === "VISA REFUSED" ||
+        item.status.toLowerCase() === "visa refused";
+
+      if (activeTab === "refusals") {
+        return isRefused;
+      } else if (activeTab === "cases") {
+        return !isRefused;
+      }
+      return true; // groups shows all
+    });
+  }, [cases, activeTab]);
+
+  // Derive unique countries and statuses for filter dropdowns
+  const uniqueCountries = React.useMemo(() => {
+    const seen = new Map<string, { code: string; label: string; flag: string; count: number }>();
+    tabCases.forEach((c) => {
+      if (
+        !c.country ||
+        c.country.toUpperCase() === "ALL" ||
+        c.country === "All countries" ||
+        c.country.trim() === ""
+      ) {
+        return;
+      }
+      const existing = seen.get(c.country);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        seen.set(c.country, { code: c.country, label: c.country, flag: c.flag, count: 1 });
+      }
+    });
+    return Array.from(seen.values());
+  }, [tabCases]);
+
+  const uniqueStatuses = React.useMemo(() => {
+    const seen = new Map<string, { label: string; count: number }>();
+    tabCases.forEach((c) => {
+      if (
+        !c.status ||
+        c.status.toUpperCase() === "ALL" ||
+        c.status.toLowerCase() === "all status" ||
+        c.status.trim() === ""
+      ) {
+        return;
+      }
+      const existing = seen.get(c.status);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        seen.set(c.status, { label: c.status, count: 1 });
+      }
+    });
+    return Array.from(seen.values());
+  }, [tabCases]);
+
+  const statusColorMap = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    cases.forEach((c) => {
+      map[c.status] = c.statusColor;
+    });
+    return map;
+  }, [cases]);
 
   const renderCircularFlag = (country: string, fallbackFlag: string) => {
     switch (country.toUpperCase()) {
@@ -253,20 +360,73 @@ export default function CasesPage() {
     }
   };
 
-  // Filter cases based on search and Needs Action filter
+  // Filter cases based on search, country, status, and Needs Action filter
   const filteredCases = React.useMemo(() => {
-    return mockCases.filter((item) => {
+    return tabCases.filter((item) => {
       const matchesSearch =
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.caseId.includes(searchQuery) ||
         item.group.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesCountry = !countryFilter || item.country === countryFilter;
+      const matchesStatus = !statusFilter || item.status === statusFilter;
       
+      const matchesMigration = !migrationFilter || item.migration === migrationFilter;
+      const matchesSeverity = !severityFilter || (
+        severityFilter === "RED" ? item.actionColor === "red" :
+        severityFilter === "YELLOW" ? item.actionColor === "yellow" :
+        severityFilter === "BLUE_GRAY" ? (item.actionColor === "blue" || item.actionColor === "gray") : true
+      );
+      const matchesCaseId = !caseIdFilter || item.caseId.toLowerCase().includes(caseIdFilter.toLowerCase());
+
       if (needsActionOnly) {
-        return matchesSearch && item.actionColor !== "gray" && item.action !== "No action required";
+        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && item.actionColor !== "gray" && item.action !== "No action required";
       }
-      return matchesSearch;
+      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId;
     });
-  }, [searchQuery, needsActionOnly]);
+  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter]);
+
+  // Handler: change case status
+  const handleChangeStatus = (newStatusValue: string) => {
+    if (!statusModalRow) return;
+    const statusOption = CASE_STATUSES.find((s) => s.value === newStatusValue);
+    if (!statusOption) return;
+    setCases((prev) =>
+      prev.map((c) =>
+        c.caseId === statusModalRow.caseId
+          ? {
+              ...c,
+              status: statusOption.label,
+              statusColor: statusOption.dotColor === "#1FC16B"
+                ? "success" as const
+                : statusOption.dotColor === "#F6B51E"
+                ? "warning" as const
+                : statusOption.dotColor === "#335CFF"
+                ? "info" as const
+                : statusOption.dotColor === "#FB3748"
+                ? "error" as const
+                : "gray" as const,
+            }
+          : c
+      )
+    );
+  };
+
+  // Handler: mark as visa refused
+  const handleMarkRefused = (reason: string, customText?: string) => {
+    if (!refusedModalRow) return;
+    setCases((prev) =>
+      prev.map((c) =>
+        c.caseId === refusedModalRow.caseId
+          ? {
+              ...c,
+              status: "Visa refused",
+              statusColor: "error" as const,
+            }
+          : c
+      )
+    );
+  };
 
   const getStatusClasses = (color: CaseRow["statusColor"]) => {
     switch (color) {
@@ -373,12 +533,21 @@ export default function CasesPage() {
     return "text-[#7B7B7B] font-semibold";
   };
 
+  if (loading) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center min-h-[400px] text-neutral-500 font-sans">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>
+        <p className="text-paragraph-sm font-medium">Loading cases...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] select-none bg-[#F7F7F7] min-h-full">
       <div className="bg-white rounded-t-[16px] flex flex-col shrink-0">
         <div className="px-6 md:px-[64px] pt-[40px] pb-[24px] flex flex-col gap-md md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-xs flex-1 min-w-0">
-            <h1 className="text-h3-title font-semibold tracking-tight text-[#171717]">
+            <h1 className="text-title-aeonik text-[#171717]">
               Cases
             </h1>
             <p className="text-paragraph-sm text-neutral-500 max-w-[600px]">
@@ -386,34 +555,34 @@ export default function CasesPage() {
             </p>
           </div>
           <div className="flex items-center gap-md">
-            <button
+            <Button
               type="button"
-              className="h-9 px-4 rounded-[8px] border border-neutral-200 bg-white text-neutral-700 text-label-sm font-semibold inline-flex items-center gap-sm hover:bg-neutral-50 hover:text-neutral-900 cursor-pointer transition-colors shadow-x-small"
+              variant="outline"
+              size="sm"
+              className="h-9 px-xl text-label-sm font-semibold"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 text-neutral-500 shrink-0">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+              <ArrowDownToLine className="size-4" data-icon="inline-start" />
               Import
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="h-9 px-4 rounded-[8px] bg-[#7D52F4] text-white text-label-sm font-semibold inline-flex items-center gap-sm hover:bg-[#693bde] cursor-pointer transition-colors shadow-x-small border-0"
+              size="sm"
+              className="h-9 px-xl text-label-sm font-semibold text-white"
             >
-              <Plus className="size-4" />
+              <Plus className="size-4" data-icon="inline-start" />
               New migrant
-            </button>
+            </Button>
           </div>
         </div>
 
         <div className="px-6 md:px-[64px] flex items-center gap-6 h-[50px] select-none border-b border-[#EBEBEB]">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => setActiveTab("cases")}
-            className={`h-full px-xs pb-2 border-b-2 text-label-sm font-semibold transition-all inline-flex items-center gap-sm cursor-pointer ${
+            className={`h-full px-xs pb-2 border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-sm ${
               activeTab === "cases"
-                ? "border-[#171717] text-[#171717]"
-                : "border-transparent text-neutral-400 hover:text-neutral-600"
+                ? "border-[#171717] text-[#171717] hover:bg-transparent"
+                : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
@@ -421,15 +590,16 @@ export default function CasesPage() {
             </svg>
             <span>Cases</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              13
+              {activeTab === "cases" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() !== "VISA REFUSED" && c.status.toLowerCase() !== "visa refused").length}
             </div>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => setActiveTab("groups")}
-            className={`h-full px-xs pb-2 border-b-2 text-label-sm font-semibold transition-all inline-flex items-center gap-sm cursor-pointer ${
+            className={`h-full px-xs pb-2 border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-sm ${
               activeTab === "groups"
-                ? "border-[#171717] text-[#171717]"
-                : "border-transparent text-neutral-400 hover:text-neutral-600"
+                ? "border-[#171717] text-[#171717] hover:bg-transparent"
+                : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0">
@@ -439,278 +609,573 @@ export default function CasesPage() {
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
             <span>Groups</span>
-          </button>
-          <button
+            <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
+              {Array.from(new Set(cases.map((c) => c.group))).length}
+            </div>
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => setActiveTab("refusals")}
-            className={`h-full px-xs pb-2 border-b-2 text-label-sm font-semibold transition-all inline-flex items-center gap-sm cursor-pointer ${
+            className={`h-full px-xs pb-2 border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-sm ${
               activeTab === "refusals"
-                ? "border-[#171717] text-[#171717]"
-                : "border-transparent text-neutral-400 hover:text-neutral-600"
+                ? "border-[#171717] text-[#171717] hover:bg-transparent"
+                : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
               <path d="M11.95 13.0002L16.75 13.0002C17.1478 13.0002 17.5294 12.8422 17.8107 12.5609C18.092 12.2796 18.25 11.8981 18.25 11.5002L18.25 9.92223C18.2502 9.72621 18.212 9.53205 18.1375 9.35073L15.8155 3.71523C15.759 3.5778 15.663 3.46023 15.5396 3.37744C15.4163 3.29465 15.2711 3.25038 15.1225 3.25023L2.5 3.25023C2.30109 3.25023 2.11032 3.32925 1.96967 3.4699C1.82902 3.61055 1.75 3.80132 1.75 4.00023L1.75 11.5002C1.75 11.6991 1.82901 11.8899 1.96967 12.0306C2.11032 12.1712 2.30109 12.2502 2.5 12.2502L5.1115 12.2502C5.23157 12.2502 5.34989 12.279 5.45652 12.3342C5.56315 12.3894 5.65497 12.4694 5.72425 12.5675L9.814 18.362C9.8657 18.4352 9.94194 18.4876 10.0289 18.5094C10.1159 18.5313 10.2078 18.5213 10.288 18.4812L11.6485 17.8002C12.0314 17.6089 12.3372 17.2922 12.5153 16.903C12.6933 16.5137 12.7329 16.0753 12.6272 15.6605L11.95 13.0002ZM6.25 11.0592L6.25 4.75023L14.62 4.75023L16.75 9.92223L16.75 11.5002L11.95 11.5002C11.7215 11.5003 11.4961 11.5525 11.2909 11.6529C11.0857 11.7533 10.9062 11.8993 10.766 12.0796C10.6257 12.26 10.5286 12.47 10.4819 12.6936C10.4352 12.9172 10.4402 13.1486 10.4965 13.37L11.1737 16.031C11.1949 16.114 11.1871 16.2017 11.1515 16.2797C11.1159 16.3576 11.0546 16.4209 10.978 16.4592L10.4822 16.7067L6.94975 11.7027C6.76225 11.4372 6.52225 11.2197 6.25 11.0592ZM4.75 10.7502L3.25 10.7502L3.25 4.75023L4.75 4.75023L4.75 10.7502Z" fill="currentColor" />
             </svg>
             <span>Refusals</span>
-          </button>
+            <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
+              {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() === "VISA REFUSED" || c.status.toLowerCase() === "visa refused").length}
+            </div>
+          </Button>
         </div>
       </div>
 
       <div className="px-6 md:px-[64px] py-[32px] flex flex-col gap-[24px] flex-1">
         <div className="flex flex-wrap items-center gap-md">
           <div className="relative w-full max-w-[348px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4]" />
-            <input
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] z-10" />
+            <Input
               type="text"
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-9 pr-4 bg-white border border-neutral-200 rounded-[8px] text-paragraph-sm placeholder-[#A4A4A4] focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900/10 transition-all font-sans shadow-x-small"
+              className="w-full h-8 pl-9 pr-4 bg-white text-paragraph-sm placeholder-[#A4A4A4] shadow-x-small"
             />
           </div>
 
-          <button
-            type="button"
-            className="size-8 rounded-[8px] border border-neutral-200 bg-white hover:bg-neutral-50 flex items-center justify-center text-neutral-500 cursor-pointer transition-colors shadow-x-small shrink-0"
-          >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-              <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
-            </svg>
-          </button>
+          <div className="relative">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+              className={`text-neutral-500 hover:bg-neutral-100 ${filterPanelOpen ? 'bg-neutral-100 border-[#7D52F4]' : ''}`}
+            >
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+                <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
+              </svg>
+            </Button>
+            
+            {filterPanelOpen && (
+              <div className="absolute top-[40px] left-0 w-[696px] h-[528px] bg-white border border-[#F5F5F5] rounded-[20px] shadow-card-large z-50 flex font-sans select-none overflow-hidden text-left" style={{ boxShadow: '0px 1px 1px 0.5px rgba(51, 51, 51, 0.04), 0px 3px 3px -1.5px rgba(51, 51, 51, 0.02), 0px 6px 6px -3px rgba(51, 51, 51, 0.04), 0px 12px 12px -6px rgba(51, 51, 51, 0.04), 0px 24px 24px -12px rgba(51, 51, 51, 0.04), 0px 48px 48px -24px rgba(51, 51, 51, 0.04), 0px 0px 0px 1px #F5F5F5, inset 0px -1px 1px -0.5px rgba(51, 51, 51, 0.06)' }}>
+                {/* Menus sidebar: width 224px */}
+                <div className="w-[224px] h-[528px] bg-white border-r border-[#EBEBEB] p-[12px] flex flex-col gap-[8px] shrink-0">
+                  {[
+                    { key: "Case status", label: "Case status", icon: ListChecks },
+                    { key: "Country", label: "Country", icon: Globe },
+                    { key: "Migration status", label: "Migration status", icon: Briefcase },
+                    { key: "Action severity", label: "Action severity", icon: AlertTriangle },
+                    { key: "Case ID", label: "Case ID", icon: Hash },
+                  ].map((item) => {
+                    const IconComp = item.icon;
+                    const isActive = selectedCategory === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setSelectedCategory(item.key)}
+                        className={`w-[200px] h-[36px] px-[8px] gap-[8px] rounded-[8px] flex items-center justify-start cursor-pointer transition-all border-0 ${
+                          isActive 
+                            ? "bg-[#F5F5F5] text-[#171717] font-semibold" 
+                            : "bg-white text-[#5C5C5C] hover:bg-neutral-50"
+                        }`}
+                      >
+                        <IconComp className={`size-5 shrink-0 ${isActive ? 'text-[#171717]' : 'text-[#A4A4A4]'}`} />
+                        <span className="text-[14px] leading-[20px] tracking-[-0.006em] truncate">{item.label}</span>
+                        {isActive && (
+                          <ChevronRight className="size-4 text-[#A4A4A4] ml-auto shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-          <button
-            type="button"
-            className="h-8 w-[125px] px-2 rounded-[8px] border border-neutral-200 bg-white hover:bg-neutral-50 text-[13px] font-medium text-[#5C5C5C] flex items-center justify-between cursor-pointer transition-colors shadow-x-small shrink-0"
-          >
-            All countries
-            <ChevronDown className="size-3.5 text-neutral-400" />
-          </button>
+                {/* Content area: width 472px */}
+                <div className="w-[472px] h-[528px] flex flex-col justify-between items-start bg-white">
+                  {/* Header */}
+                  <div className="w-[472px] h-[52px] px-[20px] py-[16px] gap-[8px] flex items-center border-b border-[#EBEBEB]">
+                    <span className="text-[14px] font-medium leading-[20px] tracking-[-0.006em] text-[#171717]">
+                      {selectedCategory}
+                    </span>
+                  </div>
 
-          <button
-            type="button"
-            className="h-8 w-[104px] px-2 rounded-[8px] border border-neutral-200 bg-white hover:bg-neutral-50 text-[13px] font-medium text-[#5C5C5C] flex items-center justify-between cursor-pointer transition-colors shadow-x-small shrink-0"
-          >
-            All status
-            <ChevronDown className="size-3.5 text-neutral-400" />
-          </button>
+                  {/* Options List */}
+                  <div className="w-[472px] flex-1 p-[20px] gap-[12px] flex flex-col overflow-y-auto">
+                    {/* Category specific content */}
+                    {selectedCategory === "Case status" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        {[
+                          { value: "all", label: "All statuses", count: cases.length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
+                          { value: "VISA APPROVED", label: "Visa approved", count: cases.filter(c => c.status === "VISA APPROVED").length, colorClass: "bg-[#E3F7EC] text-[#0B4627]" },
+                          { value: "AWAITING", label: "Awaiting", count: cases.filter(c => c.status.toUpperCase().includes("AWAITING")).length, colorClass: "bg-[#FFFAEB] text-[#624C18]" },
+                          { value: "ELIGIBILITY ASSESSMENT", label: "Eligibility assessment", count: cases.filter(c => c.status === "ELIGIBILITY ASSESSMENT").length, colorClass: "bg-[#EBF1FF] text-[#122368]" },
+                          { value: "VISA REFUSED", label: "Visa refused", count: cases.filter(c => c.status === "VISA REFUSED").length, colorClass: "bg-[#FFEBEC] text-[#681219]" },
+                          { value: "CASE CLOSED", label: "Case closed", count: cases.filter(c => c.status === "CASE CLOSED").length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
+                        ].map((opt, i) => (
+                          <React.Fragment key={opt.value}>
+                            <label className="flex items-center justify-between cursor-pointer w-full group py-0.5">
+                              <div className="flex items-center gap-[8px]">
+                                <input
+                                  type="radio"
+                                  name="caseStatus"
+                                  checked={tempStatus === opt.value}
+                                  onChange={() => setTempStatus(opt.value)}
+                                  className="accent-[#7D52F4] size-4 cursor-pointer"
+                                />
+                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                              </div>
+                              <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
+                                {opt.count}
+                              </span>
+                            </label>
+                            {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
 
-          <button
+                    {selectedCategory === "Country" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        {[
+                          { value: "all", label: "All countries" },
+                          { value: "US", label: "United States (US)" },
+                          { value: "CN", label: "China (CN)" },
+                          { value: "IN", label: "India (IN)" },
+                          { value: "FR", label: "France (FR)" },
+                          { value: "SA", label: "South Africa (SA)" },
+                        ].map((opt, i) => (
+                          <React.Fragment key={opt.value}>
+                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
+                              <input
+                                type="radio"
+                                name="country"
+                                checked={tempCountry === opt.value}
+                                onChange={() => setTempCountry(opt.value)}
+                                className="accent-[#7D52F4] size-4 cursor-pointer"
+                              />
+                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                            </label>
+                            {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedCategory === "Migration status" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        {[
+                          { value: "all", label: "All migration states" },
+                          { value: "ACTIVE COMPLIANCE", label: "Active Compliance" },
+                          { value: "IN UK", label: "In UK" },
+                          { value: "ARRIVED - RTW PENDING", label: "Arrived - RTW Pending" },
+                        ].map((opt, i) => (
+                          <React.Fragment key={opt.value}>
+                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
+                              <input
+                                type="radio"
+                                name="migration"
+                                checked={tempMigration === opt.value}
+                                onChange={() => setTempMigration(opt.value)}
+                                className="accent-[#7D52F4] size-4 cursor-pointer"
+                              />
+                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                            </label>
+                            {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedCategory === "Action severity" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        {[
+                          { value: "all", label: "All severities" },
+                          { value: "RED", label: "Red (Urgent)" },
+                          { value: "YELLOW", label: "Yellow (Medium)" },
+                          { value: "BLUE_GRAY", label: "Blue / Gray (Low)" },
+                        ].map((opt, i) => (
+                          <React.Fragment key={opt.value}>
+                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
+                              <input
+                                type="radio"
+                                name="severity"
+                                checked={tempSeverity === opt.value}
+                                onChange={() => setTempSeverity(opt.value)}
+                                className="accent-[#7D52F4] size-4 cursor-pointer"
+                              />
+                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                            </label>
+                            {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedCategory === "Case ID" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        <span className="text-[13px] text-[#5C5C5C] mb-xs">Search by Case ID Number:</span>
+                        <Input
+                          type="text"
+                          placeholder="e.g. 430/2026"
+                          value={tempCaseId}
+                          onChange={(e) => setTempCaseId(e.target.value)}
+                          className="h-9"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="w-[472px] h-[68px] px-[20px] py-[16px] flex items-center justify-between border-t border-[#EBEBEB]">
+                    <span className="text-[12px] font-normal leading-[16px] text-[#5C5C5C]">
+                      {filteredCases.length} results
+                    </span>
+                    <div className="flex items-center gap-[16px]">
+                      <button
+                        type="button"
+                        onClick={handleClearFilters}
+                        className="w-[109px] h-[36px] bg-[#F5F5F5] hover:bg-neutral-200 text-[#5C5C5C] text-[14px] font-medium leading-[20px] rounded-[8px] flex items-center justify-center border-0 cursor-pointer transition-all"
+                      >
+                        Clear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyFilters}
+                        className="w-[109px] h-[36px] bg-[#7D52F4] hover:bg-[#683fd1] text-white text-[14px] font-medium leading-[20px] rounded-[8px] flex items-center justify-center border-0 cursor-pointer transition-all"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <CountryFilterDropdown
+            countries={uniqueCountries}
+            value={countryFilter}
+            onChange={setCountryFilter}
+          />
+
+          <StatusFilterDropdown
+            statuses={uniqueStatuses}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            statusColors={statusColorMap}
+          />
+
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setNeedsActionOnly(!needsActionOnly)}
-            className={`h-8 w-[108px] px-2 rounded-[8px] text-[13px] font-medium transition-colors cursor-pointer border text-center justify-center flex items-center shadow-x-small shrink-0 ${
+            className={`w-[108px] text-[13px] font-medium justify-center ${
               needsActionOnly
-                ? "bg-[#FEF3C7] border-[#FDE68A] text-[#D97706]"
-                : "bg-white border-neutral-200 hover:bg-neutral-50 text-[#5C5C5C]"
+                ? "bg-[#FEF3C7] border-[#FDE68A] text-[#D97706] hover:bg-[#FEF3C7] hover:text-[#D97706]"
+                : "text-[#5C5C5C]"
             }`}
           >
             Needs action
-          </button>
+          </Button>
         </div>
 
-        <div className="w-full select-none">
-          <div className="flex flex-col gap-sm">
-            <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-wider text-neutral-400 font-semibold mb-xs">
-              <div className="basis-[70px] shrink-0 grow-0">Case ID #</div>
-              <div className="basis-[90px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
-                Country
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                  <path d="m7 15 5 5 5-5"/>
-                  <path d="m7 9 5-5 5 5"/>
-                </svg>
-              </div>
-              <div className="flex-[2] min-w-0 flex items-center gap-[4px] cursor-pointer">
-                Name
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                  <path d="m7 15 5 5 5-5"/>
-                  <path d="m7 9 5-5 5 5"/>
-                </svg>
-              </div>
-              <div className="flex-[2] min-w-0 flex items-center gap-[4px] cursor-pointer">
-                Case Status
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                  <path d="m7 15 5 5 5-5"/>
-                  <path d="m7 9 5-5 5 5"/>
-                </svg>
-              </div>
-              <div className="flex-[2] min-w-0 flex items-center gap-[4px] cursor-pointer">
-                Migration Status
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                  <path d="m7 15 5 5 5-5"/>
-                  <path d="m7 9 5-5 5 5"/>
-                </svg>
-              </div>
-              <div className="flex-[2] min-w-0">Compliance Action</div>
-              <div className="w-[32px] shrink-0"></div>
+        {filteredCases.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-[592px] bg-white rounded-card shadow-x-small border border-neutral-200/20 select-none">
+            {/* Group 9: Figma-matching stacked vector cards */}
+            <div className="w-[77px] h-[88px] flex items-center justify-center relative mb-[24px]">
+              <svg width="77" height="88" viewBox="0 0 77 88" fill="none" xmlns="http://www.w3.org/2000/svg">
+                {/* Vector 1 (Back Card) */}
+                <rect x="4" y="8" width="52" height="66" rx="4.46724" fill="#EBEBEB" stroke="#A4A4A4" strokeWidth="1.2" transform="rotate(-5 30 41)" />
+                {/* Vector 2 (Middle Card) */}
+                <rect x="10" y="11" width="52" height="66" rx="4.46724" fill="#F5F5F5" stroke="#A4A4A4" strokeWidth="1.2" transform="rotate(-2.5 36 44)" />
+                {/* Vector 3 & 4 (Front Card) */}
+                <rect x="18" y="14" width="52" height="66" rx="4.46724" fill="#FFFFFF" stroke="#A4A4A4" strokeWidth="1.2" />
+                {/* Vector 5 (Avatar head) */}
+                <circle cx="44" cy="38" r="8" fill="#A4A4A4" />
+                {/* Vector 6 (Avatar body) */}
+                <path d="M28 62C28 55.3726 33.3726 50 40 50H48C54.6274 50 60 55.3726 60 62V67H28V62Z" fill="#A4A4A4" />
+              </svg>
             </div>
-
-            <div className="flex flex-col gap-sm">
-              {filteredCases.map((row) => (
-                <div
-                  key={row.caseId}
-                  onClick={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
-                  className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
-                >
-                  <div className="basis-[70px] shrink-0 grow-0 font-medium text-[#5C5C5C] font-mono text-paragraph-sm">
-                    {row.caseId}
-                  </div>
-
-                  <div className="basis-[90px] shrink-0 grow-0 flex items-center gap-xs">
-                    {renderCircularFlag(row.country, row.flag)}
-                    <span className="font-semibold text-neutral-700 font-sans text-paragraph-sm">{row.country}</span>
-                  </div>
-
-                  <div className="flex-[2] min-w-0 flex items-center gap-md">
-                    <img 
-                      src={row.avatarUrl} 
-                      alt={row.name} 
-                      className={`size-10 rounded-full object-cover shrink-0 ${!row.avatarUrl ? 'hidden' : ''}`}
-                    />
-                    {!row.avatarUrl && (
-                      <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
-                        {row.avatarText}
-                      </div>
-                    )}
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold text-[#171717] truncate leading-normal text-paragraph-sm">
-                        {row.name}
-                      </span>
-                      <span className="text-[11px] text-neutral-400 truncate mt-0.5 font-medium leading-none">
-                        {row.group}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex-[2] min-w-0 flex items-center">
-                    <span className={`inline-flex items-center gap-xs px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${getStatusBgAndText(row.statusColor)}`}>
-                      <span className={`size-1.5 rounded-full ${getStatusDotColor(row.statusColor)}`} />
-                      {row.status}
-                    </span>
-                  </div>
-
-                  <div className="flex-[2] min-w-0 flex items-center">
-                    <span className="inline-flex items-center gap-xs text-[11px] font-semibold uppercase tracking-wider">
-                      <span className={`size-1.5 rounded-full ${getMigrationDotColor(row.migration)}`} />
-                      <span className={getMigrationTextColorClass(row.migration)}>{row.migration}</span>
-                    </span>
-                  </div>
-
-                  <div className="flex-[2] min-w-0 flex items-center gap-xs">
-                    {row.actionColor !== "gray" && (
-                      <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
-                    )}
-                    <span className={getActionTextClass(row.actionColor)}>
-                      {row.action}
-                    </span>
-                  </div>
-
-                  <div className="w-[32px] shrink-0 flex justify-end">
-                    <button
-                      type="button"
-                      className="size-8 rounded-md hover:bg-neutral-100 flex items-center justify-center text-neutral-400 hover:text-neutral-900 border-0 bg-transparent cursor-pointer transition-colors"
-                    >
-                      <MoreVertical className="size-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-md md:flex-row md:items-center pt-lg border-t border-neutral-200/40 text-paragraph-sm text-neutral-500 select-none justify-between relative">
-          <span className="text-neutral-400 font-medium w-[150px] shrink-0">Page 1 of 16</span>
-
-          <div className="flex items-center gap-xs justify-center flex-1">
-            {/* Double Arrow Left */}
-            <button
-              disabled
-              className="size-8 rounded-[8px] flex items-center justify-center text-neutral-400 hover:text-neutral-900 disabled:opacity-30 disabled:hover:text-neutral-400 border-0 bg-transparent cursor-pointer transition-colors"
-            >
-              <ChevronsLeft className="size-4" />
-            </button>
-
-            {/* Arrow Left */}
-            <button
-              disabled
-              className="size-8 rounded-[8px] flex items-center justify-center text-neutral-400 hover:text-neutral-900 disabled:opacity-30 disabled:hover:text-neutral-400 border-0 bg-transparent cursor-pointer transition-colors"
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-
-            {/* Page Numbers */}
-            <div className="flex items-center gap-xs">
-              <button
-                onClick={() => setCurrentPage(1)}
-                className={`size-8 rounded-[8px] text-paragraph-sm font-semibold flex items-center justify-center border-0 cursor-pointer transition-colors ${
-                  currentPage === 1 ? "bg-neutral-950 text-white" : "bg-transparent text-neutral-400 hover:text-neutral-900"
-                }`}
-              >
-                1
-              </button>
-              <button
-                onClick={() => setCurrentPage(2)}
-                className={`size-8 rounded-[8px] text-paragraph-sm font-semibold flex items-center justify-center transition-colors border cursor-pointer ${
-                  currentPage === 2 
-                    ? "bg-neutral-950 text-white border-transparent" 
-                    : "bg-white border-neutral-200 text-neutral-700 hover:bg-neutral-50"
-                }`}
-              >
-                2
-              </button>
-              <button
-                onClick={() => setCurrentPage(3)}
-                className={`size-8 rounded-[8px] text-paragraph-sm font-semibold flex items-center justify-center border-0 bg-transparent text-neutral-400 hover:text-neutral-900 cursor-pointer transition-colors`}
-              >
-                3
-              </button>
-              <button
-                onClick={() => setCurrentPage(4)}
-                className={`size-8 rounded-[8px] text-paragraph-sm font-semibold flex items-center justify-center border-0 bg-transparent text-neutral-400 hover:text-neutral-900 cursor-pointer transition-colors`}
-              >
-                4
-              </button>
-              <button
-                onClick={() => setCurrentPage(5)}
-                className={`size-8 rounded-[8px] text-paragraph-sm font-semibold flex items-center justify-center border-0 bg-transparent text-neutral-400 hover:text-neutral-900 cursor-pointer transition-colors`}
-              >
-                5
-              </button>
-              <span className="size-8 flex items-center justify-center text-neutral-400 font-semibold select-none">...</span>
-              <button
-                onClick={() => setCurrentPage(16)}
-                className={`size-8 rounded-[8px] text-paragraph-sm font-semibold flex items-center justify-center border-0 bg-transparent text-neutral-400 hover:text-neutral-900 cursor-pointer transition-colors`}
-              >
-                16
-              </button>
-            </div>
-
-            {/* Arrow Right */}
-            <button
-              className="size-8 rounded-[8px] flex items-center justify-center text-neutral-400 hover:text-neutral-900 border-0 bg-transparent cursor-pointer transition-colors"
-            >
-              <ChevronRight className="size-4" />
-            </button>
-
-            {/* Double Arrow Right */}
-            <button
-              className="size-8 rounded-[8px] flex items-center justify-center text-neutral-400 hover:text-neutral-900 border-0 bg-transparent cursor-pointer transition-colors"
-            >
-              <ChevronsRight className="size-4" />
-            </button>
-          </div>
-
-          <div className="w-[150px] shrink-0 flex justify-end">
-            {/* Size Dropdown Selector */}
+            
+            {/* Title: H6 Title style */}
+            <h3 className="text-[20px] font-[550] leading-[28px] tracking-[-0.006em] text-[#171717] font-sans mb-[7px]">
+              No migrant found
+            </h3>
+            
+            {/* Subtitle: Paragraph/Small style */}
+            <p className="text-[14px] font-normal leading-[20px] tracking-[-0.006em] text-[#5C5C5C] text-center w-[191px] h-[40px] mb-[24px] font-sans">
+              Change your filters or add a new migrant
+            </p>
+            
+            {/* Button: [1.1] style */}
             <button
               type="button"
-              className="h-8 px-3 rounded-[8px] border border-neutral-200 bg-white text-[13px] font-medium text-[#5C5C5C] flex items-center gap-xs cursor-pointer shadow-x-small hover:bg-neutral-50 transition-colors"
+              className="w-[133px] h-[36px] bg-[#262626] hover:bg-[#333333] text-white text-[14px] font-medium leading-[20px] tracking-[-0.006em] rounded-[8px] flex items-center justify-center gap-[4px] p-[8px] cursor-pointer border-0 transition-colors font-sans"
             >
-              10 / page
-              <ChevronDown className="size-3 text-neutral-400" />
+              <Plus className="size-5 text-white shrink-0" />
+              <span className="text-white">New migrant</span>
             </button>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="w-full select-none">
+              <div className="flex flex-col gap-sm">
+                <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs">
+                  <div className="basis-[94px] shrink-0 grow-0">Case ID #</div>
+                  <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
+                    Country
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                      <path d="m7 15 5 5 5-5"/>
+                      <path d="m7 9 5-5 5 5"/>
+                    </svg>
+                  </div>
+                  <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
+                    Name
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                      <path d="m7 15 5 5 5-5"/>
+                      <path d="m7 9 5-5 5 5"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                    Case Status
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                      <path d="m7 15 5 5 5-5"/>
+                      <path d="m7 9 5-5 5 5"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                    Migration Status
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                      <path d="m7 15 5 5 5-5"/>
+                      <path d="m7 9 5-5 5 5"/>
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">Compliance Action</div>
+                  <div className="w-[48px] shrink-0"></div>
+                </div>
+
+                <div className="flex flex-col gap-sm">
+                  {filteredCases.map((row) => (
+                    <div
+                      key={row.caseId}
+                      onClick={() => router.push(`/cases/${row.id}`)}
+                      className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                    >
+                      <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                        {row.caseId}
+                      </div>
+
+                      <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-sm">
+                        {renderCircularFlag(row.country, row.flag)}
+                        <span className="font-normal text-[#171717] font-sans text-paragraph-sm">{row.country}</span>
+                      </div>
+
+                      <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
+                        <img 
+                          src={row.avatarUrl} 
+                          alt={row.name} 
+                          className={`size-10 rounded-full object-cover shrink-0 ${!row.avatarUrl ? 'hidden' : ''}`}
+                        />
+                        {!row.avatarUrl && (
+                          <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
+                            {row.avatarText}
+                          </div>
+                        )}
+                        <div className="flex flex-col min-w-0 gap-[2px]">
+                          <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm">
+                            {row.name}
+                          </span>
+                          <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-none">
+                            {row.group}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex items-center">
+                        <span className={`inline-flex items-center gap-xs px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] ${getStatusBgAndText(row.statusColor)}`}>
+                          <span className={`size-1.5 rounded-full ${getStatusDotColor(row.statusColor)}`} />
+                          {row.status}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex items-center">
+                        <span className="inline-flex items-center gap-xs text-[11px] font-medium uppercase tracking-[0.02em]">
+                          <span className={`size-1.5 rounded-full ${getMigrationDotColor(row.migration)}`} />
+                          <span className={getMigrationTextColorClass(row.migration)}>{row.migration}</span>
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0 flex items-center gap-xs">
+                        {row.actionColor !== "gray" && (
+                          <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
+                        )}
+                        <span className={getActionTextClass(row.actionColor)}>
+                          {row.action}
+                        </span>
+                      </div>
+
+                      <div className="w-[48px] shrink-0 flex justify-center">
+                        <CaseRowMenu
+                          onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
+                          onChangeStatus={() => {
+                            setStatusModalRow(row);
+                            setStatusModalOpen(true);
+                          }}
+                          onMarkRefused={() => {
+                            setRefusedModalRow(row);
+                            setRefusedModalOpen(true);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-md md:flex-row md:items-center pt-lg border-t border-neutral-200/40 text-paragraph-sm text-neutral-500 select-none justify-between relative">
+              <span className="text-neutral-400 font-medium w-[150px] shrink-0">Page 1 of 16</span>
+
+              <div className="flex items-center gap-xs justify-center flex-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled
+                  className="text-neutral-400 hover:text-neutral-900"
+                >
+                  <ChevronsLeft className="size-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled
+                  className="text-neutral-400 hover:text-neutral-900"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+
+                <div className="flex items-center gap-xs">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setCurrentPage(1)}
+                    className={`text-paragraph-sm font-semibold ${
+                      currentPage === 1 ? "bg-neutral-950 text-white hover:bg-neutral-950 hover:text-white" : "text-neutral-400 hover:text-neutral-900"
+                    }`}
+                  >
+                    1
+                  </Button>
+                  <Button
+                    variant={currentPage === 2 ? "ghost" : "outline"}
+                    size="icon-sm"
+                    onClick={() => setCurrentPage(2)}
+                    className={`text-paragraph-sm font-semibold ${
+                      currentPage === 2
+                        ? "bg-neutral-950 text-white hover:bg-neutral-950 hover:text-white"
+                        : "text-neutral-700"
+                    }`}
+                  >
+                    2
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setCurrentPage(3)}
+                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
+                  >
+                    3
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setCurrentPage(4)}
+                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
+                  >
+                    4
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setCurrentPage(5)}
+                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
+                  >
+                    5
+                  </Button>
+                  <span className="size-8 flex items-center justify-center text-neutral-400 font-semibold select-none">...</span>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => setCurrentPage(16)}
+                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
+                  >
+                    16
+                  </Button>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-neutral-400 hover:text-neutral-900"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-neutral-400 hover:text-neutral-900"
+                >
+                  <ChevronsRight className="size-4" />
+                </Button>
+              </div>
+
+              <div className="w-[150px] shrink-0 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="px-lg text-[13px] font-medium text-[#5C5C5C]"
+                >
+                  10 / page
+                  <ChevronDown className="size-3 text-neutral-400" />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      <ChangeCaseStatusModal
+        open={statusModalOpen}
+        onOpenChange={setStatusModalOpen}
+        currentStatus={
+          statusModalRow
+            ? CASE_STATUSES.find((s) => s.label === statusModalRow.status)?.value || ""
+            : ""
+        }
+        onApply={handleChangeStatus}
+      />
+
+      <MarkVisaRefusedModal
+        open={refusedModalOpen}
+        onOpenChange={setRefusedModalOpen}
+        caseInfo={
+          refusedModalRow
+            ? {
+                caseId: refusedModalRow.caseId,
+                name: refusedModalRow.name,
+                avatarText: refusedModalRow.avatarText,
+                avatarUrl: refusedModalRow.avatarUrl,
+              }
+            : null
+        }
+        onConfirm={handleMarkRefused}
+      />
     </div>
   );
 }
