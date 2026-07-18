@@ -3,22 +3,22 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  Filter,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  MoreVertical,
-  Plus,
-  ArrowDownToLine,
-  Globe,
-  Briefcase,
-  AlertTriangle,
-  Hash,
-  ListChecks,
-} from "lucide-react";
+  RiSearchLine,
+  RiFilterLine,
+  RiArrowDownSLine,
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
+  RiArrowLeftDoubleLine,
+  RiArrowRightDoubleLine,
+  RiMore2Line,
+  RiAddLine,
+  RiDownloadLine,
+  RiGlobalLine,
+  RiBriefcaseLine,
+  RiAlertLine,
+  RiHashtag,
+  RiListCheck,
+} from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChangeCaseStatusModal } from "./components/ChangeCaseStatusModal";
@@ -29,6 +29,7 @@ import { CaseRowMenu } from "./components/CaseRowMenu";
 import { CASE_STATUSES } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { Flag } from "@/components/ui/flag";
 
 interface CaseRow {
   id?: number;
@@ -305,76 +306,7 @@ export default function CasesPage() {
   }, [cases]);
 
   const renderCircularFlag = (country: string, fallbackFlag: string) => {
-    switch (country.toUpperCase()) {
-      case "US":
-        return (
-          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" fill="#F0F0F0" />
-            <rect y="1.8" width="24" height="1.8" fill="#D80027" />
-            <rect y="5.4" width="24" height="1.8" fill="#D80027" />
-            <rect y="9.0" width="24" height="1.8" fill="#D80027" />
-            <rect y="12.6" width="24" height="1.8" fill="#D80027" />
-            <rect y="16.2" width="24" height="1.8" fill="#D80027" />
-            <rect y="19.8" width="24" height="1.8" fill="#D80027" />
-            <rect width="11" height="11.5" fill="#0052B4" />
-            <circle cx="2.5" cy="2.5" r="0.6" fill="white" />
-            <circle cx="5.5" cy="2.5" r="0.6" fill="white" />
-            <circle cx="8.5" cy="2.5" r="0.6" fill="white" />
-            <circle cx="4" cy="5.5" r="0.6" fill="white" />
-            <circle cx="7" cy="5.5" r="0.6" fill="white" />
-            <circle cx="2.5" cy="8.5" r="0.6" fill="white" />
-            <circle cx="5.5" cy="8.5" r="0.6" fill="white" />
-            <circle cx="8.5" cy="8.5" r="0.6" fill="white" />
-          </svg>
-        );
-      case "CN":
-        return (
-          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" fill="#D80027" />
-            <polygon points="5,3 5.5,4.5 7,4.5 5.8,5.5 6.2,7 5,6 3.8,7 4.2,5.5 3,4.5 4.5,4.5" fill="#FFDA44" />
-            <polygon points="9,2 9.2,2.6 9.8,2.6 9.3,3 9.5,3.6 9,3.2 8.5,3.6 8.7,3 8.2,2.6 8.8,2.6" fill="#FFDA44" transform="scale(0.8) translate(2, 0.5)" />
-            <polygon points="9,2 9.2,2.6 9.8,2.6 9.3,3 9.5,3.6 9,3.2 8.5,3.6 8.7,3 8.2,2.6 8.8,2.6" fill="#FFDA44" transform="scale(0.8) translate(3, 2)" />
-            <polygon points="9,2 9.2,2.6 9.8,2.6 9.3,3 9.5,3.6 9,3.2 8.5,3.6 8.7,3 8.2,2.6 8.8,2.6" fill="#FFDA44" transform="scale(0.8) translate(3, 4)" />
-            <polygon points="9,2 9.2,2.6 9.8,2.6 9.3,3 9.5,3.6 9,3.2 8.5,3.6 8.7,3 8.2,2.6 8.8,2.6" fill="#FFDA44" transform="scale(0.8) translate(2, 5.5)" />
-          </svg>
-        );
-      case "IN":
-        return (
-          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="8" fill="#FF9933" />
-            <rect y="8" width="24" height="8" fill="#FFFFFF" />
-            <rect y="16" width="24" height="8" fill="#128807" />
-            <circle cx="12" cy="12" r="2" stroke="#000080" strokeWidth="0.5" fill="none" />
-            <circle cx="12" cy="12" r="0.5" fill="#000080" />
-          </svg>
-        );
-      case "FR":
-        return (
-          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
-            <rect width="8" height="24" fill="#002395" />
-            <rect x="8" width="8" height="24" fill="#FFFFFF" />
-            <rect x="16" width="8" height="24" fill="#ED2939" />
-          </svg>
-        );
-      case "SA":
-      case "ZA":
-        return (
-          <svg className="size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover" viewBox="0 0 24 24" fill="none">
-            <rect width="24" height="24" fill="#E21C21" />
-            <rect y="12" width="24" height="12" fill="#002395" />
-            <path d="M0 0 L10 12 L0 24" fill="none" stroke="#FFFFFF" strokeWidth="3" />
-            <path d="M0 0 L10 12 L0 24" fill="none" stroke="#007A3D" strokeWidth="1.8" />
-            <rect y="10.8" width="24" height="2.4" fill="#007A3D" />
-            <path d="M0 4 L6.5 12 L0 20 Z" fill="#F6B51E" />
-          </svg>
-        );
-      default:
-        return (
-          <div className="size-5 rounded-full overflow-hidden flex items-center justify-center bg-neutral-50 border border-neutral-200/40 text-xs shrink-0 select-none">
-            {fallbackFlag}
-          </div>
-        );
-    }
+    return <Flag country={country} />;
   };
 
   // Filter cases based on search, country, status, and Needs Action filter
@@ -578,7 +510,7 @@ export default function CasesPage() {
               size="sm"
               className="h-9 px-xl text-label-sm font-semibold"
             >
-              <ArrowDownToLine className="size-4" data-icon="inline-start" />
+              <RiDownloadLine className="size-4" data-icon="inline-start" />
               Import
             </Button>
             <Button
@@ -586,7 +518,7 @@ export default function CasesPage() {
               size="sm"
               className="h-9 px-xl text-label-sm font-semibold text-white"
             >
-              <Plus className="size-4" data-icon="inline-start" />
+              <RiAddLine className="size-4" data-icon="inline-start" />
               New migrant
             </Button>
           </div>
@@ -653,7 +585,7 @@ export default function CasesPage() {
       <div className="px-6 md:px-[64px] py-[32px] flex flex-col gap-[24px] flex-1">
         <div className="flex flex-wrap items-center gap-md">
           <div className="relative w-full max-w-[348px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] z-10" />
+            <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] z-10" />
             <Input
               type="text"
               placeholder="Search..."
@@ -681,11 +613,11 @@ export default function CasesPage() {
                 {/* Menus sidebar: width 224px */}
                 <div className="w-[224px] h-[528px] bg-white border-r border-[#EBEBEB] p-[12px] flex flex-col gap-[8px] shrink-0">
                   {[
-                    { key: "Case status", label: "Case status", icon: ListChecks },
-                    { key: "Country", label: "Country", icon: Globe },
-                    { key: "Migration status", label: "Migration status", icon: Briefcase },
-                    { key: "Action severity", label: "Action severity", icon: AlertTriangle },
-                    { key: "Case ID", label: "Case ID", icon: Hash },
+                    { key: "Case status", label: "Case status", icon: RiListCheck },
+                    { key: "Country", label: "Country", icon: RiGlobalLine },
+                    { key: "Migration status", label: "Migration status", icon: RiBriefcaseLine },
+                    { key: "Action severity", label: "Action severity", icon: RiAlertLine },
+                    { key: "Case ID", label: "Case ID", icon: RiHashtag },
                   ].map((item) => {
                     const IconComp = item.icon;
                     const isActive = selectedCategory === item.key;
@@ -703,7 +635,7 @@ export default function CasesPage() {
                         <IconComp className={`size-5 shrink-0 ${isActive ? 'text-[#171717]' : 'text-[#A4A4A4]'}`} />
                         <span className="text-[14px] leading-[20px] tracking-[-0.006em] truncate">{item.label}</span>
                         {isActive && (
-                          <ChevronRight className="size-4 text-[#A4A4A4] ml-auto shrink-0" />
+                          <RiArrowRightSLine className="size-4 text-[#A4A4A4] ml-auto shrink-0" />
                         )}
                       </button>
                     );
@@ -933,7 +865,7 @@ export default function CasesPage() {
               type="button"
               className="w-[133px] h-[36px] bg-[#262626] hover:bg-[#333333] text-white text-[14px] font-medium leading-[20px] tracking-[-0.006em] rounded-[8px] flex items-center justify-center gap-[4px] p-[8px] cursor-pointer border-0 transition-colors font-sans"
             >
-              <Plus className="size-5 text-white shrink-0" />
+              <RiAddLine className="size-5 text-white shrink-0" />
               <span className="text-white">New migrant</span>
             </button>
           </div>
@@ -1064,7 +996,7 @@ export default function CasesPage() {
                   disabled
                   className="text-neutral-400 hover:text-neutral-900"
                 >
-                  <ChevronsLeft className="size-4" />
+                  <RiArrowLeftDoubleLine className="size-4" />
                 </Button>
 
                 <Button
@@ -1073,7 +1005,7 @@ export default function CasesPage() {
                   disabled
                   className="text-neutral-400 hover:text-neutral-900"
                 >
-                  <ChevronLeft className="size-4" />
+                  <RiArrowLeftSLine className="size-4" />
                 </Button>
 
                 <div className="flex items-center gap-xs">
@@ -1139,7 +1071,7 @@ export default function CasesPage() {
                   size="icon-sm"
                   className="text-neutral-400 hover:text-neutral-900"
                 >
-                  <ChevronRight className="size-4" />
+                  <RiArrowRightSLine className="size-4" />
                 </Button>
 
                 <Button
@@ -1147,7 +1079,7 @@ export default function CasesPage() {
                   size="icon-sm"
                   className="text-neutral-400 hover:text-neutral-900"
                 >
-                  <ChevronsRight className="size-4" />
+                  <RiArrowRightDoubleLine className="size-4" />
                 </Button>
               </div>
 
@@ -1159,7 +1091,7 @@ export default function CasesPage() {
                   className="px-lg text-[13px] font-medium text-[#5C5C5C]"
                 >
                   10 / page
-                  <ChevronDown className="size-3 text-neutral-400" />
+                  <RiArrowDownSLine className="size-3 text-neutral-400" />
                 </Button>
               </div>
             </div>

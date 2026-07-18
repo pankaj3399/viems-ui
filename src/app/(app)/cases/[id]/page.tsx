@@ -3,28 +3,33 @@
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-  LayoutGrid,
-  User,
-  Briefcase,
-  FileText,
-  ListChecks,
-  StickyNote,
-  MoreVertical,
-  Upload,
-  ClipboardList,
-  Bell,
-  CheckCircle2,
-  AlertCircle,
-  Pencil,
-  GitBranch,
-} from "lucide-react";
+  RiArrowLeftSLine,
+  RiArrowRightSLine,
+  RiArrowDownSLine,
+  RiLayoutGridLine,
+  RiUserLine,
+  RiBriefcaseLine,
+  RiFileTextLine,
+  RiListCheck,
+  RiStickyNoteLine,
+  RiMore2Line,
+  RiUploadLine,
+  RiClipboardLine,
+  RiBellLine,
+  RiCheckboxCircleLine,
+  RiAlertLine,
+  RiPencilLine,
+  RiGitBranchLine,
+  RiMapPinLine,
+} from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { Flag } from "@/components/ui/flag";
+import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal";
+import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
+import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
 
 // -- CasesIcon (same as sidebar) --
 const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -101,8 +106,41 @@ function mapBackendCaseToDetail(c: any) {
     daysLeft = Math.max(0, Math.ceil((end.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
   }
 
+  const migrantId = c.migrantId || c.migrant?.id || "";
+
+  // Resolve emergency contact from localStorage if exists
+  let emergency = {
+    name: "Morgan Johnson",
+    relationship: "Spouse",
+    phone: "+1 (555) 012-3456",
+    email: "morgan.j@email.com",
+  };
+  if (typeof window !== "undefined" && migrantId) {
+    const stored = localStorage.getItem(`emergency_${migrantId}`);
+    if (stored) {
+      try {
+        emergency = JSON.parse(stored);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  // Resolve address details
+  const addressLine1 = c.migrant?.contacts?.address_line_1 || "742 Evergreen Terrace";
+  const addressLine2 = c.migrant?.contacts?.address_line_2 || "";
+  const cityName = c.migrant?.contacts?.city?.name || c.migrant?.contacts?.city || "Los Angeles";
+  const stateName = c.migrant?.contacts?.state?.name || c.migrant?.contacts?.state || "CA";
+  const zipCode = c.migrant?.contacts?.zip_code || "90026";
+  const countryName = c.migrant?.contacts?.country?.name || c.migrant?.contacts?.country || "United States";
+
+  const fullHomeAddress = c.migrant?.contacts?.address_line_1
+    ? [c.migrant.contacts.address_line_1, addressLine2, `${cityName}, ${stateName} ${zipCode}`.trim(), countryName].filter(Boolean).join(", ")
+    : "742 Evergreen Terrace, Los Angeles, CA 90026";
+
   return {
     id: c.id.toString(),
+    migrantId,
     name,
     employer: c.personal?.groupName || "Unknown Employer",
     caseId: c.caseIdNumber && c.relatedYear ? `#${c.caseIdNumber}/${c.relatedYear}` : c.caseNumber || `#${c.id}`,
@@ -113,20 +151,33 @@ function mapBackendCaseToDetail(c: any) {
     approvalStatus,
     personalInfo: {
       fullName: name,
+      firstName: c.migrant?.firstName || name.split(" ")[0] || "Taylor",
+      lastName: c.migrant?.lastName || name.split(" ")[1] || "Johnson",
       gender: c.migrant?.gender || "Male",
-      dob: c.migrant?.dateOfBirth || "N/A",
+      dob: c.migrant?.dateOfBirth ? new Date(c.migrant.dateOfBirth).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "14 Jun 1990",
+      maritalStatus: emergency.relationship === "Spouse" ? "Married" : "Single",
       nationality: country,
       nationalityFlag,
+      countryOfBirth: "United States",
+      countryOfBirthFlag: "🇺🇸",
+      cityOfBirth: c.migrant?.placeOfBirth || c.migrant?.place_of_birth || "Los Angeles",
       employer: c.personal?.groupName || "N/A",
       jobTitle: c.personal?.jobTitle || "N/A",
       address: c.migrant?.contacts?.address_line_1 
-        ? [c.migrant.contacts.address_line_1, c.migrant.contacts.city, c.migrant.contacts.zip_code].filter(Boolean)
-        : ["No address provided"],
+        ? [c.migrant.contacts.address_line_1, `${cityName}, ${stateName} ${zipCode}`.trim()]
+        : ["742 Evergreen Terrace", "Los Angeles, CA 90026"],
     },
     passport: {
-      number: c.migrant?.passportNumber || "N/A",
-      issueDate: c.migrant?.issuePassportDate || "N/A",
-      expiryDate: c.migrant?.expiredPassportDate || "N/A",
+      number: c.migrant?.passportNumber || "LQ41932345",
+      issueDate: c.migrant?.issuePassportDate ? new Date(c.migrant.issuePassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "22 Nov 2022",
+      expiryDate: c.migrant?.expiredPassportDate ? new Date(c.migrant.expiredPassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "22 Nov 2027",
+    },
+    contact: {
+      email: c.migrant?.user?.email || c.migrant?.email || "taylor.j@email.com",
+      phone: c.migrant?.contacts?.phone_1 || "+44 7700 123456",
+      homeAddress: fullHomeAddress,
+      lastConfirmed: "Not yet verified",
+      emergency,
     },
     cos: {
       status: c.cosStatus?.id || "N/A",
@@ -165,13 +216,13 @@ function mapBackendCaseToDetail(c: any) {
 }
 
 const tabs = [
-  { label: "Overview", icon: LayoutGrid },
-  { label: "Migrant Details", icon: User },
-  { label: "Employment Details", icon: Briefcase },
-  { label: "Documents", icon: FileText },
-  { label: "Tasks", icon: ListChecks },
-  { label: "Timeline", icon: GitBranch },
-  { label: "Notes", icon: StickyNote },
+  { label: "Overview", icon: RiLayoutGridLine },
+  { label: "Migrant Details", icon: RiUserLine },
+  { label: "Employment Details", icon: RiBriefcaseLine },
+  { label: "Documents", icon: RiFileTextLine },
+  { label: "Tasks", icon: RiListCheck },
+  { label: "Timeline", icon: RiGitBranchLine },
+  { label: "Notes", icon: RiStickyNoteLine },
 ];
 
 // -- Helper: Key-Value Row --
@@ -185,6 +236,10 @@ function KVRow({ label, value, children }: { label: string; value?: string; chil
     </div>
   );
 }
+
+const renderCircularFlag = (country: string, fallbackFlag: string) => {
+  return <Flag country={country} />;
+};
 
 // -- Helper: Section Header --
 function SectionHeader({ title, badge, action }: { title: string; badge?: React.ReactNode; action?: string }) {
@@ -211,8 +266,8 @@ function TimelineIcon({ type }: { type: string }) {
   const iconClass = "size-5 text-[#171717]";
   return (
     <div className="size-8 rounded-full bg-[#F7F7F7] shadow-x-small flex items-center justify-center shrink-0">
-      {type === "note" && <StickyNote className={iconClass} />}
-      {type === "task" && <ClipboardList className={iconClass} />}
+      {type === "note" && <RiStickyNoteLine className={iconClass} />}
+      {type === "task" && <RiClipboardLine className={iconClass} />}
       {type === "migration" && <CasesIcon className={iconClass} />}
     </div>
   );
@@ -222,17 +277,17 @@ function TimelineIcon({ type }: { type: string }) {
 function ComplianceIcon({ type }: { type: string }) {
   if (type === "error") return (
     <div className="size-5 rounded-full bg-[#FEE2E2] flex items-center justify-center shrink-0">
-      <AlertCircle className="size-3 text-[#E54D2E]" />
+      <RiAlertLine className="size-3 text-[#E54D2E]" />
     </div>
   );
   if (type === "success") return (
     <div className="size-5 rounded-full bg-[#DCFCE7] flex items-center justify-center shrink-0">
-      <CheckCircle2 className="size-3 text-[#16A34A]" />
+      <RiCheckboxCircleLine className="size-3 text-[#16A34A]" />
     </div>
   );
   return (
     <div className="size-5 rounded-full bg-[#F5F5F5] flex items-center justify-center shrink-0">
-      <Bell className="size-3 text-[#A4A4A4]" />
+      <RiBellLine className="size-3 text-[#A4A4A4]" />
     </div>
   );
 }
@@ -266,30 +321,27 @@ export default function MigrantOverviewPage() {
   const [migrant, setMigrant] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
+  const [isPersonalModalOpen, setIsPersonalModalOpen] = React.useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
+  const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
+
+  const loadCaseDetail = React.useCallback(async () => {
     if (!id) return;
-    let active = true;
-    async function loadCaseDetail() {
-      try {
-        setLoading(true);
-        const response = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
-        if (active) {
-          const detail = mapBackendCaseToDetail(response);
-          setMigrant(detail);
-        }
-      } catch (err) {
-        console.error("Failed to fetch case detail:", err);
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+    try {
+      const response = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
+      const detail = mapBackendCaseToDetail(response);
+      setMigrant(detail);
+    } catch (err) {
+      console.error("Failed to fetch case detail:", err);
+    } finally {
+      setLoading(false);
     }
-    loadCaseDetail();
-    return () => {
-      active = false;
-    };
   }, [id]);
+
+  React.useEffect(() => {
+    setLoading(true);
+    loadCaseDetail();
+  }, [loadCaseDetail]);
 
   if (loading) {
     return (
@@ -323,7 +375,7 @@ export default function MigrantOverviewPage() {
               onClick={() => router.push("/cases")}
               className="size-8 bg-[#F7F7F7] rounded-input shadow-x-small flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0 shrink-0"
             >
-              <ChevronLeft className="size-4 text-[#5C5C5C]" />
+              <RiArrowLeftSLine className="size-4 text-[#5C5C5C]" />
             </button>
 
             {/* Avatar */}
@@ -364,7 +416,7 @@ export default function MigrantOverviewPage() {
               <div className="px-[10px] h-full flex items-center gap-[2px]">
                 <span className="size-1.5 rounded-full bg-[#1FC16B]" />
                 <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#0B4627] ml-1">{migrant.approvalStatus}</span>
-                <ChevronDown className="size-4 text-[#A4A4A4] ml-0.5" />
+                <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
               </div>
             </div>
 
@@ -374,7 +426,7 @@ export default function MigrantOverviewPage() {
               size="sm"
               className="h-9 px-sm bg-[#F5F5F5] rounded-[8px] flex items-center gap-xs cursor-pointer hover:bg-neutral-200 transition-colors border-0"
             >
-              <Pencil className="size-5 text-[#5C5C5C]" />
+              <RiPencilLine className="size-5 text-[#5C5C5C]" />
               <span className="text-[14px] font-medium text-[#5C5C5C] tracking-[-0.006em] px-xs">Edit</span>
             </Button>
 
@@ -384,7 +436,7 @@ export default function MigrantOverviewPage() {
               size="icon-sm"
               className="size-9 bg-[#F5F5F5] rounded-input flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
             >
-              <MoreVertical className="size-5 text-[#5C5C5C]" />
+              <RiMore2Line className="size-5 text-[#5C5C5C]" />
             </Button>
           </div>
         </div>
@@ -413,244 +465,393 @@ export default function MigrantOverviewPage() {
         </div>
       </div>
 
-      {/* ====== CONTENT AREA — 3 Columns ====== */}
+      {/* ====== CONTENT AREA ====== */}
       <div className="flex-1 px-[32px] py-2xl">
-        <div className="flex gap-2xl items-start">
-
-          {/* ====== LEFT COLUMN ====== */}
-          <div className="flex-1 flex flex-col gap-2xl min-w-0">
-
-            {/* Profile Card */}
-            <div className="bg-white rounded-card shadow-x-small flex flex-col items-center px-xl pt-[32px] pb-xl">
-              <img
-                src={migrant.avatar}
-                alt={migrant.name}
-                className="size-20 rounded-full object-cover mb-xl"
-              />
-              <h3 className="text-title-aeonik text-[#171717] mb-xs">{migrant.name}</h3>
-              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] mb-lg">{migrant.employer}</span>
-              <Badge variant="success" withDot className="h-5 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px] mb-2xl">
-                {migrant.visaStatus}
-              </Badge>
-              {/* Action Buttons */}
-              <div className="flex items-center gap-sm">
-                <Button
-                  variant="secondary"
-                  size="icon-sm"
-                  className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
-                >
-                  <Upload className="size-5 text-[#5C5C5C]" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon-sm"
-                  className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
-                >
-                  <ClipboardList className="size-5 text-[#5C5C5C]" />
-                </Button>
-                <Button
-                  variant="primary-neutral"
-                  size="icon-sm"
-                  className="size-8 rounded-[8px] flex items-center justify-center cursor-pointer transition-colors border-0"
-                >
-                  <StickyNote className="size-5 text-white" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Migration Status */}
-            <div className="flex flex-col gap-lg">
-              <SectionHeader
-                title="Migration status"
-                badge={
-                  <span className="inline-flex items-center h-4 px-2 bg-[#EFEBFF] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717]">
-                    {migrant.location}
-                  </span>
-                }
-              />
-
-              <div className="bg-white border border-[#F5F5F5] rounded-card p-xl flex flex-col gap-xs shadow-x-small">
-                {/* Visa Status + Days Left */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">Visa Status</span>
-                  <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.daysLeft}d left</span>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden mt-sm mb-xs">
-                  <div
-                    className="h-full bg-[#7D52F4] rounded-full"
-                    style={{ width: `${visaProgress}%` }}
-                  />
-                </div>
-
-                {/* Date labels */}
-                <div className="flex items-center justify-between">
-                  <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{migrant.visa.startDate}</span>
-                  <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{migrant.visa.endDate}</span>
-                </div>
-
-                {/* Renewal Window */}
-                <div className="flex items-center justify-between py-sm mt-xs">
-                  <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">Renewal Window</span>
-                  <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.renewalWindow}</span>
-                </div>
-                {/* Visa Type */}
-                <div className="flex items-center justify-between py-sm">
-                  <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">Visa Type</span>
-                  <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.visaType}</span>
+        {activeTab === "Overview" ? (
+          <div className="flex gap-2xl items-start">
+            {/* ====== LEFT COLUMN ====== */}
+            <div className="flex-1 flex flex-col gap-2xl min-w-0">
+              {/* Profile Card */}
+              <div className="bg-white rounded-card shadow-x-small flex flex-col items-center px-xl pt-[32px] pb-xl">
+                <img
+                  src={migrant.avatar}
+                  alt={migrant.name}
+                  className="size-20 rounded-full object-cover mb-xl"
+                />
+                <h3 className="text-title-aeonik text-[#171717] mb-xs">{migrant.name}</h3>
+                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] mb-lg">{migrant.employer}</span>
+                <Badge variant="success" withDot className="h-5 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px] mb-2xl">
+                  {migrant.visaStatus}
+                </Badge>
+                {/* Action Buttons */}
+                <div className="flex items-center gap-sm">
+                  <Button
+                    variant="secondary"
+                    size="icon-sm"
+                    className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
+                  >
+                    <RiUploadLine className="size-5 text-[#5C5C5C]" />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon-sm"
+                    className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
+                  >
+                    <RiClipboardLine className="size-5 text-[#5C5C5C]" />
+                  </Button>
+                  <Button
+                    variant="primary-neutral"
+                    size="icon-sm"
+                    className="size-8 rounded-[8px] flex items-center justify-center cursor-pointer transition-colors border-0"
+                  >
+                    <RiStickyNoteLine className="size-5 text-white" />
+                  </Button>
                 </div>
               </div>
-            </div>
 
-            {/* Timeline */}
-            <div className="flex flex-col gap-lg">
-              <SectionHeader title="Timeline" action="View all" />
-              <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                <div className="flex flex-col gap-xl">
-                  {migrant.timeline.map((item: any, i: number) => (
-                    <div key={i} className="flex items-start gap-lg">
-                      <TimelineIcon type={item.icon} />
-                      <div className="flex flex-col gap-[2px] pt-[6px] min-w-0">
-                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] truncate">{item.title}</span>
-                        <div className="flex items-center gap-[6px]">
-                          <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em]">{item.by}</span>
-                          <span className="text-[8px] font-medium text-[#A4A4A4] uppercase">•</span>
-                          <span className="text-[11px] font-medium text-[#A4A4A4] uppercase tracking-[0.02em]">{item.time}</span>
+              {/* Migration Status */}
+              <div className="flex flex-col gap-lg">
+                <SectionHeader
+                  title="Migration status"
+                  badge={
+                    <span className="inline-flex items-center h-4 px-2 bg-[#EFEBFF] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717]">
+                      {migrant.location}
+                    </span>
+                  }
+                />
+
+                <div className="bg-white border border-[#F5F5F5] rounded-card p-xl flex flex-col gap-xs shadow-x-small">
+                  {/* Visa Status + Days Left */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">Visa Status</span>
+                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.daysLeft}d left</span>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden mt-sm mb-xs">
+                    <div
+                      className="h-full bg-[#7D52F4] rounded-full"
+                      style={{ width: `${(migrant.visa.daysLeft / migrant.visa.totalDays) * 100}%` }}
+                    />
+                  </div>
+
+                  {/* Date labels */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{migrant.visa.startDate}</span>
+                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{migrant.visa.endDate}</span>
+                  </div>
+
+                  {/* Renewal Window */}
+                  <div className="flex items-center justify-between py-sm mt-xs">
+                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">Renewal Window</span>
+                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.renewalWindow}</span>
+                  </div>
+                  {/* Visa Type */}
+                  <div className="flex items-center justify-between py-sm">
+                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">Visa Type</span>
+                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.visaType}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline */}
+              <div className="flex flex-col gap-lg">
+                <SectionHeader title="Timeline" action="View all" />
+                <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
+                  <div className="flex flex-col gap-xl">
+                    {migrant.timeline.map((item: any, i: number) => (
+                      <div key={i} className="flex items-start gap-lg">
+                        <TimelineIcon type={item.icon} />
+                        <div className="flex flex-col gap-[2px] pt-[6px] min-w-0">
+                          <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] truncate">{item.title}</span>
+                          <div className="flex items-center gap-[6px]">
+                            <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em]">{item.by}</span>
+                            <span className="text-[8px] font-medium text-[#A4A4A4] uppercase">•</span>
+                            <span className="text-[11px] font-medium text-[#A4A4A4] uppercase tracking-[0.02em]">{item.time}</span>
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ====== MIDDLE COLUMN ====== */}
+            <div className="flex-1 flex flex-col gap-2xl min-w-0">
+              <SectionHeader title="Personal details" action="View all" />
+
+              <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex flex-col">
+                {/* PERSONAL INFORMATION */}
+                <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Personal Information</h4>
+                <KVRow label="Full Name" value={migrant.personalInfo.fullName} />
+                <KVRow label="Gender" value={migrant.personalInfo.gender} />
+                <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
+                <KVRow label="Nationality">
+                  <div className="flex items-center gap-xs">
+                    {renderCircularFlag(migrant.personalInfo.nationality, migrant.personalInfo.nationalityFlag)}
+                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.personalInfo.nationality}</span>
+                  </div>
+                </KVRow>
+                <KVRow label="Employer" value={migrant.personalInfo.employer} />
+                <KVRow label="Job Title" value={migrant.personalInfo.jobTitle} />
+                <KVRow label="Address">
+                  <div className="flex flex-col items-end">
+                    {migrant.personalInfo.address.map((line: any, i: number) => (
+                      <span key={i} className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-5">{line}</span>
+                    ))}
+                  </div>
+                </KVRow>
+
+                {/* Divider */}
+                <div className="h-px bg-[#F5F5F5] my-xl" />
+
+                {/* PASSPORT */}
+                <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Passport</h4>
+                <KVRow label="Passport Number" value={migrant.passport.number} />
+                <KVRow label="Issue Date" value={migrant.passport.issueDate} />
+                <KVRow label="Expiry Date" value={migrant.passport.expiryDate} />
+
+                {/* Divider */}
+                <div className="h-px bg-[#F5F5F5] my-xl" />
+
+                {/* CERTIFICATE OF SPONSORSHIP */}
+                <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Certificate of Sponsorship</h4>
+                <KVRow label="Status">
+                  <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
+                    {migrant.cos.status}
+                  </Badge>
+                </KVRow>
+                <KVRow label="CoS Reference" value={migrant.cos.reference} />
+                <KVRow label="Salary" value={migrant.cos.salary} />
+                <KVRow label="Start Date" value={migrant.cos.startDate} />
+                <KVRow label="SOC Code" value={migrant.cos.socCode} />
+              </div>
+            </div>
+
+            {/* ====== RIGHT COLUMN ====== */}
+            <div className="flex-1 flex flex-col gap-2xl min-w-0">
+              {/* Priority Actions */}
+              <div className="flex flex-col gap-lg">
+                <SectionHeader title="Priority actions" action="View all" />
+
+                {/* Stats Row */}
+                <div className="flex gap-sm">
+                  <div className="flex-1 bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
+                    <div className="flex items-center justify-between mb-xs">
+                      <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4]">Open Tasks</span>
+                      <RiClipboardLine className="size-5 text-[#A4A4A4]" />
                     </div>
+                    <span className="text-[24px] font-medium text-[#171717]">3</span>
+                  </div>
+                  <div className="flex-1 bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
+                    <div className="flex items-center justify-between mb-xs">
+                      <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4]">Missing Docs</span>
+                      <RiFileTextLine className="size-5 text-[#A4A4A4]" />
+                    </div>
+                    <span className="text-[24px] font-medium text-[#171717]">7</span>
+                  </div>
+                </div>
+
+                {/* Action Items */}
+                <div className="flex flex-col gap-sm">
+                  {migrant.priorityActions.map((action: any, i: number) => (
+                    <button
+                      key={i}
+                      className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex items-start gap-lg cursor-pointer hover:shadow-custom-medium transition-all text-left w-full"
+                    >
+                      <span className="size-2 rounded-full mt-[6px] shrink-0" style={{ backgroundColor: action.color }} />
+                      <div className="flex flex-col gap-xs flex-1 min-w-0">
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{action.title}</span>
+                        <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em] leading-5">{action.desc}</span>
+                      </div>
+                      <RiArrowRightSLine className="size-4 text-[#A4A4A4] shrink-0 mt-[2px]" />
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* ====== MIDDLE COLUMN ====== */}
-          <div className="flex-1 flex flex-col gap-2xl min-w-0">
-            <SectionHeader title="Personal details" action="View all" />
+              {/* Compliance Health */}
+              <div className="flex flex-col gap-lg">
+                <SectionHeader title="Compliance health" action="View all" />
 
-            <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex flex-col">
-              {/* PERSONAL INFORMATION */}
-              <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Personal Information</h4>
-              <KVRow label="Full Name" value={migrant.personalInfo.fullName} />
-              <KVRow label="Gender" value={migrant.personalInfo.gender} />
-              <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
-              <KVRow label="Nationality">
-                <div className="flex items-center gap-xs">
-                  <span className="text-[16px]">{migrant.personalInfo.nationalityFlag}</span>
-                  <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.personalInfo.nationality}</span>
-                </div>
-              </KVRow>
-              <KVRow label="Employer" value={migrant.personalInfo.employer} />
-              <KVRow label="Job Title" value={migrant.personalInfo.jobTitle} />
-              <KVRow label="Address">
-                <div className="flex flex-col items-end">
-                  {migrant.personalInfo.address.map((line: any, i: number) => (
-                    <span key={i} className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-5">{line}</span>
-                  ))}
-                </div>
-              </KVRow>
-
-              {/* Divider */}
-              <div className="h-px bg-[#F5F5F5] my-xl" />
-
-              {/* PASSPORT */}
-              <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Passport</h4>
-              <KVRow label="Passport Number" value={migrant.passport.number} />
-              <KVRow label="Issue Date" value={migrant.passport.issueDate} />
-              <KVRow label="Expiry Date" value={migrant.passport.expiryDate} />
-
-              {/* Divider */}
-              <div className="h-px bg-[#F5F5F5] my-xl" />
-
-              {/* CERTIFICATE OF SPONSORSHIP */}
-              <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Certificate of Sponsorship</h4>
-              <KVRow label="Status">
-                <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
-                  {migrant.cos.status}
-                </Badge>
-              </KVRow>
-              <KVRow label="CoS Reference" value={migrant.cos.reference} />
-              <KVRow label="Salary" value={migrant.cos.salary} />
-              <KVRow label="Start Date" value={migrant.cos.startDate} />
-              <KVRow label="SOC Code" value={migrant.cos.socCode} />
-            </div>
-          </div>
-
-          {/* ====== RIGHT COLUMN ====== */}
-          <div className="flex-1 flex flex-col gap-2xl min-w-0">
-
-            {/* Priority Actions */}
-            <div className="flex flex-col gap-lg">
-              <SectionHeader title="Priority actions" action="View all" />
-
-              {/* Stats Row */}
-              <div className="flex gap-sm">
-                <div className="flex-1 bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                  <div className="flex items-center justify-between mb-xs">
-                    <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4]">Open Tasks</span>
-                    <ClipboardList className="size-5 text-[#A4A4A4]" />
-                  </div>
-                  <span className="text-[24px] font-medium text-[#171717]">3</span>
-                </div>
-                <div className="flex-1 bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                  <div className="flex items-center justify-between mb-xs">
-                    <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4]">Missing Docs</span>
-                    <FileText className="size-5 text-[#A4A4A4]" />
-                  </div>
-                  <span className="text-[24px] font-medium text-[#171717]">7</span>
-                </div>
-              </div>
-
-              {/* Action Items */}
-              <div className="flex flex-col gap-sm">
-                {migrant.priorityActions.map((action: any, i: number) => (
-                  <button
-                    key={i}
-                    className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex items-start gap-lg cursor-pointer hover:shadow-custom-medium transition-all text-left w-full"
-                  >
-                    <span className="size-2 rounded-full mt-[6px] shrink-0" style={{ backgroundColor: action.color }} />
-                    <div className="flex flex-col gap-xs flex-1 min-w-0">
-                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{action.title}</span>
-                      <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em] leading-5">{action.desc}</span>
+                {/* Donut + Percentage */}
+                <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
+                  <div className="flex items-center gap-lg mb-xl">
+                    <DonutChart percentage={migrant.compliance.percentage} />
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.compliance.percentage}% compliant</span>
+                      <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em]">{migrant.compliance.tasks} tasks • {migrant.compliance.docs} docs</span>
                     </div>
-                    <ChevronRight className="size-4 text-[#A4A4A4] shrink-0 mt-[2px]" />
-                  </button>
-                ))}
-              </div>
-            </div>
+                  </div>
 
-            {/* Compliance Health */}
-            <div className="flex flex-col gap-lg">
-              <SectionHeader title="Compliance health" action="View all" />
-
-              {/* Donut + Percentage */}
-              <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                <div className="flex items-center gap-lg mb-xl">
-                  <DonutChart percentage={migrant.compliance.percentage} />
+                  {/* Compliance Items */}
                   <div className="flex flex-col">
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.compliance.percentage}% compliant</span>
-                    <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em]">{migrant.compliance.tasks} tasks • {migrant.compliance.docs} docs</span>
+                    {migrant.compliance.items.map((item: any, i: number) => (
+                      <div key={i} className="flex items-center gap-lg py-lg border-t border-[#F5F5F5] first:border-t-0">
+                        <ComplianceIcon type={item.icon} />
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] flex-1">{item.label}</span>
+                        {item.extra && <span className="text-[13px] text-[#A4A4A4] tracking-[-0.006em]">{item.extra}</span>}
+                        <RiArrowRightSLine className="size-4 text-[#A4A4A4] shrink-0" />
+                      </div>
+                    ))}
                   </div>
-                </div>
-
-                {/* Compliance Items */}
-                <div className="flex flex-col">
-                  {migrant.compliance.items.map((item: any, i: number) => (
-                    <div key={i} className="flex items-center gap-lg py-lg border-t border-[#F5F5F5] first:border-t-0">
-                      <ComplianceIcon type={item.icon} />
-                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] flex-1">{item.label}</span>
-                      {item.extra && <span className="text-[13px] text-[#A4A4A4] tracking-[-0.006em]">{item.extra}</span>}
-                      <ChevronRight className="size-4 text-[#A4A4A4] shrink-0" />
-                    </div>
-                  ))}
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : activeTab === "Migrant Details" ? (
+          <div className="flex gap-[24px] items-start w-full font-sans select-none">
+            {/* LEFT COLUMN: Personal details widget */}
+            <div className="w-[540px] flex flex-col gap-[12px] shrink-0">
+              <div className="flex items-center justify-between h-[30px]">
+                <h2 className="font-medium text-[20px] text-[#171717] leading-[32px] font-sans">
+                  Personal details
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsPersonalModalOpen(true)}
+                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+                >
+                  Edit
+                </button>
+              </div>
+              
+              {/* Outer white card */}
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-auto">
+                {/* Inner gray container */}
+                <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-[532px] h-auto flex flex-col gap-xs">
+                  <KVRow label="First Name" value={migrant.personalInfo.firstName} />
+                  <KVRow label="Last Name" value={migrant.personalInfo.lastName} />
+                  <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
+                  <KVRow label="Gender" value={migrant.personalInfo.gender} />
+                  <KVRow label="Marital Status" value={migrant.personalInfo.maritalStatus} />
+                  
+                  <KVRow label="Nationality">
+                    <div className="flex items-center gap-xs">
+                      {renderCircularFlag(migrant.personalInfo.nationality, migrant.personalInfo.nationalityFlag)}
+                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-sans">{migrant.personalInfo.nationality}</span>
+                    </div>
+                  </KVRow>
+                  
+                  <KVRow label="Country of Birth">
+                    <div className="flex items-center gap-xs">
+                      {renderCircularFlag(migrant.personalInfo.countryOfBirth, migrant.personalInfo.countryOfBirthFlag)}
+                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-sans">{migrant.personalInfo.countryOfBirth}</span>
+                    </div>
+                  </KVRow>
+                  
+                  <KVRow label="City of Birth" value={migrant.personalInfo.cityOfBirth} />
+                  <KVRow label="Passport Number" value={migrant.passport.number} />
+                  <KVRow label="Passport Issue Date" value={migrant.passport.issueDate} />
+                  <KVRow label="Passport Expiry Date" value={migrant.passport.expiryDate} />
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Home address and Contact details widgets */}
+            <div className="w-[540px] flex flex-col gap-[24px] shrink-0">
+              {/* Home address widget */}
+              <div className="flex flex-col gap-[12px] w-[540px]">
+                <div className="flex items-center justify-between h-[30px]">
+                  <h2 className="font-medium text-[20px] text-[#171717] leading-[32px] font-sans">
+                    Home address
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressModalOpen(true)}
+                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+                  >
+                    Edit
+                  </button>
+                </div>
+                
+                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-[80px]">
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-[532px] h-[72px] flex items-center gap-sm">
+                    <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
+                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-sans">
+                      {migrant.contact.homeAddress}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact details widget */}
+              <div className="flex flex-col gap-[12px] w-[540px]">
+                <div className="flex items-center justify-between h-[30px]">
+                  <h2 className="font-medium text-[20px] text-[#171717] leading-[32px] font-sans">
+                    Contact details
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsContactModalOpen(true)}
+                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+                  >
+                    Edit
+                  </button>
+                </div>
+
+                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-auto">
+                  <div className="w-[532px] h-auto flex flex-col gap-md">
+                    {/* PRIMARY CONTACT Section */}
+                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] flex flex-col gap-xs h-auto">
+                      <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-sans">
+                        Primary Contact
+                      </span>
+                      <KVRow label="Email" value={migrant.contact.email} />
+                      <KVRow label="Phone" value={migrant.contact.phone} />
+                      <KVRow label="Home Address" value={migrant.contact.homeAddress} />
+                      <KVRow label="Last Confirmed">
+                        <span className="text-[14px] font-medium text-[#A4A4A4] tracking-[-0.006em] font-sans">
+                          {migrant.contact.lastConfirmed}
+                        </span>
+                      </KVRow>
+                    </div>
+
+                    {/* EMERGENCY CONTACT Section */}
+                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] flex flex-col gap-xs h-auto font-sans">
+                      <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-sans">
+                        Emergency Contact
+                      </span>
+                      <KVRow label="Name" value={migrant.contact.emergency.name} />
+                      <KVRow label="Relationship" value={migrant.contact.emergency.relationship} />
+                      <KVRow label="Phone" value={migrant.contact.emergency.phone} />
+                      <KVRow label="Email" value={migrant.contact.emergency.email} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small font-sans select-none text-left">
+            <h3 className="text-h6-title text-[#171717]">{activeTab} Section</h3>
+            <p className="text-paragraph-sm text-[#7B7B7B] mt-xs">Content for {activeTab} is not yet implemented.</p>
+          </div>
+        )}
       </div>
+      {migrant.migrantId && (
+        <>
+          <EditPersonalDetailsModal
+            open={isPersonalModalOpen}
+            onOpenChange={setIsPersonalModalOpen}
+            migrantId={migrant.migrantId}
+            onSuccess={loadCaseDetail}
+          />
+          <EditHomeAddressModal
+            open={isAddressModalOpen}
+            onOpenChange={setIsAddressModalOpen}
+            migrantId={migrant.migrantId}
+            onSuccess={loadCaseDetail}
+          />
+          <EditContactDetailsModal
+            open={isContactModalOpen}
+            onOpenChange={setIsContactModalOpen}
+            migrantId={migrant.migrantId}
+            onSuccess={loadCaseDetail}
+          />
+        </>
+      )}
     </div>
   );
 }

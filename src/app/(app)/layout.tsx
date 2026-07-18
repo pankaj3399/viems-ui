@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, removeToken } from "@/lib/auth";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import Sidebar from "@/components/sidebar";
@@ -49,6 +49,7 @@ export default function ProtectedAppLayout({
       } catch (error) {
         console.error("Failed to load user profile:", error);
         // If the token is invalid or request fails, clear session and force login
+        removeToken();
         router.replace("/login");
       }
     };
@@ -84,35 +85,37 @@ export default function ProtectedAppLayout({
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#171717] font-sans select-none">
       {/* Sidebar Navigation */}
-      <Sidebar userInfo={userInfo} isOpen={isSidebarOpen} />
+      <Sidebar userInfo={userInfo} isOpen={isSidebarOpen} onToggle={handleToggleSidebar} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 pr-sm pb-sm pt-0">
         {/* Top Header Bar [1.1] */}
-        <header className="h-20 w-full flex items-center justify-between pl-[32px] pr-[40px] shrink-0">
+        <header className="h-20 w-full flex items-center pl-[32px] pr-[40px] shrink-0">
           {/* Left side: Sidebar Collapse Toggle Button */}
-          <button
-            type="button"
-            onClick={handleToggleSidebar}
-            className="size-12 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
-            title={isSidebarOpen ? "Collapse Sidebar" : "Expand Sidebar"}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="text-[#A4A4A4]"
+          {!isSidebarOpen && (
+            <button
+              type="button"
+              onClick={handleToggleSidebar}
+              className="size-12 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
+              title="Expand Sidebar"
             >
-              <path
-                d="M3 4.75C3 4.33579 3.33579 4 3.75 4H16.25C16.6642 4 17 4.33579 17 4.75V15.25C17 15.6642 16.6642 16 16.25 16H3.75C3.33579 16 3 15.6642 3 15.25V4.75ZM4.5 5.5V14.5H7.5V5.5H4.5ZM9 14.5H15.5V5.5H9V14.5Z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
+              <svg
+                width="15"
+                height="14"
+                viewBox="0 0 15 14"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="text-[#A4A4A4]"
+              >
+                <path
+                  d="M14.25 0C14.4489 0 14.6397 0.0790176 14.7803 0.21967C14.921 0.360322 15 0.551088 15 0.75L15 12.75C15 12.9489 14.921 13.1397 14.7803 13.2803C14.6397 13.421 14.4489 13.5 14.25 13.5L0.75 13.5C0.551088 13.5 0.360322 13.421 0.21967 13.2803C0.0790176 13.1397 0 12.9489 0 12.75L0 0.75C0 0.551088 0.0790176 0.360322 0.21967 0.21967C0.360322 0.0790176 0.551088 0 0.75 0L14.25 0ZM9.75 1.5L1.5 1.5L1.5 12L9.75 12L9.75 1.5ZM13.5 1.5L11.25 1.5L11.25 12H13.5L13.5 1.5Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          )}
 
-          <div className="flex items-center gap-md">
+          <div className="flex items-center gap-md ml-auto">
             {/* Notification Bell Icon */}
             <button
               type="button"

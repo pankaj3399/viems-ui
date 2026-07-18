@@ -4,6 +4,7 @@ import * as React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Flag } from "@/components/ui/flag";
 import { ChevronDown, Check, Search } from "lucide-react";
 
 interface CountryOption {
@@ -57,9 +58,7 @@ export function CountryFilterDropdown({
         >
           <span className="truncate flex items-center gap-xs">
             {value && (
-              <span className="text-base leading-none shrink-0">
-                {countries.find((c) => c.code === value)?.flag}
-              </span>
+              <Flag country={value} className="size-4 shrink-0" />
             )}
             <span>{selectedLabel || "All countries"}</span>
           </span>
@@ -128,7 +127,7 @@ export function CountryFilterDropdown({
               }`}
             >
               <span className="flex items-center gap-sm min-w-0">
-                <span className="text-base leading-none shrink-0">{country.flag}</span>
+                <Flag country={country.code} className="size-4 shrink-0" />
                 <span className="truncate text-left">{country.label}</span>
               </span>
               <div className="flex items-center gap-sm shrink-0">
