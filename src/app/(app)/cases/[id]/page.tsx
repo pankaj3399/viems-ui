@@ -21,6 +21,7 @@ import {
   RiPencilLine,
   RiGitBranchLine,
   RiMapPinLine,
+  RiShieldCheckLine,
 } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,11 @@ import { Flag } from "@/components/ui/flag";
 import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal";
 import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
 import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
+import { CaseHeader } from "./components/CaseHeader";
+import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard } from "./components/OverviewCards";
+import { ComplianceCard } from "./components/ComplianceCard";
+import { DocumentsTab } from "./components/DocumentsTab";
+import { NotesTab } from "./components/NotesTab";
 
 // -- CasesIcon (same as sidebar) --
 const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -217,10 +223,11 @@ function mapBackendCaseToDetail(c: any) {
 
 const tabs = [
   { label: "Overview", icon: RiLayoutGridLine },
-  { label: "Migrant Details", icon: RiUserLine },
-  { label: "Employment Details", icon: RiBriefcaseLine },
+  { label: "Personal Details", icon: RiUserLine },
+  { label: "Employment", icon: RiBriefcaseLine },
   { label: "Documents", icon: RiFileTextLine },
   { label: "Tasks", icon: RiListCheck },
+  { label: "Compliance", icon: RiShieldCheckLine },
   { label: "Timeline", icon: RiGitBranchLine },
   { label: "Notes", icon: RiStickyNoteLine },
 ];
@@ -366,80 +373,16 @@ export default function MigrantOverviewPage() {
     <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full">
       {/* ====== WHITE HEADER ====== */}
       <div className="bg-white rounded-t-card flex flex-col shrink-0">
-        {/* Top Bar: Back + Name + Badges + Actions */}
-        <div className="px-[64px] pt-[32px] pb-2xl flex items-center justify-between">
-          {/* Left: Back + Avatar + Info */}
-          <div className="flex items-center gap-xl flex-1 min-w-0">
-            {/* Back Button */}
-            <button
-              onClick={() => router.push("/cases")}
-              className="size-8 bg-[#F7F7F7] rounded-input shadow-x-small flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0 shrink-0"
-            >
-              <RiArrowLeftSLine className="size-4 text-[#5C5C5C]" />
-            </button>
-
-            {/* Avatar */}
-            <img
-              src={migrant.avatar}
-              alt={migrant.name}
-              className="size-14 rounded-full object-cover shrink-0"
-            />
-
-            {/* Name + Badges + Subtitle */}
-            <div className="flex flex-col gap-xs flex-1 min-w-0">
-              {/* Name Row */}
-              <div className="flex items-center gap-[9px]">
-                <h1 className="text-title-aeonik text-[#171717]">{migrant.name}</h1>
-                <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
-                  {migrant.visaStatus}
-                </Badge>
-                <span className="inline-flex items-center h-4 px-2 bg-[#EFEBFF] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717]">
-                  {migrant.location}
-                </span>
-              </div>
-              {/* Subtitle Row */}
-              <div className="flex items-center gap-sm text-[#5C5C5C]">
-                <span className="font-mono text-[12px] leading-5 tracking-[-0.006em]">{migrant.caseId}</span>
-                <span className="text-[#D1D1D1] text-[16px] leading-5">·</span>
-                <span className="text-[13px] leading-5 tracking-[-0.006em]">{migrant.cosRef}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Status + Edit + More */}
-          <div className="flex items-center gap-lg shrink-0">
-            {/* Status Pill */}
-            <div className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white">
-              <div className="px-lg h-full flex items-center border-r border-[#EBEBEB]">
-                <span className="text-[12px] font-medium text-[#A4A4A4]">Status</span>
-              </div>
-              <div className="px-[10px] h-full flex items-center gap-[2px]">
-                <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-                <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#0B4627] ml-1">{migrant.approvalStatus}</span>
-                <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
-              </div>
-            </div>
-
-            {/* Edit Button */}
-            <Button
-              variant="secondary"
-              size="sm"
-              className="h-9 px-sm bg-[#F5F5F5] rounded-[8px] flex items-center gap-xs cursor-pointer hover:bg-neutral-200 transition-colors border-0"
-            >
-              <RiPencilLine className="size-5 text-[#5C5C5C]" />
-              <span className="text-[14px] font-medium text-[#5C5C5C] tracking-[-0.006em] px-xs">Edit</span>
-            </Button>
-
-            {/* More Button */}
-            <Button
-              variant="secondary"
-              size="icon-sm"
-              className="size-9 bg-[#F5F5F5] rounded-input flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
-            >
-              <RiMore2Line className="size-5 text-[#5C5C5C]" />
-            </Button>
-          </div>
-        </div>
+        <CaseHeader
+          name={migrant.name}
+          avatar={migrant.avatar}
+          visaStatus={migrant.visaStatus}
+          location={migrant.location}
+          caseId={migrant.caseId}
+          cosRef={migrant.cosRef}
+          approvalStatus={migrant.approvalStatus}
+          onBack={() => router.push("/cases")}
+        />
 
         {/* ====== TAB MENU ====== */}
         <div className="px-[64px] flex items-center gap-2xl h-[50px] border-b border-[#EBEBEB]">
@@ -471,236 +414,23 @@ export default function MigrantOverviewPage() {
           <div className="flex gap-2xl items-start">
             {/* ====== LEFT COLUMN ====== */}
             <div className="flex-1 flex flex-col gap-2xl min-w-0">
-              {/* Profile Card */}
-              <div className="bg-white rounded-card shadow-x-small flex flex-col items-center px-xl pt-[32px] pb-xl">
-                <img
-                  src={migrant.avatar}
-                  alt={migrant.name}
-                  className="size-20 rounded-full object-cover mb-xl"
-                />
-                <h3 className="text-title-aeonik text-[#171717] mb-xs">{migrant.name}</h3>
-                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] mb-lg">{migrant.employer}</span>
-                <Badge variant="success" withDot className="h-5 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px] mb-2xl">
-                  {migrant.visaStatus}
-                </Badge>
-                {/* Action Buttons */}
-                <div className="flex items-center gap-sm">
-                  <Button
-                    variant="secondary"
-                    size="icon-sm"
-                    className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
-                  >
-                    <RiUploadLine className="size-5 text-[#5C5C5C]" />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="icon-sm"
-                    className="size-8 bg-[#F5F5F5] rounded-[8px] flex items-center justify-center cursor-pointer hover:bg-neutral-200 transition-colors border-0"
-                  >
-                    <RiClipboardLine className="size-5 text-[#5C5C5C]" />
-                  </Button>
-                  <Button
-                    variant="primary-neutral"
-                    size="icon-sm"
-                    className="size-8 rounded-[8px] flex items-center justify-center cursor-pointer transition-colors border-0"
-                  >
-                    <RiStickyNoteLine className="size-5 text-white" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Migration Status */}
-              <div className="flex flex-col gap-lg">
-                <SectionHeader
-                  title="Migration status"
-                  badge={
-                    <span className="inline-flex items-center h-4 px-2 bg-[#EFEBFF] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717]">
-                      {migrant.location}
-                    </span>
-                  }
-                />
-
-                <div className="bg-white border border-[#F5F5F5] rounded-card p-xl flex flex-col gap-xs shadow-x-small">
-                  {/* Visa Status + Days Left */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">Visa Status</span>
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.daysLeft}d left</span>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden mt-sm mb-xs">
-                    <div
-                      className="h-full bg-[#7D52F4] rounded-full"
-                      style={{ width: `${(migrant.visa.daysLeft / migrant.visa.totalDays) * 100}%` }}
-                    />
-                  </div>
-
-                  {/* Date labels */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{migrant.visa.startDate}</span>
-                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{migrant.visa.endDate}</span>
-                  </div>
-
-                  {/* Renewal Window */}
-                  <div className="flex items-center justify-between py-sm mt-xs">
-                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">Renewal Window</span>
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.renewalWindow}</span>
-                  </div>
-                  {/* Visa Type */}
-                  <div className="flex items-center justify-between py-sm">
-                    <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">Visa Type</span>
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.visa.visaType}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <div className="flex flex-col gap-lg">
-                <SectionHeader title="Timeline" action="View all" />
-                <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                  <div className="flex flex-col gap-xl">
-                    {migrant.timeline.map((item: any, i: number) => (
-                      <div key={i} className="flex items-start gap-lg">
-                        <TimelineIcon type={item.icon} />
-                        <div className="flex flex-col gap-[2px] pt-[6px] min-w-0">
-                          <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] truncate">{item.title}</span>
-                          <div className="flex items-center gap-[6px]">
-                            <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em]">{item.by}</span>
-                            <span className="text-[8px] font-medium text-[#A4A4A4] uppercase">•</span>
-                            <span className="text-[11px] font-medium text-[#A4A4A4] uppercase tracking-[0.02em]">{item.time}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ====== MIDDLE COLUMN ====== */}
-            <div className="flex-1 flex flex-col gap-2xl min-w-0">
-              <SectionHeader title="Personal details" action="View all" />
-
-              <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex flex-col">
-                {/* PERSONAL INFORMATION */}
-                <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Personal Information</h4>
-                <KVRow label="Full Name" value={migrant.personalInfo.fullName} />
-                <KVRow label="Gender" value={migrant.personalInfo.gender} />
-                <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
-                <KVRow label="Nationality">
-                  <div className="flex items-center gap-xs">
-                    {renderCircularFlag(migrant.personalInfo.nationality, migrant.personalInfo.nationalityFlag)}
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.personalInfo.nationality}</span>
-                  </div>
-                </KVRow>
-                <KVRow label="Employer" value={migrant.personalInfo.employer} />
-                <KVRow label="Job Title" value={migrant.personalInfo.jobTitle} />
-                <KVRow label="Address">
-                  <div className="flex flex-col items-end">
-                    {migrant.personalInfo.address.map((line: any, i: number) => (
-                      <span key={i} className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-5">{line}</span>
-                    ))}
-                  </div>
-                </KVRow>
-
-                {/* Divider */}
-                <div className="h-px bg-[#F5F5F5] my-xl" />
-
-                {/* PASSPORT */}
-                <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Passport</h4>
-                <KVRow label="Passport Number" value={migrant.passport.number} />
-                <KVRow label="Issue Date" value={migrant.passport.issueDate} />
-                <KVRow label="Expiry Date" value={migrant.passport.expiryDate} />
-
-                {/* Divider */}
-                <div className="h-px bg-[#F5F5F5] my-xl" />
-
-                {/* CERTIFICATE OF SPONSORSHIP */}
-                <h4 className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4] mb-lg">Certificate of Sponsorship</h4>
-                <KVRow label="Status">
-                  <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
-                    {migrant.cos.status}
-                  </Badge>
-                </KVRow>
-                <KVRow label="CoS Reference" value={migrant.cos.reference} />
-                <KVRow label="Salary" value={migrant.cos.salary} />
-                <KVRow label="Start Date" value={migrant.cos.startDate} />
-                <KVRow label="SOC Code" value={migrant.cos.socCode} />
-              </div>
+              <MigrationStatusCard location={migrant.location} visa={migrant.visa} />
+              <PersonalDetailsCard personalInfo={migrant.personalInfo} passport={migrant.passport} cos={migrant.cos} />
             </div>
 
             {/* ====== RIGHT COLUMN ====== */}
-            <div className="flex-1 flex flex-col gap-2xl min-w-0">
-              {/* Priority Actions */}
-              <div className="flex flex-col gap-lg">
-                <SectionHeader title="Priority actions" action="View all" />
-
-                {/* Stats Row */}
-                <div className="flex gap-sm">
-                  <div className="flex-1 bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                    <div className="flex items-center justify-between mb-xs">
-                      <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4]">Open Tasks</span>
-                      <RiClipboardLine className="size-5 text-[#A4A4A4]" />
-                    </div>
-                    <span className="text-[24px] font-medium text-[#171717]">3</span>
-                  </div>
-                  <div className="flex-1 bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                    <div className="flex items-center justify-between mb-xs">
-                      <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#A4A4A4]">Missing Docs</span>
-                      <RiFileTextLine className="size-5 text-[#A4A4A4]" />
-                    </div>
-                    <span className="text-[24px] font-medium text-[#171717]">7</span>
-                  </div>
-                </div>
-
-                {/* Action Items */}
-                <div className="flex flex-col gap-sm">
-                  {migrant.priorityActions.map((action: any, i: number) => (
-                    <button
-                      key={i}
-                      className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small flex items-start gap-lg cursor-pointer hover:shadow-custom-medium transition-all text-left w-full"
-                    >
-                      <span className="size-2 rounded-full mt-[6px] shrink-0" style={{ backgroundColor: action.color }} />
-                      <div className="flex flex-col gap-xs flex-1 min-w-0">
-                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{action.title}</span>
-                        <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em] leading-5">{action.desc}</span>
-                      </div>
-                      <RiArrowRightSLine className="size-4 text-[#A4A4A4] shrink-0 mt-[2px]" />
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Compliance Health */}
-              <div className="flex flex-col gap-lg">
-                <SectionHeader title="Compliance health" action="View all" />
-
-                {/* Donut + Percentage */}
-                <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small">
-                  <div className="flex items-center gap-lg mb-xl">
-                    <DonutChart percentage={migrant.compliance.percentage} />
-                    <div className="flex flex-col">
-                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em]">{migrant.compliance.percentage}% compliant</span>
-                      <span className="text-[13px] text-[#7B7B7B] tracking-[-0.006em]">{migrant.compliance.tasks} tasks • {migrant.compliance.docs} docs</span>
-                    </div>
-                  </div>
-
-                  {/* Compliance Items */}
-                  <div className="flex flex-col">
-                    {migrant.compliance.items.map((item: any, i: number) => (
-                      <div key={i} className="flex items-center gap-lg py-lg border-t border-[#F5F5F5] first:border-t-0">
-                        <ComplianceIcon type={item.icon} />
-                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] flex-1">{item.label}</span>
-                        {item.extra && <span className="text-[13px] text-[#A4A4A4] tracking-[-0.006em]">{item.extra}</span>}
-                        <RiArrowRightSLine className="size-4 text-[#A4A4A4] shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            <div className="w-[449px] shrink-0 flex flex-col gap-2xl">
+              <PriorityActionsCard actions={migrant.priorityActions} />
+              <TimelineCard timeline={migrant.timeline} />
+              <ComplianceCard
+                percentage={migrant.compliance.percentage}
+                tasks={migrant.compliance.tasks}
+                docs={migrant.compliance.docs}
+                items={migrant.compliance.items}
+              />
             </div>
           </div>
-        ) : activeTab === "Migrant Details" ? (
+        ) : activeTab === "Personal Details" ? (
           <div className="flex gap-[24px] items-start w-full font-sans select-none">
             {/* LEFT COLUMN: Personal details widget */}
             <div className="w-[540px] flex flex-col gap-[12px] shrink-0">
@@ -823,6 +553,10 @@ export default function MigrantOverviewPage() {
               </div>
             </div>
           </div>
+        ) : activeTab === "Documents" ? (
+          <DocumentsTab />
+        ) : activeTab === "Notes" ? (
+          <NotesTab />
         ) : (
           <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small font-sans select-none text-left">
             <h3 className="text-h6-title text-[#171717]">{activeTab} Section</h3>
