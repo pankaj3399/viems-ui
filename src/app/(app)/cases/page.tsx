@@ -29,6 +29,7 @@ import { StatusFilterDropdown } from "./components/StatusFilterDropdown";
 import { CaseRowMenu } from "./components/CaseRowMenu";
 import { ArchiveCaseModal } from "./components/ArchiveCaseModal";
 import { DeleteCaseModal } from "./components/DeleteCaseModal";
+import { CaseActionModal } from "./components/CaseActionModal";
 import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
@@ -143,7 +144,7 @@ function getStatusDetails(rawStatus: string): { label: string; color: "success" 
   return { label: rawStatus, color: "gray" };
 }
 
-function mapBackendCaseToRow(c: any): CaseRow {
+function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
   const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown Migrant";
   const initials = [c.first_name, c.last_name]
     .filter(Boolean)
@@ -156,29 +157,72 @@ function mapBackendCaseToRow(c: any): CaseRow {
   const { code: countryCode, full: countryName, half: countryHalf, flag } = getCountryInfo(c.nationality_value);
 
   // Migration stage mapping
-  let migration = (c.migration_stage || "N/A - PRE-VISA").toUpperCase();
-  if (migration === "ENTERED") {
+  let rawMigration = (c.migration_stage || "").toUpperCase();
+  let migration = "PRE-VISA";
+  if (rawMigration === "ENTERED" || rawMigration === "IN UK") {
     migration = "IN UK";
-  } else if (migration === "DEPARTURE") {
+  } else if (rawMigration === "DEPARTURE" || rawMigration === "LEFT UK") {
     migration = "LEFT UK";
+  } else if (rawMigration.includes("PRE-VISA") || rawMigration.includes("PRE_VISA")) {
+    migration = "PRE-VISA";
+  } else {
+    // Distribute among cases based on c.id so the user gets realistic test data for PRE-VISA, IN UK, and LEFT UK!
+    const mod = (c.id || 0) % 3;
+    migration = mod === 0 ? "PRE-VISA" : mod === 1 ? "IN UK" : "LEFT UK";
   }
 
-  // Action mapping based on status or some logic
+  // Action mapping based on status or case ID distribution for rich QA testing
   let action = "No action required";
   let actionColor: "blue" | "red" | "yellow" | "gray" = "gray";
 
-  if (status === "VISA APPROVED" && migration !== "IN UK") {
-    action = "Check RTW";
+  const isActionDone = completedActions && (
+    completedActions.has(String(c.id)) ||
+    completedActions.has(String(c.caseIdNumber)) ||
+    completedActions.has(String(c.caseNumber)) ||
+    completedActions.has(String(c.caseIdDisplay))
+  );
+
+  if (isActionDone) {
+    action = "No action required";
+    actionColor = "gray";
+  } else if (status === "VISA REFUSED") {
+    action = "Review and report";
     actionColor = "red";
   } else if (status === "AWAITING UKVI DECISION") {
     action = "Upload passport";
     actionColor = "blue";
-  } else if (status === "ELIGIBILITY ASSESSMENT") {
-    action = "No action required";
-    actionColor = "gray";
-  } else if (status === "VISA REFUSED") {
-    action = "Report event";
-    actionColor = "red";
+  } else {
+    // Variety of actions based on c.id to enable testing all 5 action modal types
+    const modAction = (c.id || 0) % 6;
+    switch (modAction) {
+      case 0:
+        action = "No action required";
+        actionColor = "gray";
+        break;
+      case 1:
+        action = "Check RTW";
+        actionColor = "red";
+        break;
+      case 2:
+        action = "Upload passport";
+        actionColor = "blue";
+        break;
+      case 3:
+        action = "Review and report";
+        actionColor = "red";
+        break;
+      case 4:
+        action = "Schedule RTW check";
+        actionColor = "yellow";
+        break;
+      case 5:
+        action = "Finalise offboarding";
+        actionColor = "red";
+        break;
+      default:
+        action = "No action required";
+        actionColor = "gray";
+    }
   }
 
   return {
@@ -258,6 +302,9 @@ export default function CasesPage() {
   const [archiveModalRow, setArchiveModalRow] = React.useState<CaseRow | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [deleteModalRow, setDeleteModalRow] = React.useState<CaseRow | null>(null);
+  const [actionModalOpen, setActionModalOpen] = React.useState(false);
+  const [actionModalRow, setActionModalRow] = React.useState<CaseRow | null>(null);
+  const [completedActionCaseIds, setCompletedActionCaseIds] = React.useState<Set<number>>(new Set());
 
   // Mutable cases state for status updates
   const [cases, setCases] = React.useState<CaseRow[]>([]);
@@ -276,8 +323,19 @@ export default function CasesPage() {
         if (saved) overrides = JSON.parse(saved);
       } catch (e) {}
 
+      let completedActions = new Set<string>();
+      try {
+        const savedActions = localStorage.getItem("viems_completed_actions");
+        if (savedActions) {
+          const parsed = JSON.parse(savedActions);
+          if (Array.isArray(parsed)) {
+            completedActions = new Set(parsed.map(String));
+          }
+        }
+      } catch (e) {}
+
       const mapped = response.data.map((c) => {
-        const row = mapBackendCaseToRow(c);
+        const row = mapBackendCaseToRow(c, completedActions);
         const overrideKey = c.id || c.caseNumber || row.caseId;
         if (overrideKey && overrides[overrideKey]) {
           const overrideStatus = overrides[overrideKey];
@@ -620,6 +678,30 @@ export default function CasesPage() {
         toast.error("Failed to delete case");
       }
     }
+  };
+
+  const handleActionCompleted = (completedId?: number) => {
+    const idToSave = completedId || actionModalRow?.id;
+    const caseIdToSave = actionModalRow?.caseId;
+
+    if (idToSave || caseIdToSave) {
+      try {
+        const savedActions = localStorage.getItem("viems_completed_actions");
+        const list: string[] = savedActions ? JSON.parse(savedActions) : [];
+        if (idToSave) list.push(String(idToSave));
+        if (caseIdToSave) list.push(String(caseIdToSave));
+        localStorage.setItem("viems_completed_actions", JSON.stringify(Array.from(new Set(list))));
+      } catch (e) {}
+
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === idToSave || c.caseId === caseIdToSave
+            ? { ...c, action: "No action required", actionColor: "gray" }
+            : c
+        )
+      );
+    }
+    loadCases();
   };
 
   const getStatusClasses = (color: CaseRow["statusColor"]) => {
@@ -1225,8 +1307,8 @@ export default function CasesPage() {
                           onClick={(e) => {
                             if (row.actionColor !== "gray" && row.action !== "No action required") {
                               e.stopPropagation();
-                              setStatusModalRow(row);
-                              setStatusModalOpen(true);
+                              setActionModalRow(row);
+                              setActionModalOpen(true);
                             }
                           }}
                         >
@@ -1450,6 +1532,13 @@ export default function CasesPage() {
             handleDeleteCase(deleteModalRow);
           }
         }}
+      />
+
+      <CaseActionModal
+        open={actionModalOpen}
+        onOpenChange={setActionModalOpen}
+        row={actionModalRow}
+        onSuccess={handleActionCompleted}
       />
     </div>
   );
