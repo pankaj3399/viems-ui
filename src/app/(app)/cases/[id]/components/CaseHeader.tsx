@@ -30,6 +30,7 @@ interface CaseHeaderProps {
   cosRef: string;
   approvalStatus: string;
   onBack: () => void;
+  onChangeStatus?: () => void;
 }
 
 export function CaseHeader({
@@ -41,6 +42,7 @@ export function CaseHeader({
   cosRef,
   approvalStatus,
   onBack,
+  onChangeStatus,
 }: CaseHeaderProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -87,8 +89,12 @@ export function CaseHeader({
       {/* Right: Status + Edit + More */}
       <div className="flex items-center gap-lg shrink-0">
         {/* Status Pill */}
-        <div className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white">
-          <div className="px-lg h-full flex items-center border-r border-[#EBEBEB]">
+        <button
+          type="button"
+          onClick={onChangeStatus}
+          className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white cursor-pointer hover:border-[#7D52F4] hover:shadow-x-small transition-all border-0 p-0"
+        >
+          <div className="px-lg h-full flex items-center border-r border-[#EBEBEB] bg-neutral-50/50">
             <span className="text-paragraph-xs font-medium text-[#A4A4A4]">Status</span>
           </div>
           <div className="px-[10px] h-full flex items-center gap-[2px]">
@@ -96,7 +102,7 @@ export function CaseHeader({
             <span className="text-subheading-2xs text-[#0B4627] ml-1">{approvalStatus}</span>
             <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
           </div>
-        </div>
+        </button>
 
         {/* Edit Button */}
         <Button

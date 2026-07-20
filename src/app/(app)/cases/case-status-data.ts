@@ -36,11 +36,11 @@ export interface RefusalReason {
 }
 
 export const REFUSAL_REASONS: RefusalReason[] = [
-  { value: "cos_needed_prior", label: "CoS needed prior to entry" },
+  { value: "cos_revoked", label: "CoS revoked prior to entry" },
   { value: "incomplete_application", label: "Incomplete application package" },
   { value: "previous_overstay", label: "Previous visa overstay on record" },
   { value: "financial_requirements", label: "Financial requirements not met" },
   { value: "insufficient_evidence", label: "Insufficient evidence of return" },
-  { value: "mandatory_not_cleared", label: "Mandatory not cleared" },
+  { value: "interview_not_cleared", label: "Interview not cleared" },
   { value: "other", label: "Other" },
 ];

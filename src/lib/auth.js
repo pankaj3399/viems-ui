@@ -48,12 +48,8 @@ function getTokenPayload() {
         const parts = token.split(".");
         if (parts.length !== 3)
             return null;
-        // Base64url → Base64 → decode
         const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const json = decodeURIComponent(atob(base64)
-            .split("")
-            .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-            .join(""));
+        const json = atob(base64);
         return JSON.parse(json);
     }
     catch {

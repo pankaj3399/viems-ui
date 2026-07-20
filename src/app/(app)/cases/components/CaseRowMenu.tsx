@@ -22,12 +22,16 @@ interface CaseRowMenuProps {
   onChangeStatus: () => void;
   onMarkRefused: () => void;
   onViewDetails: () => void;
+  onArchive?: () => void;
+  onDelete?: () => void;
 }
 
 export function CaseRowMenu({
   onChangeStatus,
   onMarkRefused,
   onViewDetails,
+  onArchive,
+  onDelete,
 }: CaseRowMenuProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -53,7 +57,7 @@ export function CaseRowMenu({
           className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
         >
           <RiFocus2Line className="size-5 text-[#5C5C5C]" />
-          <span className="flex-1">Focus</span>
+          <span className="flex-1">Resolve</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem
@@ -61,7 +65,7 @@ export function CaseRowMenu({
           className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
         >
           <RiEyeLine className="size-5 text-[#5C5C5C]" />
-          <span className="flex-1">Details</span>
+          <span className="flex-1">View case</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem
@@ -69,13 +73,13 @@ export function CaseRowMenu({
           className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
         >
           <RiPencilLine className="size-5 text-[#5C5C5C]" />
-          <span className="flex-1">Edit</span>
+          <span className="flex-1">Edit case</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator className="w-[235px] h-[1px] bg-[#EBEBEB] my-xs self-center" />
 
         <DropdownMenuItem
-          onClick={() => {}}
+          onClick={() => onArchive ? onArchive() : {}}
           className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
         >
           <RiArchiveLine className="size-5 text-[#5C5C5C]" />
@@ -83,7 +87,7 @@ export function CaseRowMenu({
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          onClick={onMarkRefused}
+          onClick={() => onDelete ? onDelete() : onMarkRefused()}
           className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#FB3748] hover:bg-[#FFF5F5]"
         >
           <RiDeleteBinLine className="size-5 text-[#FB3748]" />

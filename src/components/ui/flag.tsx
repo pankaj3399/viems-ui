@@ -103,6 +103,36 @@ function normalizeCountryCode(country: string): string {
     return "GB";
   }
 
+  // Pakistan variants
+  if (
+    clean === "pk" ||
+    clean === "pak" ||
+    clean === "pakistan" ||
+    clean === "pakistani"
+  ) {
+    return "PK";
+  }
+
+  // Germany variants
+  if (
+    clean === "de" ||
+    clean === "deu" ||
+    clean === "germany" ||
+    clean === "german"
+  ) {
+    return "DE";
+  }
+
+  // Nepal variants
+  if (
+    clean === "np" ||
+    clean === "npl" ||
+    clean === "nepal" ||
+    clean === "nepalese"
+  ) {
+    return "NP";
+  }
+
   return country.toUpperCase();
 }
 
@@ -217,6 +247,37 @@ export function Flag({ country, className = "", ...props }: FlagProps) {
           <path d="M0,0 L24,24 M24,0 L0,24" stroke="#CF142B" strokeWidth="1.2" />
           <path d="M12,0 L12,24 M0,12 L24,12" stroke="#FFFFFF" strokeWidth="5" />
           <path d="M12,0 L12,24 M0,12 L24,12" stroke="#CF142B" strokeWidth="3" />
+        </svg>
+      );
+
+    case "DE":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="24" height="8" fill="#000000" />
+          <rect y="8" width="24" height="8" fill="#DD0000" />
+          <rect y="16" width="24" height="8" fill="#FFCC00" />
+        </svg>
+      );
+
+    case "PK":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="6" height="24" fill="#FFFFFF" />
+          <rect x="6" width="18" height="24" fill="#115B35" />
+          <circle cx="15.5" cy="12" r="4.5" fill="#FFFFFF" />
+          <circle cx="17.0" cy="11" r="4.5" fill="#115B35" />
+          <polygon points="13.5,9.5 14,10.5 15,10.5 14.2,11.2 14.5,12.2 13.5,11.5 12.5,12.2 12.8,11.2 12,10.5 13,10.5" fill="#FFFFFF" />
+        </svg>
+      );
+
+    case "NP":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="24" height="24" fill="#DC143C" />
+          <polygon points="2,2 2,13 18,13" fill="#DC143C" stroke="#002868" strokeWidth="1.5" />
+          <polygon points="2,11 2,22 20,22" fill="#DC143C" stroke="#002868" strokeWidth="1.5" />
+          <circle cx="7" cy="17" r="2.5" fill="#FFFFFF" />
+          <path d="M 5,6 A 2.5,2.5 0 0,0 9.5,8 A 2,2 0 0,1 5,6 Z" fill="#FFFFFF" />
         </svg>
       );
 

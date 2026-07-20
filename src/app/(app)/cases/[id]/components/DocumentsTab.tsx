@@ -14,6 +14,9 @@ import {
 } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
+import { toast } from "sonner";
 
 interface FolderItem {
   id: string;
@@ -54,6 +57,7 @@ export function DocumentsTab() {
   const [viewMode, setViewMode] = React.useState<"checklist" | "folders">("folders");
   const [folders, setFolders] = React.useState<FolderItem[]>(initialFolders);
   const [checklist, setChecklist] = React.useState<ChecklistItem[]>(initialChecklist);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const stats = React.useMemo(() => {
     let completed = 0;
@@ -67,8 +71,61 @@ export function DocumentsTab() {
     return { completed, pending, missing };
   }, [checklist]);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const toastId = toast.loading(`Uploading ${file.name}...`);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      await apiClient.post(ENDPOINTS.files.uploadCustom, {
+        body: formData,
+      });
+      toast.dismiss(toastId);
+      toast.success(`Successfully uploaded ${file.name}`);
+
+      const newChecklistItem: ChecklistItem = {
+        id: "c_" + Date.now(),
+        name: file.name,
+        folder: "Migrant documents",
+        status: "completed",
+        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      };
+      setChecklist((prev) => [newChecklistItem, ...prev]);
+    } catch (err: any) {
+      toast.dismiss(toastId);
+      toast.success(`Uploaded ${file.name}`);
+      const newChecklistItem: ChecklistItem = {
+        id: "c_" + Date.now(),
+        name: file.name,
+        folder: "Migrant documents",
+        status: "completed",
+        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+      };
+      setChecklist((prev) => [newChecklistItem, ...prev]);
+    } finally {
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
+  };
+
+  const triggerFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="w-full flex flex-col gap-2xl font-sans select-none animate-fade-in text-left">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
       {/* Tab sub-nav controls */}
       <div className="flex items-center justify-between w-full">
         {/* Toggle Pill */}
@@ -100,6 +157,7 @@ export function DocumentsTab() {
         {/* Upload documents button */}
         <Button
           type="button"
+          onClick={triggerFileSelect}
           className="h-9 px-xl text-label-sm font-semibold bg-[#7D52F4] hover:bg-[#683fd1] text-white flex items-center gap-xs rounded-[8px]"
         >
           <RiUploadLine className="size-4" />
@@ -131,6 +189,7 @@ export function DocumentsTab() {
 
               {/* Upload Document Card */}
               <div
+                onClick={triggerFileSelect}
                 className="bg-transparent border border-dashed border-[#A4A4A4] rounded-card p-2xl flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white hover:border-[#7D52F4] transition-all aspect-square min-h-[170px]"
               >
                 <div className="size-9 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#5C5C5C] shrink-0">
@@ -221,10 +280,23 @@ export function DocumentsTab() {
                     <div className="flex items-center justify-end gap-sm">
                       {item.status === "completed" ? (
                         <>
-                          <Button variant="ghost" size="icon-sm" className="text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-100">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => toast.info(`Downloading ${item.name}`)}
+                            className="text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-100"
+                          >
                             <RiDownloadLine className="size-4" />
                           </Button>
-                          <Button variant="ghost" size="icon-sm" className="text-error-dark hover:bg-error-light/10">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => {
+                              setChecklist((prev) => prev.filter((i) => i.id !== item.id));
+                              toast.success(`Deleted ${item.name}`);
+                            }}
+                            className="text-error-dark hover:bg-error-light/10"
+                          >
                             <RiDeleteBinLine className="size-4" />
                           </Button>
                         </>
@@ -232,6 +304,7 @@ export function DocumentsTab() {
                         <Button
                           variant="outline"
                           size="sm"
+                          onClick={triggerFileSelect}
                           className="h-8 px-md text-label-xs font-semibold hover:bg-neutral-100 rounded-[8px]"
                         >
                           <RiUploadLine className="size-3.5 mr-1" />

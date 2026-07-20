@@ -85,14 +85,12 @@ export default function LoginPage() {
 
     setIsLoading(true);
     try {
-      // The API call returns a token or standard 200 status when OTP flow is triggered
       const res = await apiClient.post<any>(ENDPOINTS.auth.login, {
         body: { email, password },
       });
 
-      // Backend config check: if response has no token and OTP is required
-      // (either status is 200 without token, or has OTP request flag)
       if (res?.status === 200 && !res?.token) {
+        // OTP required — backend sends OTP to email
         setViewState("otp");
         toast.info("OTP code sent", {
           description: "Please check your email inbox for a temporary access code.",
@@ -104,14 +102,12 @@ export default function LoginPage() {
         });
         router.push("/dashboard");
       } else {
-        // Fallback checks
         setViewState("otp");
       }
     } catch (err: any) {
       const msg = err?.message || "Invalid credentials. Please try again.";
       toast.error("Login failed", { description: msg });
-      
-      // Specifically handle locked accounts
+
       if (msg.includes("locked") || msg.includes("3 times")) {
         setPasswordError(msg);
       } else {

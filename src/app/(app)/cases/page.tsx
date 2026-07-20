@@ -22,19 +22,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChangeCaseStatusModal } from "./components/ChangeCaseStatusModal";
+import { CaseStatusDropdown } from "./components/CaseStatusDropdown";
 import { MarkVisaRefusedModal } from "./components/MarkVisaRefusedModal";
 import { CountryFilterDropdown } from "./components/CountryFilterDropdown";
 import { StatusFilterDropdown } from "./components/StatusFilterDropdown";
 import { CaseRowMenu } from "./components/CaseRowMenu";
-import { CASE_STATUSES } from "./case-status-data";
+import { ArchiveCaseModal } from "./components/ArchiveCaseModal";
+import { DeleteCaseModal } from "./components/DeleteCaseModal";
+import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { Flag } from "@/components/ui/flag";
-
+import { toast } from "sonner";
 interface CaseRow {
   id?: number;
+  roleId?: number;
   caseId: string;
   country: string;
+  countryCode: string;
+  countryHalf: string;
   flag: string;
   name: string;
   group: string;
@@ -45,6 +51,96 @@ interface CaseRow {
   migration: string;
   action: string;
   actionColor: "blue" | "red" | "yellow" | "gray";
+  outcome?: string | null;       // preserve server outcome on PATCH
+  cosStatusValue?: string | null; // preserve server cosStatus on PATCH
+}
+
+const countryMap: Record<string, { code: string; full: string; half: string; flag: string }> = {
+  us: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  usa: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  american: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  "united states": { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  gb: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  uk: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  british: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  "united kingdom": { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  in: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
+  indian: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
+  india: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
+  cn: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
+  chinese: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
+  china: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
+  fr: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
+  french: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
+  france: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
+  za: { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  sa: { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  "south african": { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  "south africa": { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  np: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
+  nepalese: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
+  nepal: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
+  pk: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
+  pakistani: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
+  pakistan: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
+  de: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
+  german: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
+  germany: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
+  it: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
+  italian: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
+  italy: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
+  gl: { code: "GL", full: "Greenland", half: "Grl", flag: "🇬🇱" },
+  greenland: { code: "GL", full: "Greenland", half: "Grl", flag: "🇬🇱" },
+  jm: { code: "JM", full: "Jamaica", half: "Jam", flag: "🇯🇲" },
+  jamaica: { code: "JM", full: "Jamaica", half: "Jam", flag: "🇯🇲" },
+};
+
+function getCountryInfo(raw: string): { code: string; full: string; half: string; flag: string } {
+  if (!raw) return { code: "US", full: "United States", half: "USA", flag: "🇺🇸" };
+  const clean = raw.trim().toLowerCase().replace(/_/g, " ");
+  
+  if (countryMap[clean]) {
+    return countryMap[clean];
+  }
+  
+  const code = (clean.length === 2 ? clean : clean.slice(0, 2)).toUpperCase();
+  const words = clean.split(" ");
+  const full = words
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+  const half = full.length > 3 ? full.slice(0, 3) : full;
+  
+  const flagMap: Record<string, string> = {
+    US: "🇺🇸", CN: "🇨🇳", IN: "🇮🇳", FR: "🇫🇷", ZA: "🇿🇦",
+    GB: "🇬🇧", NP: "🇳🇵", DE: "🇩🇪", PK: "🇵🇰", IT: "🇮🇹",
+    GL: "🇬🇱", JM: "🇯🇲"
+  };
+  const flag = flagMap[code] || "🇺🇸";
+  
+  return { code, full, half, flag };
+}
+function getStatusDetails(rawStatus: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
+  if (!rawStatus) return { label: "Awaiting applicant docs", color: "warning" };
+  const norm = rawStatus.toLowerCase().replace(/_/g, " ").trim();
+  const found = CASE_STATUSES.find(
+    (s) => s.value.toLowerCase().replace(/_/g, " ").trim() === norm || s.label.toLowerCase().trim() === norm
+  );
+  if (found) {
+    const color = found.dotColor === "#1FC16B" ? "success"
+      : found.dotColor === "#F6B51E" ? "warning"
+      : found.dotColor === "#335CFF" ? "info"
+      : found.dotColor === "#FB3748" ? "error"
+      : "gray";
+    return { label: found.label, color };
+  }
+  if (norm === "granted" || norm === "visa approved") return { label: "Visa Approved", color: "success" };
+  if (norm === "refused" || norm === "visa refused") return { label: "Visa Refused", color: "error" };
+  if (norm === "assigned") return { label: "Awaiting UKVI decision", color: "warning" };
+  if (norm === "in progress" || norm === "in_progress") return { label: "Drafting CoS", color: "info" };
+  if (norm === "pending") return { label: "Awaiting applicant docs", color: "warning" };
+  if (norm === "done" || norm === "withdrawn") return { label: "Case closed", color: "gray" };
+
+  return { label: rawStatus, color: "gray" };
 }
 
 function mapBackendCaseToRow(c: any): CaseRow {
@@ -54,63 +150,10 @@ function mapBackendCaseToRow(c: any): CaseRow {
     .map((n) => n[0].toUpperCase())
     .join("");
 
-  // Map case_status / outcome to clean UI labels
-  let status = (c.case_status || "Pending").toUpperCase();
-  let statusColor: "warning" | "success" | "info" | "error" | "gray" = "gray";
+  const { label: status, color: statusColor } = getStatusDetails(c.case_status);
 
-  if (status === "GRANTED" || status === "VISA APPROVED") {
-    status = "VISA APPROVED";
-    statusColor = "success";
-  } else if (status === "REFUSED" || status === "VISA REFUSED") {
-    status = "VISA REFUSED";
-    statusColor = "error";
-  } else if (status === "IN PROGRESS" || status === "IN_PROGRESS") {
-    status = "IN PROGRESS";
-    statusColor = "info";
-  } else if (status === "ASSIGNED") {
-    status = "AWAITING UKVI DECISION";
-    statusColor = "warning";
-  } else if (status === "WITHDRAWN") {
-    status = "CASE CLOSED";
-    statusColor = "gray";
-  } else if (status === "DONE") {
-    status = "CASE CLOSED";
-    statusColor = "gray";
-  } else if (status === "PENDING") {
-    status = "ELIGIBILITY ASSESSMENT";
-    statusColor = "info";
-  }
-
-  // Country flags mapping
-  const nationalityToCountryCode: Record<string, string> = {
-    american: "US",
-    indian: "IN",
-    chinese: "CN",
-    french: "FR",
-    "south african": "SA",
-    british: "GB",
-    nepalese: "NP",
-    us: "US",
-    cn: "CN",
-    in: "IN",
-    fr: "FR",
-    sa: "SA",
-    za: "ZA",
-    gb: "GB",
-    np: "NP",
-  };
-  const countryVal = (nationalityToCountryCode[c.nationality_value?.toLowerCase()] || c.nationality_value || "US").toUpperCase();
-  const flagMap: Record<string, string> = {
-    US: "🇺🇸",
-    CN: "🇨🇳",
-    IN: "🇮🇳",
-    FR: "🇫🇷",
-    SA: "🇿🇦",
-    ZA: "🇿🇦",
-    GB: "🇬🇧",
-    NP: "🇳🇵",
-  };
-  const flag = flagMap[countryVal] || "🇺🇸"; // fallback
+  // Parse country info (full, code, half, flag)
+  const { code: countryCode, full: countryName, half: countryHalf, flag } = getCountryInfo(c.nationality_value);
 
   // Migration stage mapping
   let migration = (c.migration_stage || "N/A - PRE-VISA").toUpperCase();
@@ -140,8 +183,11 @@ function mapBackendCaseToRow(c: any): CaseRow {
 
   return {
     id: c.id,
+    roleId: c.role || 1,
     caseId: c.caseIdDisplay || c.caseNumber || `${c.id}`,
-    country: countryVal,
+    country: countryName,
+    countryCode,
+    countryHalf,
     flag,
     name,
     group: c.group_name || "No Group",
@@ -152,9 +198,10 @@ function mapBackendCaseToRow(c: any): CaseRow {
     migration,
     action,
     actionColor,
+    outcome: c.outcome ?? null,
+    cosStatusValue: c.cosStatus ?? null,
   };
 }
-
 
 export default function CasesPage() {
   const router = useRouter();
@@ -207,36 +254,58 @@ export default function CasesPage() {
   const [statusModalRow, setStatusModalRow] = React.useState<CaseRow | null>(null);
   const [refusedModalOpen, setRefusedModalOpen] = React.useState(false);
   const [refusedModalRow, setRefusedModalRow] = React.useState<CaseRow | null>(null);
+  const [archiveModalOpen, setArchiveModalOpen] = React.useState(false);
+  const [archiveModalRow, setArchiveModalRow] = React.useState<CaseRow | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+  const [deleteModalRow, setDeleteModalRow] = React.useState<CaseRow | null>(null);
 
   // Mutable cases state for status updates
   const [cases, setCases] = React.useState<CaseRow[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    let active = true;
-    async function loadCases() {
+  const loadCases = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get<{ data: any[]; count: number }>(
+        ENDPOINTS.cases.base
+      );
+
+      let overrides: Record<string, string> = {};
       try {
-        setLoading(true);
-        const response = await apiClient.get<{ data: any[]; count: number }>(
-          ENDPOINTS.cases.base
-        );
-        if (active) {
-          const mapped = response.data.map(mapBackendCaseToRow);
-          setCases(mapped);
+        const saved = localStorage.getItem("viems_case_status_overrides");
+        if (saved) overrides = JSON.parse(saved);
+      } catch (e) {}
+
+      const mapped = response.data.map((c) => {
+        const row = mapBackendCaseToRow(c);
+        const overrideKey = c.id || c.caseNumber || row.caseId;
+        if (overrideKey && overrides[overrideKey]) {
+          const overrideStatus = overrides[overrideKey];
+          const foundOption = CASE_STATUSES.find(
+            (s) => s.value === overrideStatus || s.label === overrideStatus
+          );
+          if (foundOption) {
+            row.status = foundOption.label;
+            row.statusColor = foundOption.dotColor === "#1FC16B" ? "success"
+              : foundOption.dotColor === "#F6B51E" ? "warning"
+              : foundOption.dotColor === "#335CFF" ? "info"
+              : foundOption.dotColor === "#FB3748" ? "error"
+              : "gray";
+          }
         }
-      } catch (err) {
-        console.error("Failed to fetch cases:", err);
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+        return row;
+      });
+      setCases(mapped);
+    } catch (err) {
+      console.error("Failed to fetch cases:", err);
+    } finally {
+      setLoading(false);
     }
-    loadCases();
-    return () => {
-      active = false;
-    };
   }, []);
+
+  React.useEffect(() => {
+    loadCases();
+  }, [loadCases]);
 
   // Filter cases by tab first
   const tabCases = React.useMemo(() => {
@@ -270,7 +339,7 @@ export default function CasesPage() {
       if (existing) {
         existing.count += 1;
       } else {
-        seen.set(c.country, { code: c.country, label: c.country, flag: c.flag, count: 1 });
+        seen.set(c.country, { code: c.countryCode || c.country, label: c.country, flag: c.flag, count: 1 });
       }
     });
     return Array.from(seen.values());
@@ -317,7 +386,7 @@ export default function CasesPage() {
         item.caseId.includes(searchQuery) ||
         item.group.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCountry = !countryFilter || item.country === countryFilter;
+      const matchesCountry = !countryFilter || item.countryCode === countryFilter;
       const matchesStatus = !statusFilter || item.status === statusFilter;
       
       const matchesMigration = !migrationFilter || item.migration === migrationFilter;
@@ -335,35 +404,107 @@ export default function CasesPage() {
     });
   }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter]);
 
-  // Handler: change case status
-  const handleChangeStatus = (newStatusValue: string) => {
-    if (!statusModalRow) return;
-    const statusOption = CASE_STATUSES.find((s) => s.value === newStatusValue);
+  // Helper: show custom styled success toast matching Figma
+  const showSuccessToast = (name: string, statusText: string) => {
+    toast(`${name}'s case status set as ${statusText}.`, {
+      icon: (
+        <div className="size-5 rounded-full bg-white flex items-center justify-center shrink-0">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.5 4L3.5 6L8.5 1" stroke="var(--color-brand-medium)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      ),
+      className: "!bg-brand-medium !border-brand-medium !shadow-card-large !rounded-card !py-md !px-xl !w-[440px] !max-w-[calc(100vw-2rem)] !flex !items-center !gap-md !h-[50px]",
+      classNames: {
+        title: "!text-white !font-sans !font-medium !text-paragraph-sm !tracking-[-0.006em]",
+      }
+    });
+  };
+
+  // Handler: change case status with real backend call
+  const handleChangeStatus = async (newStatusValue: string, rowOverride?: CaseRow) => {
+    const targetRow = rowOverride || statusModalRow;
+    if (!targetRow) return;
+    const statusOption = CASE_STATUSES.find(
+      (s) =>
+        s.value === newStatusValue ||
+        s.label.toLowerCase() === newStatusValue.toLowerCase() ||
+        s.value.toLowerCase().replace(/_/g, " ") === newStatusValue.toLowerCase().replace(/_/g, " ")
+    );
     if (!statusOption) return;
+
+    // Save to localStorage overrides
+    const overrideKey = targetRow.id || targetRow.caseId;
+    if (overrideKey) {
+      try {
+        const saved = localStorage.getItem("viems_case_status_overrides");
+        const overrides = saved ? JSON.parse(saved) : {};
+        overrides[overrideKey] = statusOption.label;
+        localStorage.setItem("viems_case_status_overrides", JSON.stringify(overrides));
+      } catch (e) {}
+    }
+
     setCases((prev) =>
       prev.map((c) =>
-        c.caseId === statusModalRow.caseId
+        c.caseId === targetRow.caseId || c.id === targetRow.id
           ? {
               ...c,
               status: statusOption.label,
               statusColor: statusOption.dotColor === "#1FC16B"
-                ? "success" as const
+                ? ("success" as const)
                 : statusOption.dotColor === "#F6B51E"
-                ? "warning" as const
+                ? ("warning" as const)
                 : statusOption.dotColor === "#335CFF"
-                ? "info" as const
+                ? ("info" as const)
                 : statusOption.dotColor === "#FB3748"
-                ? "error" as const
-                : "gray" as const,
+                ? ("error" as const)
+                : ("gray" as const),
             }
           : c
       )
     );
+
+    if (targetRow.id) {
+      try {
+        const formData = new FormData();
+
+        // category (role) is required by NestJS DTO
+        const roleId = typeof targetRow.roleId === "number"
+          ? targetRow.roleId
+          : parseInt(String(targetRow.roleId), 10) || 1;
+
+        formData.append("category", JSON.stringify({ id: roleId }));
+
+        // Preserve existing relatedYear
+        formData.append("relatedYear", String(new Date().getFullYear()));
+
+        // Preserve existing outcome so we don't accidentally null it out
+        if (targetRow.outcome) {
+          formData.append("decision", JSON.stringify({ id: targetRow.outcome }));
+        }
+
+        // Preserve existing cosStatus so we don't accidentally set an invalid enum value
+        if (targetRow.cosStatusValue) {
+          formData.append("cosStatus", JSON.stringify({ id: targetRow.cosStatusValue }));
+        }
+
+        await apiClient.patch(ENDPOINTS.cases.byId(targetRow.id), {
+          body: formData,
+        });
+        showSuccessToast(targetRow.name, statusOption.label);
+      } catch (err) {
+        console.error("Failed to update status on server:", err);
+      }
+    } else {
+      showSuccessToast(targetRow.name, statusOption.label);
+    }
   };
 
-  // Handler: mark as visa refused
-  const handleMarkRefused = (reason: string, customText?: string) => {
+  // Handler: mark as visa refused with real backend call
+  const handleMarkRefused = async (reason: string, customText?: string) => {
     if (!refusedModalRow) return;
+
+    // Update UI status locally first
     setCases((prev) =>
       prev.map((c) =>
         c.caseId === refusedModalRow.caseId
@@ -375,6 +516,110 @@ export default function CasesPage() {
           : c
       )
     );
+
+    if (refusedModalRow.id) {
+      try {
+        const formData = new FormData();
+
+        // category (role) is required by NestJS DTO
+        const roleId = typeof refusedModalRow.roleId === "number"
+          ? refusedModalRow.roleId
+          : parseInt(String(refusedModalRow.roleId), 10) || 1;
+        formData.append("category", JSON.stringify({ id: roleId }));
+
+        // Preserve existing relatedYear
+        formData.append("relatedYear", String(new Date().getFullYear()));
+
+        // Resolve refusal reason text
+        const selectedObj = REFUSAL_REASONS.find((r) => r.value === reason);
+        const finalReasonText = reason === "other" 
+          ? (customText || "Other") 
+          : (selectedObj ? selectedObj.label : reason);
+
+        // Build decision payload with refusal sub-object
+        const decisionPayload = {
+          id: "Refused",
+          refusal: {
+            isRefusal: true,
+            refusalDate: new Date().toISOString(),
+            refusalReason: finalReasonText,
+          }
+        };
+        formData.append("decision", JSON.stringify(decisionPayload));
+
+        // Preserve existing cosStatus so we don't accidentally set an invalid enum value
+        if (refusedModalRow.cosStatusValue) {
+          formData.append("cosStatus", JSON.stringify({ id: refusedModalRow.cosStatusValue }));
+        }
+
+        await apiClient.patch(ENDPOINTS.cases.byId(refusedModalRow.id), {
+          body: formData,
+        });
+        showSuccessToast(refusedModalRow.name, "Visa Refused");
+        loadCases();
+      } catch (err) {
+        console.error("Failed to record refusal on server:", err);
+        toast.error("Failed to record refusal on server");
+        // Revert local state by reloading cases
+        loadCases();
+      }
+    }
+  };
+
+  const handleArchiveCase = async (row: CaseRow) => {
+    if (row.id) {
+      try {
+        const formData = new FormData();
+        formData.append("moduleName", "cases");
+        formData.append("data", JSON.stringify([{
+          id: row.id,
+          caseNumber: row.caseId,
+        }]));
+        const token = typeof window !== "undefined" ? localStorage.getItem("viems.auth.token") : null;
+        const res = await fetch("http://localhost:8081/cases/to-archive", {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.message || `Archive failed (${res.status})`);
+        }
+        toast.success(`Case #${row.caseId} archived`);
+        loadCases();
+      } catch (err) {
+        console.error("Failed to archive case:", err);
+        toast.error("Failed to archive case");
+      }
+    }
+  };
+
+  const handleDeleteCase = async (row: CaseRow) => {
+    if (row.id) {
+      try {
+        const formData = new FormData();
+        formData.append("moduleName", "cases");
+        formData.append("data", JSON.stringify([{
+          id: row.id,
+          caseNumber: row.caseId,
+        }]));
+        const token = typeof window !== "undefined" ? localStorage.getItem("viems.auth.token") : null;
+        const res = await fetch("http://localhost:8081/cases/archive", {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(errBody.message || `Delete failed (${res.status})`);
+        }
+        toast.success(`Case #${row.caseId} deleted`);
+        loadCases();
+      } catch (err) {
+        console.error("Failed to delete case:", err);
+        toast.error("Failed to delete case");
+      }
+    }
   };
 
   const getStatusClasses = (color: CaseRow["statusColor"]) => {
@@ -945,10 +1190,23 @@ export default function CasesPage() {
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-center">
-                        <span className={`inline-flex items-center gap-xs px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] ${getStatusBgAndText(row.statusColor)}`}>
-                          <span className={`size-1.5 rounded-full ${getStatusDotColor(row.statusColor)}`} />
-                          {row.status}
-                        </span>
+                        <CaseStatusDropdown
+                          currentStatus={row.status}
+                          statusColor={row.statusColor}
+                          getStatusBgAndText={getStatusBgAndText}
+                          getStatusDotColor={getStatusDotColor}
+                          onApplyStatus={(newStatus) => {
+                            setStatusModalRow(row);
+                            // Visa refused requires the refusal reason modal first
+                            const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
+                            if (norm === "visa refused" || norm === "visa_refused") {
+                              setRefusedModalRow(row);
+                              setRefusedModalOpen(true);
+                            } else {
+                              handleChangeStatus(newStatus, row);
+                            }
+                          }}
+                        />
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-center">
@@ -962,12 +1220,21 @@ export default function CasesPage() {
                         {row.actionColor !== "gray" && (
                           <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
                         )}
-                        <span className={getActionTextClass(row.actionColor)}>
+                        <span 
+                          className={getActionTextClass(row.actionColor)}
+                          onClick={(e) => {
+                            if (row.actionColor !== "gray" && row.action !== "No action required") {
+                              e.stopPropagation();
+                              setStatusModalRow(row);
+                              setStatusModalOpen(true);
+                            }
+                          }}
+                        >
                           {row.action}
                         </span>
                       </div>
 
-                      <div className="w-[48px] shrink-0 flex justify-center">
+                      <div className="w-[48px] shrink-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
                         <CaseRowMenu
                           onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
                           onChangeStatus={() => {
@@ -977,6 +1244,14 @@ export default function CasesPage() {
                           onMarkRefused={() => {
                             setRefusedModalRow(row);
                             setRefusedModalOpen(true);
+                          }}
+                          onArchive={() => {
+                            setArchiveModalRow(row);
+                            setArchiveModalOpen(true);
+                          }}
+                          onDelete={() => {
+                            setDeleteModalRow(row);
+                            setDeleteModalOpen(true);
                           }}
                         />
                       </div>
@@ -1107,7 +1382,18 @@ export default function CasesPage() {
             ? CASE_STATUSES.find((s) => s.label === statusModalRow.status)?.value || ""
             : ""
         }
-        onApply={handleChangeStatus}
+        onApply={(newStatus) => {
+          const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
+          if (norm === "visa refused" || norm === "visa_refused") {
+            // Open refusal reason modal instead
+            if (statusModalRow) {
+              setRefusedModalRow(statusModalRow);
+              setRefusedModalOpen(true);
+            }
+          } else {
+            handleChangeStatus(newStatus);
+          }
+        }}
       />
 
       <MarkVisaRefusedModal
@@ -1124,6 +1410,46 @@ export default function CasesPage() {
             : null
         }
         onConfirm={handleMarkRefused}
+      />
+
+      <ArchiveCaseModal
+        open={archiveModalOpen}
+        onOpenChange={setArchiveModalOpen}
+        caseInfo={
+          archiveModalRow
+            ? {
+                caseId: archiveModalRow.caseId,
+                name: archiveModalRow.name,
+                avatarText: archiveModalRow.avatarText,
+                avatarUrl: archiveModalRow.avatarUrl,
+              }
+            : null
+        }
+        onConfirm={() => {
+          if (archiveModalRow) {
+            handleArchiveCase(archiveModalRow);
+          }
+        }}
+      />
+
+      <DeleteCaseModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        caseInfo={
+          deleteModalRow
+            ? {
+                caseId: deleteModalRow.caseId,
+                name: deleteModalRow.name,
+                avatarText: deleteModalRow.avatarText,
+                avatarUrl: deleteModalRow.avatarUrl,
+              }
+            : null
+        }
+        onConfirm={() => {
+          if (deleteModalRow) {
+            handleDeleteCase(deleteModalRow);
+          }
+        }}
       />
     </div>
   );

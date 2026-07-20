@@ -7,9 +7,9 @@ import {
   RiPushpinLine,
   RiPushpinFill,
   RiAtLine,
-  RiSendPlane2Line,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface NoteItem {
   id: string;
@@ -21,7 +21,7 @@ interface NoteItem {
   pinned: boolean;
 }
 
-const initialNotes: NoteItem[] = [
+const defaultNotes: NoteItem[] = [
   {
     id: "n1",
     authorName: "Nathan Wood",
@@ -52,11 +52,39 @@ const initialNotes: NoteItem[] = [
 ];
 
 export function NotesTab() {
-  const [notes, setNotes] = React.useState<NoteItem[]>(initialNotes);
+  const [notes, setNotes] = React.useState<NoteItem[]>(defaultNotes);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [newNoteText, setNewNoteText] = React.useState("");
   const [shouldPinNewNote, setShouldPinNewNote] = React.useState(false);
   const [showMentions, setShowMentions] = React.useState(false);
+
+  // Load notes from localStorage on mount
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem("viems_case_notes");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setNotes(parsed);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load notes from storage", e);
+    }
+  }, []);
+
+  // Save notes to localStorage on update
+  const updateNotesState = (updater: (prev: NoteItem[]) => NoteItem[]) => {
+    setNotes((prev) => {
+      const updated = updater(prev);
+      try {
+        localStorage.setItem("viems_case_notes", JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to save notes to storage", e);
+      }
+      return updated;
+    });
+  };
 
   const handlePostNote = () => {
     if (!newNoteText.trim()) return;
@@ -75,13 +103,14 @@ export function NotesTab() {
       pinned: shouldPinNewNote,
     };
 
-    setNotes((prev) => [newNote, ...prev]);
+    updateNotesState((prev) => [newNote, ...prev]);
+    toast.success("Note posted successfully");
     setNewNoteText("");
     setShouldPinNewNote(false);
   };
 
   const togglePin = (id: string) => {
-    setNotes((prev) =>
+    updateNotesState((prev) =>
       prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
     );
   };
