@@ -4,6 +4,7 @@ import * as React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Flag } from "@/components/ui/flag";
 import { ChevronDown, Check, Search } from "lucide-react";
 
 interface CountryOption {
@@ -26,11 +27,21 @@ export function CountryFilterDropdown({
 }: CountryFilterDropdownProps) {
   const [open, setOpen] = React.useState(false);
   const [search, setSearch] = React.useState("");
+  const [tempValue, setTempValue] = React.useState<string | null>(value);
+
+  // Sync temp value when popover opens
+  React.useEffect(() => {
+    if (open) {
+      setTempValue(value);
+      setSearch("");
+    }
+  }, [open, value]);
 
   const filteredCountries = React.useMemo(() => {
     if (!search) return countries;
     return countries.filter((c) =>
-      c.label.toLowerCase().includes(search.toLowerCase())
+      c.label.toLowerCase().includes(search.toLowerCase()) ||
+      c.code.toLowerCase().includes(search.toLowerCase())
     );
   }, [countries, search]);
 
@@ -39,6 +50,17 @@ export function CountryFilterDropdown({
     : null;
 
   const totalCount = countries.reduce((acc, c) => acc + (c.count || 0), 0);
+  const resultCount = filteredCountries.reduce((acc, c) => acc + (c.count || 0), 0);
+
+  const handleApply = () => {
+    onChange(tempValue);
+    setOpen(false);
+  };
+
+  const handleCancel = () => {
+    setTempValue(value);
+    setOpen(false);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -57,9 +79,7 @@ export function CountryFilterDropdown({
         >
           <span className="truncate flex items-center gap-xs">
             {value && (
-              <span className="text-base leading-none shrink-0">
-                {countries.find((c) => c.code === value)?.flag}
-              </span>
+              <Flag country={value} className="size-4 shrink-0" />
             )}
             <span>{selectedLabel || "All countries"}</span>
           </span>
@@ -71,7 +91,7 @@ export function CountryFilterDropdown({
         </Button>
       } />
 
-      <PopoverContent align="start" className="w-[220px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden">
+      <PopoverContent align="start" className="w-[260px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden flex flex-col">
         {/* Search */}
         <div className="p-sm border-b border-neutral-100">
           <div className="relative">
@@ -80,7 +100,7 @@ export function CountryFilterDropdown({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search country..."
+              placeholder="Search countries"
               autoFocus
               className="w-full h-8 pl-8 pr-3 text-paragraph-sm bg-neutral-50 border border-border rounded-input placeholder-[#A4A4A4] focus-visible:border-[#7D52F4] focus-visible:ring-1 focus-visible:ring-[#7D52F4]/20 transition-all font-sans"
             />
@@ -90,58 +110,54 @@ export function CountryFilterDropdown({
         {/* Options */}
         <div className="max-h-[240px] overflow-y-auto py-xs">
           {/* All countries option */}
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-            className={`w-full justify-between px-lg py-md text-left text-paragraph-sm font-normal rounded-none h-auto transition-colors border-0 bg-transparent ${
-              !value
-                ? "bg-[#F5F3FF] text-[#7D52F4] hover:bg-[#F5F3FF] font-medium"
-                : "text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            onClick={() => setTempValue(null)}
+            className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
+              tempValue === null
+                ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
+                : "text-foreground hover:bg-neutral-50"
             }`}
           >
-            <span>All countries</span>
-            <div className="flex items-center gap-sm shrink-0">
-              <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-full font-medium">
-                {totalCount}
+            <span className="flex items-center gap-sm">
+              <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
+                tempValue === null ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+              }`}>
+                {tempValue === null && <Check className="size-2.5 text-white" />}
               </span>
-              {!value && <Check className="size-3.5 text-[#7D52F4]" />}
-            </div>
-          </Button>
+              <span>All countries</span>
+            </span>
+            <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium">
+              {totalCount}
+            </span>
+          </button>
 
           {filteredCountries.map((country) => (
-            <Button
+            <button
               key={country.code}
               type="button"
-              variant="ghost"
-              onClick={() => {
-                onChange(country.code);
-                setOpen(false);
-              }}
-              className={`w-full justify-between px-lg py-md text-left text-paragraph-sm font-normal rounded-none h-auto transition-colors border-0 bg-transparent ${
-                value === country.code
-                  ? "bg-[#F5F3FF] text-[#7D52F4] hover:bg-[#F5F3FF] font-medium"
-                  : "text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              onClick={() => setTempValue(country.code)}
+              className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
+                tempValue === country.code
+                  ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
+                  : "text-foreground hover:bg-neutral-50"
               }`}
             >
               <span className="flex items-center gap-sm min-w-0">
-                <span className="text-base leading-none shrink-0">{country.flag}</span>
+                <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
+                  tempValue === country.code ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+                }`}>
+                  {tempValue === country.code && <Check className="size-2.5 text-white" />}
+                </span>
+                <Flag country={country.code} className="size-4 shrink-0" />
                 <span className="truncate text-left">{country.label}</span>
               </span>
-              <div className="flex items-center gap-sm shrink-0">
-                {country.count !== undefined && (
-                  <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-full font-medium">
-                    {country.count}
-                  </span>
-                )}
-                {value === country.code && (
-                  <Check className="size-3.5 text-[#7D52F4]" />
-                )}
-              </div>
-            </Button>
+              {country.count !== undefined && (
+                <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium shrink-0">
+                  {country.count}
+                </span>
+              )}
+            </button>
           ))}
 
           {filteredCountries.length === 0 && (
@@ -149,6 +165,32 @@ export function CountryFilterDropdown({
               No countries found
             </div>
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-lg py-lg border-t border-neutral-100">
+          <span className="text-paragraph-xs text-[#5C5C5C]">
+            {resultCount} results
+          </span>
+          <div className="flex items-center gap-sm">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCancel}
+              className="h-8 px-xl text-label-sm bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleApply}
+              className="h-8 px-xl text-label-sm text-white rounded-[8px]"
+            >
+              Apply
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

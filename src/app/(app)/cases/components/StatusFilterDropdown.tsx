@@ -24,6 +24,14 @@ export function StatusFilterDropdown({
   statusColors,
 }: StatusFilterDropdownProps) {
   const [open, setOpen] = React.useState(false);
+  const [tempValue, setTempValue] = React.useState<string | null>(value);
+
+  // Sync temp value when popover opens
+  React.useEffect(() => {
+    if (open) {
+      setTempValue(value);
+    }
+  }, [open, value]);
 
   const getDotColor = (status: string) => {
     const color = statusColors[status];
@@ -43,6 +51,16 @@ export function StatusFilterDropdown({
 
   const totalCount = statuses.reduce((acc, s) => acc + (s.count || 0), 0);
 
+  const handleApply = () => {
+    onChange(tempValue);
+    setOpen(false);
+  };
+
+  const handleCancel = () => {
+    setTempValue(value);
+    setOpen(false);
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={
@@ -50,7 +68,7 @@ export function StatusFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-[104px] justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 px-[6px] py-[6px] gap-[2px] text-[14px] leading-5 tracking-[-0.006em] ${
+          className={`w-[120px] justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 px-[6px] py-[6px] gap-[2px] text-[14px] leading-5 tracking-[-0.006em] ${
             open
               ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
               : value
@@ -67,63 +85,80 @@ export function StatusFilterDropdown({
         </Button>
       } />
 
-      <PopoverContent align="start" className="w-[200px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden">
-        <div className="max-h-[240px] overflow-y-auto py-xs">
-          {/* All status option */}
-          <Button
+      <PopoverContent align="start" className="w-[240px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden flex flex-col">
+        <div className="max-h-[280px] overflow-y-auto py-xs">
+          {/* All statuses option */}
+          <button
             type="button"
-            variant="ghost"
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-            className={`w-full justify-between px-lg py-md text-left text-paragraph-sm font-normal rounded-none h-auto transition-colors border-0 bg-transparent ${
-              !value
-                ? "bg-[#F5F3FF] text-[#7D52F4] hover:bg-[#F5F3FF] font-medium"
-                : "text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            onClick={() => setTempValue(null)}
+            className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
+              tempValue === null
+                ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
+                : "text-foreground hover:bg-neutral-50"
             }`}
           >
-            <span>All status</span>
-            <div className="flex items-center gap-sm shrink-0">
-              <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-full font-medium">
-                {totalCount}
+            <span className="flex items-center gap-sm">
+              <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
+                tempValue === null ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+              }`}>
+                {tempValue === null && <Check className="size-2.5 text-white" />}
               </span>
-              {!value && <Check className="size-3.5 text-[#7D52F4]" />}
-            </div>
-          </Button>
+              <span>All statuses</span>
+            </span>
+            <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium">
+              {totalCount}
+            </span>
+          </button>
 
           {statuses.map((status) => (
-            <Button
+            <button
               key={status.label}
               type="button"
-              variant="ghost"
-              onClick={() => {
-                onChange(status.label);
-                setOpen(false);
-              }}
-              className={`w-full justify-between px-lg py-md text-left text-paragraph-sm font-normal rounded-none h-auto transition-colors border-0 bg-transparent ${
-                value === status.label
-                  ? "bg-[#F5F3FF] text-[#7D52F4] hover:bg-[#F5F3FF] font-medium"
-                  : "text-foreground hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              onClick={() => setTempValue(status.label)}
+              className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
+                tempValue === status.label
+                  ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
+                  : "text-foreground hover:bg-neutral-50"
               }`}
             >
               <span className="flex items-center gap-sm min-w-0">
+                <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
+                  tempValue === status.label ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+                }`}>
+                  {tempValue === status.label && <Check className="size-2.5 text-white" />}
+                </span>
                 <span
                   className="size-2 rounded-full shrink-0"
                   style={{ backgroundColor: getDotColor(status.label) }}
                 />
                 <span className="truncate text-left">{status.label}</span>
               </span>
-              <div className="flex items-center gap-sm shrink-0">
-                <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 rounded-full font-medium">
-                  {status.count}
-                </span>
-                {value === status.label && (
-                  <Check className="size-3.5 text-[#7D52F4]" />
-                )}
-              </div>
-            </Button>
+              <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium shrink-0">
+                {status.count}
+              </span>
+            </button>
           ))}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end px-lg py-lg border-t border-neutral-100 gap-sm">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            className="h-8 px-xl text-label-sm bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px]"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleApply}
+            className="h-8 px-xl text-label-sm text-white rounded-[8px]"
+          >
+            Apply
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

@@ -5,10 +5,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreVertical, RefreshCw, XCircle, Eye } from "lucide-react";
+import {
+  RiFocus2Line,
+  RiEyeLine,
+  RiPencilLine,
+  RiArchiveLine,
+  RiDeleteBinLine,
+  RiMore2Line,
+} from "@remixicon/react";
 
 interface CaseRowMenuProps {
   onChangeStatus: () => void;
@@ -23,27 +31,6 @@ export function CaseRowMenu({
 }: CaseRowMenuProps) {
   const [open, setOpen] = React.useState(false);
 
-  const menuItems = [
-    {
-      label: "View case details",
-      icon: Eye,
-      onClick: onViewDetails,
-      variant: "default" as const,
-    },
-    {
-      label: "Change case status",
-      icon: RefreshCw,
-      onClick: onChangeStatus,
-      variant: "default" as const,
-    },
-    {
-      label: "Mark as visa refused",
-      icon: XCircle,
-      onClick: onMarkRefused,
-      variant: "destructive" as const,
-    },
-  ];
-
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger render={
@@ -51,24 +38,57 @@ export function CaseRowMenu({
           type="button"
           variant="ghost"
           size="icon-xs"
-          className="text-[#5C5C5C] hover:bg-neutral-100 hover:text-neutral-900"
+          className="text-[#5C5C5C] hover:bg-neutral-100 hover:text-neutral-900 rounded-[8px]"
         >
-          <MoreVertical className="size-5" />
+          <RiMore2Line className="size-5" />
         </Button>
       } />
 
-      <DropdownMenuContent align="end" className="w-[200px] bg-white border border-neutral-200 rounded-card shadow-card-large py-xs">
-        {menuItems.map((item) => (
-          <DropdownMenuItem
-            key={item.label}
-            variant={item.variant}
-            onClick={item.onClick}
-            className="w-full px-lg py-md text-left text-paragraph-sm flex items-center gap-sm cursor-pointer transition-colors border-0 bg-transparent"
-          >
-            <item.icon className="size-4 shrink-0" />
-            <span>{item.label}</span>
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent
+        align="end"
+        className="w-[251px] bg-white border border-[#EBEBEB] rounded-[16px] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] p-2 gap-[4px] flex flex-col"
+      >
+        <DropdownMenuItem
+          onClick={() => {}}
+          className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
+        >
+          <RiFocus2Line className="size-5 text-[#5C5C5C]" />
+          <span className="flex-1">Focus</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={onViewDetails}
+          className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
+        >
+          <RiEyeLine className="size-5 text-[#5C5C5C]" />
+          <span className="flex-1">Details</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={onChangeStatus}
+          className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
+        >
+          <RiPencilLine className="size-5 text-[#5C5C5C]" />
+          <span className="flex-1">Edit</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator className="w-[235px] h-[1px] bg-[#EBEBEB] my-xs self-center" />
+
+        <DropdownMenuItem
+          onClick={() => {}}
+          className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
+        >
+          <RiArchiveLine className="size-5 text-[#5C5C5C]" />
+          <span className="flex-1">Archive</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          onClick={onMarkRefused}
+          className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#FB3748] hover:bg-[#FFF5F5]"
+        >
+          <RiDeleteBinLine className="size-5 text-[#FB3748]" />
+          <span className="flex-1">Delete case</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
