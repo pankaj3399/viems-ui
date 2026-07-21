@@ -59,20 +59,44 @@ export function CaseHeader({
         </button>
 
         {/* Avatar */}
-        <img
-          src={avatar}
-          alt={name}
-          className="size-14 rounded-full object-cover shrink-0"
-        />
+        {avatar ? (
+          <img
+            src={avatar}
+            alt={name}
+            className="size-14 rounded-full object-cover shrink-0"
+          />
+        ) : (
+          <div className="size-14 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[20px] tracking-[-0.015em] shrink-0 font-sans overflow-hidden">
+            {name ? name.split(" ").filter(Boolean).map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "—"}
+          </div>
+        )}
 
         {/* Name + Badges + Subtitle */}
         <div className="flex flex-col gap-xs flex-1 min-w-0">
           {/* Name Row */}
           <div className="flex items-center gap-[9px]">
             <h1 className="text-title-aeonik text-[#171717]">{name}</h1>
-            <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
-              {visaStatus}
-            </Badge>
+            {(() => {
+              const isInactive = visaStatus?.toUpperCase().includes("INACTIVE");
+              const isRefused = visaStatus?.toUpperCase().includes("REFUSED");
+              const bgClass = isInactive
+                ? "bg-[#F3F4F6] text-[#374151]"
+                : isRefused
+                ? "bg-[#FDE8E8] text-[#9B1C1C]"
+                : "bg-[#E3F7EC] text-[#0B4627]";
+              const dotClass = isInactive
+                ? "bg-[#9CA3AF]"
+                : isRefused
+                ? "bg-[#FB3748]"
+                : "bg-[#1FC16B]";
+
+              return (
+                <span className={`inline-flex items-center gap-xs h-4 px-2 ${bgClass} rounded-full text-[11px] font-medium uppercase tracking-[0.02em]`}>
+                  <span className={`size-1.5 rounded-full ${dotClass}`} />
+                  {visaStatus}
+                </span>
+              );
+            })()}
             <span className="inline-flex items-center h-4 px-2 bg-[#EFEBFF] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717]">
               {location}
             </span>

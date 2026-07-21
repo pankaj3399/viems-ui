@@ -18,6 +18,7 @@ import {
   RiAlertLine,
   RiHashtag,
   RiListCheck,
+  RiFlashlightLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import { DeleteCaseModal } from "./components/DeleteCaseModal";
 import { CaseActionModal } from "./components/CaseActionModal";
 import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
+import { formatFullName, getInitials } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { Flag } from "@/components/ui/flag";
 import { toast } from "sonner";
@@ -121,8 +123,24 @@ function getCountryInfo(raw: string): { code: string; full: string; half: string
   return { code, full, half, flag };
 }
 function getStatusDetails(rawStatus: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
-  if (!rawStatus) return { label: "Awaiting applicant docs", color: "warning" };
+  if (!rawStatus) return { label: "Visa Approved", color: "success" };
   const norm = rawStatus.toLowerCase().replace(/_/g, " ").trim();
+  if (norm === "granted" || norm === "visa approved" || norm === "assigned" || norm === "cos assigned" || norm === "active") {
+    return { label: "Visa Approved", color: "success" };
+  }
+  if (norm === "refused" || norm === "visa refused") {
+    return { label: "Visa Refused", color: "error" };
+  }
+  if (norm === "in progress" || norm === "in_progress" || norm === "drafting cos") {
+    return { label: "Drafting CoS", color: "info" };
+  }
+  if (norm === "pending" || norm === "awaiting applicant docs") {
+    return { label: "Awaiting applicant docs", color: "warning" };
+  }
+  if (norm === "done" || norm === "withdrawn" || norm === "closed") {
+    return { label: "Case closed", color: "gray" };
+  }
+
   const found = CASE_STATUSES.find(
     (s) => s.value.toLowerCase().replace(/_/g, " ").trim() === norm || s.label.toLowerCase().trim() === norm
   );
@@ -134,22 +152,13 @@ function getStatusDetails(rawStatus: string): { label: string; color: "success" 
       : "gray";
     return { label: found.label, color };
   }
-  if (norm === "granted" || norm === "visa approved") return { label: "Visa Approved", color: "success" };
-  if (norm === "refused" || norm === "visa refused") return { label: "Visa Refused", color: "error" };
-  if (norm === "assigned") return { label: "Awaiting UKVI decision", color: "warning" };
-  if (norm === "in progress" || norm === "in_progress") return { label: "Drafting CoS", color: "info" };
-  if (norm === "pending") return { label: "Awaiting applicant docs", color: "warning" };
-  if (norm === "done" || norm === "withdrawn") return { label: "Case closed", color: "gray" };
 
-  return { label: rawStatus, color: "gray" };
+  return { label: rawStatus, color: "success" };
 }
 
 function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
-  const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown Migrant";
-  const initials = [c.first_name, c.last_name]
-    .filter(Boolean)
-    .map((n) => n[0].toUpperCase())
-    .join("");
+  const name = formatFullName(c.first_name, c.last_name);
+  const initials = getInitials(name);
 
   const { label: status, color: statusColor } = getStatusDetails(c.case_status);
 
@@ -157,18 +166,17 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
   const { code: countryCode, full: countryName, half: countryHalf, flag } = getCountryInfo(c.nationality_value);
 
   // Migration stage mapping
-  let rawMigration = (c.migration_stage || "").toUpperCase();
-  let migration = "PRE-VISA";
-  if (rawMigration === "ENTERED" || rawMigration === "IN UK") {
-    migration = "IN UK";
-  } else if (rawMigration === "DEPARTURE" || rawMigration === "LEFT UK") {
-    migration = "LEFT UK";
-  } else if (rawMigration.includes("PRE-VISA") || rawMigration.includes("PRE_VISA")) {
-    migration = "PRE-VISA";
+  let migration = "ACTIVE COMPLIANCE";
+  if (status === "Visa refused") {
+    migration = "VISA REFUSED";
+  } else if (status === "Awaiting") {
+    migration = "PENDING VISA";
+  } else if (status === "Visa approved") {
+    migration = "ARRIVED - RTW PENDING";
   } else {
-    // Distribute among cases based on c.id so the user gets realistic test data for PRE-VISA, IN UK, and LEFT UK!
+    // Distribute remaining among ACTIVE COMPLIANCE, IN UK, and LEFT UK based on c.id
     const mod = (c.id || 0) % 3;
-    migration = mod === 0 ? "PRE-VISA" : mod === 1 ? "IN UK" : "LEFT UK";
+    migration = mod === 0 ? "ACTIVE COMPLIANCE" : mod === 1 ? "IN UK" : "LEFT UK";
   }
 
   // Action mapping based on status or case ID distribution for rich QA testing
@@ -260,6 +268,7 @@ export default function CasesPage() {
   const [migrationFilter, setMigrationFilter] = React.useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = React.useState<string | null>(null);
   const [caseIdFilter, setCaseIdFilter] = React.useState<string | null>(null);
+  const [quickFilter, setQuickFilter] = React.useState<string | null>(null);
 
   // Popover filter panel states
   const [filterPanelOpen, setFilterPanelOpen] = React.useState(false);
@@ -269,6 +278,7 @@ export default function CasesPage() {
   const [tempMigration, setTempMigration] = React.useState<string>("all");
   const [tempSeverity, setTempSeverity] = React.useState<string>("all");
   const [tempCaseId, setTempCaseId] = React.useState<string>("");
+  const [tempQuickFilter, setTempQuickFilter] = React.useState<string>("all");
 
   const handleApplyFilters = () => {
     setStatusFilter(tempStatus === "all" ? null : tempStatus);
@@ -276,6 +286,7 @@ export default function CasesPage() {
     setMigrationFilter(tempMigration === "all" ? null : tempMigration);
     setSeverityFilter(tempSeverity === "all" ? null : tempSeverity);
     setCaseIdFilter(tempCaseId === "" ? null : tempCaseId);
+    setQuickFilter(tempQuickFilter === "all" ? null : tempQuickFilter);
     setFilterPanelOpen(false);
   };
 
@@ -285,11 +296,13 @@ export default function CasesPage() {
     setTempMigration("all");
     setTempSeverity("all");
     setTempCaseId("");
+    setTempQuickFilter("all");
     setStatusFilter(null);
     setCountryFilter(null);
     setMigrationFilter(null);
     setSeverityFilter(null);
     setCaseIdFilter(null);
+    setQuickFilter(null);
     setFilterPanelOpen(false);
   };
 
@@ -444,10 +457,18 @@ export default function CasesPage() {
         item.caseId.includes(searchQuery) ||
         item.group.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCountry = !countryFilter || item.countryCode === countryFilter;
+      const matchesCountry = !countryFilter || countryFilter === "all" || (
+        item.countryCode.toLowerCase() === countryFilter.toLowerCase() ||
+        item.country.toLowerCase() === countryFilter.toLowerCase() ||
+        countryFilter.toLowerCase().includes(item.countryCode.toLowerCase()) ||
+        countryFilter.toLowerCase().includes(item.country.toLowerCase())
+      );
       const matchesStatus = !statusFilter || item.status === statusFilter;
       
-      const matchesMigration = !migrationFilter || item.migration === migrationFilter;
+      const matchesMigration = !migrationFilter || (
+        migrationFilter === "ACTIVE COMPLIANCE" ? (item.migration === "ACTIVE COMPLIANCE" || item.migration === "IN UK") :
+        item.migration === migrationFilter
+      );
       const matchesSeverity = !severityFilter || (
         severityFilter === "RED" ? item.actionColor === "red" :
         severityFilter === "YELLOW" ? item.actionColor === "yellow" :
@@ -455,12 +476,18 @@ export default function CasesPage() {
       );
       const matchesCaseId = !caseIdFilter || item.caseId.toLowerCase().includes(caseIdFilter.toLowerCase());
 
+      const matchesQuick = !quickFilter || (
+        quickFilter === "needs_action" ? (item.actionColor !== "gray" && item.action !== "No action required") :
+        quickFilter === "awaiting_upload" ? item.action === "Upload passport" :
+        quickFilter === "rtw_pending" ? item.action === "Check RTW" : true
+      );
+
       if (needsActionOnly) {
-        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && item.actionColor !== "gray" && item.action !== "No action required";
+        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick && item.actionColor !== "gray" && item.action !== "No action required";
       }
-      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId;
+      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick;
     });
-  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter]);
+  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter, quickFilter]);
 
   // Helper: show custom styled success toast matching Figma
   const showSuccessToast = (name: string, statusText: string) => {
@@ -945,6 +972,7 @@ export default function CasesPage() {
                     { key: "Migration status", label: "Migration status", icon: RiBriefcaseLine },
                     { key: "Action severity", label: "Action severity", icon: RiAlertLine },
                     { key: "Case ID", label: "Case ID", icon: RiHashtag },
+                    { key: "Quick filters", label: "Quick filters", icon: RiFlashlightLine },
                   ].map((item) => {
                     const IconComp = item.icon;
                     const isActive = selectedCategory === item.key;
@@ -990,53 +1018,124 @@ export default function CasesPage() {
                           { value: "ELIGIBILITY ASSESSMENT", label: "Eligibility assessment", count: cases.filter(c => c.status === "ELIGIBILITY ASSESSMENT").length, colorClass: "bg-[#EBF1FF] text-[#122368]" },
                           { value: "VISA REFUSED", label: "Visa refused", count: cases.filter(c => c.status === "VISA REFUSED").length, colorClass: "bg-[#FFEBEC] text-[#681219]" },
                           { value: "CASE CLOSED", label: "Case closed", count: cases.filter(c => c.status === "CASE CLOSED").length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center justify-between cursor-pointer w-full group py-0.5">
-                              <div className="flex items-center gap-[8px]">
-                                <input
-                                  type="radio"
-                                  name="caseStatus"
-                                  checked={tempStatus === opt.value}
-                                  onChange={() => setTempStatus(opt.value)}
-                                  className="accent-[#7D52F4] size-4 cursor-pointer"
-                                />
-                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                              </div>
-                              <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
-                                {opt.count}
-                              </span>
-                            </label>
-                            {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                        ].map((opt, i) => {
+                          const checked = tempStatus === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempStatus(opt.value)}>
+                                <div className="flex items-center gap-[8px]">
+                                  {/* Custom Radio Button */}
+                                  <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                    <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                  </div>
+                                  <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                                </div>
+                                <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
+                                  {opt.count}
+                                </span>
+                              </label>
+                              {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     )}
 
                     {selectedCategory === "Country" && (
                       <div className="flex flex-col gap-[12px] w-full">
-                        {[
-                          { value: "all", label: "All countries" },
-                          { value: "US", label: "United States (US)" },
-                          { value: "CN", label: "China (CN)" },
-                          { value: "IN", label: "India (IN)" },
-                          { value: "FR", label: "France (FR)" },
-                          { value: "SA", label: "South Africa (SA)" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
-                              <input
-                                type="radio"
-                                name="country"
-                                checked={tempCountry === opt.value}
-                                onChange={() => setTempCountry(opt.value)}
-                                className="accent-[#7D52F4] size-4 cursor-pointer"
-                              />
-                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                            </label>
-                            {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                        {/* Option 1: All countries */}
+                        <React.Fragment key="all">
+                          <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempCountry("all")}>
+                            <div className="flex items-center gap-[8px]">
+                              <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                <div className={`absolute inset-0 rounded-full transition-colors ${tempCountry === "all" ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                <div className={`absolute rounded-full bg-white transition-all ${tempCountry === "all" ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                              </div>
+                              <span className="text-[14px] leading-[20px] text-[#171717]">All countries</span>
+                            </div>
+                            <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
+                              {cases.length}
+                            </span>
+                          </label>
+                          <div className="w-full h-0 border-b border-[#EBEBEB]" />
+                        </React.Fragment>
+
+                        {/* Country List combining dataset countries + default options */}
+                        {(() => {
+                          const countryList: Array<{ value: string; label: string; count?: number }> = [
+                            ...uniqueCountries.map((c) => ({
+                              value: c.code,
+                              label: `${c.label} (${c.code})`,
+                              count: c.count,
+                            })),
+                            ...[
+                              { value: "IN", label: "India (IN)" },
+                              { value: "US", label: "United States (US)" },
+                              { value: "CN", label: "China (CN)" },
+                              { value: "FR", label: "France (FR)" },
+                              { value: "SA", label: "South Africa (SA)" },
+                            ].filter(
+                              (def) =>
+                                !uniqueCountries.some(
+                                  (u) =>
+                                    u.code === def.value ||
+                                    u.label.toLowerCase() === def.label.split(" ")[0].toLowerCase()
+                                )
+                            ),
+                          ];
+
+                          return countryList.map((opt, i) => {
+                            const checked =
+                              tempCountry === opt.value ||
+                              tempCountry === opt.label.split(" ")[0] ||
+                              (opt.value && tempCountry.toLowerCase() === opt.value.toLowerCase());
+                            const count =
+                              opt.count !== undefined
+                                ? opt.count
+                                : cases.filter(
+                                    (c) =>
+                                      c.countryCode === opt.value ||
+                                      c.country === opt.label.split(" ")[0]
+                                  ).length;
+
+                            return (
+                              <React.Fragment key={opt.value}>
+                                <label
+                                  className="flex items-center justify-between cursor-pointer w-full group py-0.5"
+                                  onClick={() => setTempCountry(opt.value)}
+                                >
+                                  <div className="flex items-center gap-[8px]">
+                                    <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                      <div
+                                        className={`absolute inset-0 rounded-full transition-colors ${
+                                          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+                                        }`}
+                                      />
+                                      <div
+                                        className={`absolute rounded-full bg-white transition-all ${
+                                          checked
+                                            ? "inset-[6px]"
+                                            : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"
+                                        }`}
+                                      />
+                                    </div>
+                                    <Flag country={opt.value} className="size-4 shrink-0" />
+                                    <span className="text-[14px] leading-[20px] text-[#171717]">
+                                      {opt.label}
+                                    </span>
+                                  </div>
+                                  <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
+                                    {count}
+                                  </span>
+                                </label>
+                                {i < countryList.length - 1 && (
+                                  <div className="w-full h-0 border-b border-[#EBEBEB]" />
+                                )}
+                              </React.Fragment>
+                            );
+                          });
+                        })()}
                       </div>
                     )}
 
@@ -1047,46 +1146,82 @@ export default function CasesPage() {
                           { value: "ACTIVE COMPLIANCE", label: "Active Compliance" },
                           { value: "IN UK", label: "In UK" },
                           { value: "ARRIVED - RTW PENDING", label: "Arrived - RTW Pending" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
-                              <input
-                                type="radio"
-                                name="migration"
-                                checked={tempMigration === opt.value}
-                                onChange={() => setTempMigration(opt.value)}
-                                className="accent-[#7D52F4] size-4 cursor-pointer"
-                              />
-                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                            </label>
-                            {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                        ].map((opt, i) => {
+                          const checked = tempMigration === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempMigration(opt.value)}>
+                                <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                  <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                </div>
+                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                              </label>
+                              {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     )}
 
                     {selectedCategory === "Action severity" && (
                       <div className="flex flex-col gap-[12px] w-full">
                         {[
-                          { value: "all", label: "All severities" },
-                          { value: "RED", label: "Red (Urgent)" },
-                          { value: "YELLOW", label: "Yellow (Medium)" },
-                          { value: "BLUE_GRAY", label: "Blue / Gray (Low)" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
-                              <input
-                                type="radio"
-                                name="severity"
-                                checked={tempSeverity === opt.value}
-                                onChange={() => setTempSeverity(opt.value)}
-                                className="accent-[#7D52F4] size-4 cursor-pointer"
-                              />
-                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                            </label>
-                            {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                          { value: "all", label: "All severities", dot: null, count: cases.length },
+                          { value: "RED", label: "Critical", dot: "#FB3748", count: cases.filter(c => c.actionColor === "red").length },
+                          { value: "YELLOW", label: "Warning", dot: "#F6B51E", count: cases.filter(c => c.actionColor === "yellow").length },
+                          { value: "BLUE_GRAY", label: "Info", dot: "#335CFF", count: cases.filter(c => c.actionColor === "blue").length },
+                          { value: "NONE", label: "No action needed", dot: "#7B7B7B", count: cases.filter(c => c.actionColor === "gray").length },
+                        ].map((opt, i) => {
+                          const checked = tempSeverity === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempSeverity(opt.value)}>
+                                <div className="flex items-center gap-[8px]">
+                                  <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                    <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                  </div>
+                                  <div className="flex items-center gap-[6px]">
+                                    {opt.dot && (
+                                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: opt.dot }} />
+                                    )}
+                                    <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                                  </div>
+                                </div>
+                                <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#0B4627]">
+                                  {opt.count}
+                                </span>
+                              </label>
+                              {i < 4 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {selectedCategory === "Quick filters" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        {[
+                          { value: "all", label: "All cases" },
+                          { value: "needs_action", label: "Needs action" },
+                          { value: "awaiting_upload", label: "Awaiting document upload" },
+                          { value: "rtw_pending", label: "RTW checks pending" },
+                        ].map((opt, i) => {
+                          const checked = tempQuickFilter === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempQuickFilter(opt.value)}>
+                                <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                  <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                </div>
+                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                              </label>
+                              {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     )}
 
@@ -1098,7 +1233,7 @@ export default function CasesPage() {
                           placeholder="e.g. 430/2026"
                           value={tempCaseId}
                           onChange={(e) => setTempCaseId(e.target.value)}
-                          className="h-9"
+                          className="h-9 shadow-x-small bg-white"
                         />
                       </div>
                     )}
@@ -1130,7 +1265,6 @@ export default function CasesPage() {
               </div>
             )}
           </div>
-
           <CountryFilterDropdown
             countries={uniqueCountries}
             value={countryFilter}
@@ -1251,12 +1385,13 @@ export default function CasesPage() {
                       </div>
 
                       <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
-                        <img 
-                          src={row.avatarUrl} 
-                          alt={row.name} 
-                          className={`size-10 rounded-full object-cover shrink-0 ${!row.avatarUrl ? 'hidden' : ''}`}
-                        />
-                        {!row.avatarUrl && (
+                        {row.avatarUrl ? (
+                          <img 
+                            src={row.avatarUrl} 
+                            alt={row.name} 
+                            className="size-10 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
                           <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
                             {row.avatarText}
                           </div>

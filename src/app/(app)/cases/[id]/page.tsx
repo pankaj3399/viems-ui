@@ -26,13 +26,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
+import { formatFullName } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { Flag } from "@/components/ui/flag";
 import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal";
 import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
 import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
 import { CaseHeader } from "./components/CaseHeader";
-import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard } from "./components/OverviewCards";
+import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard, ProfileCard } from "./components/OverviewCards";
 import { ComplianceCard } from "./components/ComplianceCard";
 import { DocumentsTab } from "./components/DocumentsTab";
 import { NotesTab } from "./components/NotesTab";
@@ -110,7 +111,7 @@ function getCountryInfo(raw: string): { code: string; full: string; half: string
 }
 
 function mapBackendCaseToDetail(c: any) {
-  const name = [c.migrant?.firstName, c.migrant?.lastName].filter(Boolean).join(" ") || c.migrant?.stageName || "Unknown Migrant";
+  const name = formatFullName(c.migrant?.firstName, c.migrant?.lastName) || c.migrant?.stageName || "Unknown Migrant";
   
   // Nationality mapping using getCountryInfo
   const { full: country, flag: nationalityFlag } = getCountryInfo(c.migrant?.nationality?.value);
@@ -179,80 +180,114 @@ function mapBackendCaseToDetail(c: any) {
 
   const fullHomeAddress = c.migrant?.contacts?.address_line_1
     ? [c.migrant.contacts.address_line_1, addressLine2, `${cityName}, ${stateName} ${zipCode}`.trim(), countryName].filter(Boolean).join(", ")
-    : "742 Evergreen Terrace, Los Angeles, CA 90026";
+    : "";
+
+  // Dynamic Open Tasks count
+  const openTasksCount = Array.isArray(c.tasks) ? c.tasks.filter((t: any) => !t.isCompleted).length : 0;
+  
+  // Dynamic Documents count
+  const docsCount = Array.isArray(c.documents) ? c.documents.length : 0;
+  const missingDocsCount = Math.max(0, 10 - docsCount);
+
+  // Dynamic Priority Actions list
+  const priorityActions = Array.isArray(c.priorityActions) && c.priorityActions.length > 0 ? c.priorityActions : (
+    c.decision?.id === "Refused" ? [
+      { color: "#FB3748", title: "Visa refused", desc: "The visa application was refused by UKVI." }
+    ] : openTasksCount > 0 || missingDocsCount > 0 ? [
+      ...(missingDocsCount > 0 ? [{
+        color: "#FB3748",
+        title: "Complete RTW check & Upload Documents",
+        desc: `${missingDocsCount} required documents awaiting migrant upload.`,
+      }] : []),
+      ...(openTasksCount > 0 ? [{
+        color: "#F6B51E",
+        title: "Action required on open tasks",
+        desc: `${openTasksCount} pending tasks require attention.`,
+      }] : []),
+    ] : []
+  );
+
+  // Dynamic Timeline events
+  const timeline = Array.isArray(c.logs) && c.logs.length > 0 ? c.logs.map((log: any) => ({
+    icon: log.type === "note" ? "note" : log.type === "task" ? "task" : "migration",
+    title: log.message || log.title || "Case activity recorded",
+    by: log.user || log.author || "System",
+    time: log.createdAt ? new Date(log.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).toUpperCase() : "TODAY",
+  })) : [];
+
+  // Dynamic Compliance Health calculation
+  const compliancePercentage = c.decision?.id === "Granted" ? 100 : c.decision?.id === "Refused" ? 30 : docsCount > 5 ? 75 : 50;
 
   return {
     id: c.id.toString(),
     migrantId,
     name,
-    employer: c.personal?.groupName || "Unknown Employer",
+    employer: c.personal?.groupName || c.employer || c.migrant?.employer || "",
     caseId: c.caseIdNumber && c.relatedYear ? `#${c.caseIdNumber}/${c.relatedYear}` : c.caseNumber || `#${c.id}`,
-    cosRef: c.cosStatus?.assigned?.cosNumber || "N/A",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face",
+    cosRef: c.cosStatus?.assigned?.cosNumber || c.cosReference || "",
+    avatar: c.migrant?.avatar || "",
     visaStatus,
     location,
     approvalStatus,
+    openTasksCount,
+    missingDocsCount,
     personalInfo: {
       fullName: name,
-      firstName: c.migrant?.firstName || name.split(" ")[0] || "Taylor",
-      lastName: c.migrant?.lastName || name.split(" ")[1] || "Johnson",
-      gender: c.migrant?.gender || "Male",
-      dob: c.migrant?.dateOfBirth ? new Date(c.migrant.dateOfBirth).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "14 Jun 1990",
+      firstName: c.migrant?.firstName || name.split(" ")[0] || "",
+      lastName: c.migrant?.lastName || name.split(" ")[1] || "",
+      gender: c.migrant?.gender || "",
+      dob: c.migrant?.dateOfBirth ? new Date(c.migrant.dateOfBirth).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
       maritalStatus: emergency.relationship === "Spouse" ? "Married" : "Single",
       nationality: country,
       nationalityFlag,
-      countryOfBirth: "United States",
+      countryOfBirth: c.migrant?.countryOfBirth || c.migrant?.placeOfBirth || "",
       countryOfBirthFlag: "🇺🇸",
-      cityOfBirth: c.migrant?.placeOfBirth || c.migrant?.place_of_birth || "Los Angeles",
-      employer: c.personal?.groupName || "N/A",
-      jobTitle: c.personal?.jobTitle || "N/A",
+      cityOfBirth: c.migrant?.placeOfBirth || c.migrant?.place_of_birth || "",
+      employer: c.personal?.groupName || c.employer || c.migrant?.employer || "",
+      jobTitle: c.personal?.jobTitle || "",
       address: c.migrant?.contacts?.address_line_1 
-        ? [c.migrant.contacts.address_line_1, `${cityName}, ${stateName} ${zipCode}`.trim()]
-        : ["742 Evergreen Terrace", "Los Angeles, CA 90026"],
+        ? [c.migrant.contacts.address_line_1, `${cityName}, ${stateName} ${zipCode}`.trim()].filter(Boolean)
+        : [],
     },
     passport: {
-      number: c.migrant?.passportNumber || "LQ41932345",
-      issueDate: c.migrant?.issuePassportDate ? new Date(c.migrant.issuePassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "22 Nov 2022",
-      expiryDate: c.migrant?.expiredPassportDate ? new Date(c.migrant.expiredPassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "22 Nov 2027",
+      number: c.migrant?.passportNumber || "",
+      issueDate: c.migrant?.issuePassportDate ? new Date(c.migrant.issuePassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+      expiryDate: c.migrant?.expiredPassportDate ? new Date(c.migrant.expiredPassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
     },
     contact: {
-      email: c.migrant?.user?.email || c.migrant?.email || "taylor.j@email.com",
-      phone: c.migrant?.contacts?.phone_1 || "+44 7700 123456",
+      email: c.migrant?.user?.email || c.migrant?.email || "",
+      phone: c.migrant?.contacts?.phone_1 || "",
       homeAddress: fullHomeAddress,
       lastConfirmed: "Not yet verified",
       emergency,
     },
     cos: {
-      status: c.cosStatus?.id || "N/A",
-      reference: c.cosStatus?.assigned?.cosNumber || "N/A",
-      salary: c.personal?.jobPay || "N/A",
-      startDate: c.cosStatus?.assigned?.assignedDate || "N/A",
-      socCode: "N/A",
+      status: c.cosStatus?.id || (approvalStatus === "VISA APPROVED" ? "ASSIGNED" : "DRAFT"),
+      reference: c.cosStatus?.assigned?.cosNumber || c.cosReference || "",
+      salary: c.personal?.jobPay ? (String(c.personal.jobPay).startsWith("$") || String(c.personal.jobPay).startsWith("£") ? c.personal.jobPay : `$${c.personal.jobPay}`) : "",
+      startDate: c.cosStatus?.assigned?.assignedDate ? new Date(c.cosStatus.assigned.assignedDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+      socCode: c.personal?.jobSocCode || c.personal?.socCode || "",
     },
     visa: {
       daysLeft,
       totalDays,
-      startDate: c.decision?.granted?.visaStartDate || "N/A",
-      endDate: c.decision?.granted?.visaEndDate || "N/A",
-      renewalWindow: "Starts " + (c.decision?.granted?.visaEndDate ? new Date(new Date(c.decision.granted.visaEndDate).setMonth(new Date(c.decision.granted.visaEndDate).getMonth() - 2)).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "N/A"),
-      visaType: "Creative Worker",
+      startDate: c.decision?.granted?.visaStartDate ? new Date(c.decision.granted.visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+      endDate: c.decision?.granted?.visaEndDate ? new Date(c.decision.granted.visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+      renewalWindow: c.decision?.granted?.visaEndDate ? ("Starts " + new Date(new Date(c.decision.granted.visaEndDate).setMonth(new Date(c.decision.granted.visaEndDate).getMonth() - 2)).toLocaleDateString("en-US", { month: "short", year: "numeric" })) : "",
+      visaType: c.personal?.visaType || c.visaType || "",
     },
-    timeline: [
-      { icon: "task", title: "Case created in the system", by: "System", time: c.creation_date || "N/A" }
-    ],
-    priorityActions: c.decision?.id === "Refused" ? [
-      { color: "#E54D2E", title: "Visa refused", desc: "The visa application was refused by UKVI." }
-    ] : [
-      { color: "#3B82F6", title: "Case created", desc: "No critical actions pending." }
-    ],
+    timeline,
+    priorityActions,
     compliance: {
-      percentage: c.decision?.id === "Granted" ? 100 : 50,
-      notes: 0,
-      tasks: 0,
-      docs: c.documents?.length || 0,
+      percentage: compliancePercentage,
+      notes: c.notes?.length || 0,
+      tasks: openTasksCount,
+      docs: docsCount,
       items: [
-        { icon: c.decision?.id === "Granted" ? "success" : "error", label: "Visa outcome" },
-        { icon: "success", label: "Salary" },
+        { icon: c.decision?.id === "Granted" ? "success" : "error", label: "Right to work check" },
+        { icon: docsCount >= 5 ? "success" : "error", label: "Documents" },
+        { icon: c.personal?.jobPay ? "success" : "error", label: "Salary" },
+        { icon: "bell", label: "SMS reports", extra: "None yet" },
       ],
     },
   };
@@ -448,17 +483,37 @@ export default function MigrantOverviewPage() {
       {/* ====== CONTENT AREA ====== */}
       <div className="flex-1 px-[32px] py-2xl">
         {activeTab === "Overview" ? (
-          <div className="flex gap-2xl items-start">
-            {/* ====== LEFT COLUMN ====== */}
-            <div className="flex-1 flex flex-col gap-2xl min-w-0">
+          <div className="flex gap-[24px] items-start w-full">
+            {/* ====== COLUMN 1 (Left 303.5px): Profile & Migration Status & Timeline ====== */}
+            <div className="w-[303px] shrink-0 flex flex-col gap-[24px]">
+              <ProfileCard
+                name={migrant.name}
+                initials={migrant.name ? migrant.name.split(" ").map((n: string) => n[0]).join("") : "TJ"}
+                employer={migrant.employer}
+                status={migrant.approvalStatus === "VISA APPROVED" ? "VISA APPROVED" : "AWAITING APPLICANT DOCS"}
+              />
               <MigrationStatusCard location={migrant.location} visa={migrant.visa} />
-              <PersonalDetailsCard personalInfo={migrant.personalInfo} passport={migrant.passport} cos={migrant.cos} />
+              <TimelineCard timeline={migrant.timeline} onViewAll={() => setActiveTab("Timeline")} />
             </div>
 
-            {/* ====== RIGHT COLUMN ====== */}
-            <div className="w-[449px] shrink-0 flex flex-col gap-2xl">
-              <PriorityActionsCard actions={migrant.priorityActions} />
-              <TimelineCard timeline={migrant.timeline} />
+            {/* ====== COLUMN 2 (Center Flex): Personal Details ====== */}
+            <div className="flex-1 min-w-0 flex flex-col gap-[24px]">
+              <PersonalDetailsCard
+                personalInfo={migrant.personalInfo}
+                passport={migrant.passport}
+                cos={migrant.cos}
+                onViewAll={() => setActiveTab("Personal Details")}
+              />
+            </div>
+
+            {/* ====== COLUMN 3 (Right 380px): Priority Actions & Compliance Health ====== */}
+            <div className="w-[380px] shrink-0 flex flex-col gap-[24px]">
+              <PriorityActionsCard
+                actions={migrant.priorityActions}
+                openTasks={migrant.openTasksCount}
+                missingDocs={migrant.missingDocsCount}
+                onViewAll={() => setActiveTab("Tasks")}
+              />
               <ComplianceCard
                 percentage={migrant.compliance.percentage}
                 tasks={migrant.compliance.tasks}

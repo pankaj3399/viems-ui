@@ -45,9 +45,17 @@ export function CountryFilterDropdown({
     );
   }, [countries, search]);
 
-  const selectedLabel = value
-    ? countries.find((c) => c.code === value)?.label
-    : null;
+  const selectedCountry = React.useMemo(() => {
+    if (!value) return null;
+    return countries.find(
+      (c) =>
+        c.code === value ||
+        c.label === value ||
+        c.code.toLowerCase() === value.toLowerCase()
+    );
+  }, [countries, value]);
+
+  const selectedLabel = selectedCountry ? selectedCountry.label : value;
 
   const totalCount = countries.reduce((acc, c) => acc + (c.count || 0), 0);
   const resultCount = filteredCountries.reduce((acc, c) => acc + (c.count || 0), 0);
@@ -69,7 +77,7 @@ export function CountryFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-[135px] justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 px-[6px] py-[6px] gap-[2px] text-[14px] leading-5 tracking-[-0.006em] ${
+          className={`w-auto min-w-[130px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 ${
             open
               ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
               : value
@@ -77,9 +85,9 @@ export function CountryFilterDropdown({
               : "border-border text-[#5C5C5C]"
           }`}
         >
-          <span className="truncate flex items-center gap-xs">
+          <span className="flex items-center gap-2 truncate">
             {value && (
-              <Flag country={value} className="size-4 shrink-0" />
+              <Flag country={selectedCountry?.code || value} className="size-4 shrink-0" />
             )}
             <span>{selectedLabel || "All countries"}</span>
           </span>

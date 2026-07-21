@@ -11,6 +11,7 @@ import {
 } from "@remixicon/react";
 import { FoldersLine, SelectBoxCircleLine, FileWarningLine, TaskLine } from "@/components/ui/custom-icons";
 import { apiClient } from "@/lib/api-client";
+import { formatFullName } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { WorldMapSvg } from "./WorldMapSvg";
 import { Flag } from "@/components/ui/flag";
@@ -324,7 +325,7 @@ export default function DashboardPage() {
   function taskOwnerName(task: DashboardTask): string {
     const pi = task.case?.migrant?.user?.personalInfo;
     if (!pi) return "Unassigned";
-    return `${pi.firstName} ${pi.lastName}`;
+    return formatFullName(pi.firstName, pi.lastName);
   }
 
   function taskDueLabel(task: DashboardTask): string {
