@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { removeToken, isAdmin } from "@/lib/auth";
+import { isAdmin } from "@/lib/auth";
+import { formatFullName, getInitials as getInitialsHelper } from "@/lib/utils";
 import {
   LayoutGrid,
   Users,
@@ -14,6 +15,21 @@ import {
   Headphones,
   LogOut,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { UserProfileDropdown } from "@/components/UserProfileDropdown";
+import {
+  RiSettings2Line,
+  RiEqualizerLine,
+  RiHeadphoneLine,
+  RiStarLine,
+  RiLogoutBoxRLine,
+  RiArrowRightSLine,
+} from "@remixicon/react";
 
 const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
   <svg
@@ -50,12 +66,6 @@ interface SidebarProps {
 export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-
-  // Handle Logout
-  const handleLogout = () => {
-    removeToken();
-    router.push("/login");
-  };
 
   // Nav Items definition
   const mainNavItems = [
@@ -103,28 +113,29 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     },
   ];
 
-  // Helper to extract user initials for avatar
-  const getInitials = () => {
-    if (
-      userInfo?.personalInfo?.firstName &&
-      userInfo?.personalInfo?.lastName
-    ) {
-      return `${userInfo.personalInfo.firstName[0]}${userInfo.personalInfo.lastName[0]}`.toUpperCase();
-    }
+  const getFallbackName = () => {
     if (userInfo?.email) {
-      return userInfo.email[0].toUpperCase();
+      const username = userInfo.email.split("@")[0];
+      return username
+        .split(/[._-]/)
+        .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
     }
-    return "AM"; // Default fallback (Alex Marin)
+    return "Alex Marin";
   };
 
   const getFullName = () => {
-    if (
-      userInfo?.personalInfo?.firstName &&
+    const name = formatFullName(
+      userInfo?.personalInfo?.firstName,
       userInfo?.personalInfo?.lastName
-    ) {
-      return `${userInfo.personalInfo.firstName} ${userInfo.personalInfo.lastName}`;
-    }
-    return "Alex Marin";
+    );
+    if (name && name !== "Unknown Migrant") return name;
+    return getFallbackName();
+  };
+
+  const getInitials = () => {
+    const fullName = getFullName();
+    return getInitialsHelper(fullName);
   };
 
   const getEmail = () => {
@@ -279,34 +290,38 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
 
       {/* ─── Sidebar Footer [Sidebar] [1.1] ──────────────────────────────────── */}
       <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] border-t border-[#262626]/20 shrink-0">
-        {/* User Profile Card [Sidebar] [1.1] */}
-        <button
-          type="button"
-          onClick={handleLogout}
-          className={`rounded-[10px] border border-[#262626] bg-[#171717] flex items-center transition-all duration-300 hover:bg-[#262626] cursor-pointer ${
-            isOpen ? "w-[208px] h-16 px-3 justify-start gap-3" : "size-16 justify-center"
-          }`}
-          title="Log Out (Click to logout)"
-        >
-          {/* Avatar [1.1] */}
-          <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center shrink-0">
-            {getInitials()}
-          </div>
-          <div
-            className={`flex flex-col items-start text-left min-w-0 transition-all duration-300 ${
-              isOpen
-                ? "opacity-100 translate-x-0"
-                : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-            }`}
-          >
-            <span className="font-sans text-paragraph-sm font-semibold text-white truncate w-full">
-              {getFullName()}
-            </span>
-            <span className="text-paragraph-xs text-neutral-400 truncate w-full">
-              {getEmail()}
-            </span>
-          </div>
-        </button>
+        <UserProfileDropdown
+          userInfo={userInfo}
+          align="start"
+          side="top"
+          trigger={
+            <button
+              type="button"
+              className={`rounded-[10px] border border-[#262626] bg-[#171717] flex items-center transition-all duration-300 hover:bg-[#262626] cursor-pointer ${
+                isOpen ? "w-[208px] h-16 px-3 justify-start gap-3" : "size-16 justify-center"
+              }`}
+              title="User Profile Menu"
+            >
+              <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center shrink-0">
+                {getInitials()}
+              </div>
+              <div
+                className={`flex flex-col items-start text-left min-w-0 transition-all duration-300 ${
+                  isOpen
+                    ? "opacity-100 translate-x-0"
+                    : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+                }`}
+              >
+                <span className="font-sans text-paragraph-sm font-semibold text-white truncate w-full">
+                  {getFullName()}
+                </span>
+                <span className="text-paragraph-xs text-neutral-400 truncate w-full">
+                  {getEmail()}
+                </span>
+              </div>
+            </button>
+          }
+        />
       </div>
     </aside>
   );

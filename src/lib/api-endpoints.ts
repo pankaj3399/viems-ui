@@ -71,6 +71,7 @@ export const ENDPOINTS = {
     byId: (id: number | string) => `${API_BASE}/cases/${id}`,
     assignments: `${API_BASE}/cases/assignments`,
     archive: `${API_BASE}/cases/archive`,
+    toArchive: `${API_BASE}/cases/to-archive`,
     restore: `${API_BASE}/cases/restore`,
     bulkArchive: `${API_BASE}/cases/bulk-archive`,
     bulkArchivePreview: `${API_BASE}/cases/bulk-archive/preview`,

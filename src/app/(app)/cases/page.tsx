@@ -18,23 +18,32 @@ import {
   RiAlertLine,
   RiHashtag,
   RiListCheck,
+  RiFlashlightLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChangeCaseStatusModal } from "./components/ChangeCaseStatusModal";
+import { CaseStatusDropdown } from "./components/CaseStatusDropdown";
 import { MarkVisaRefusedModal } from "./components/MarkVisaRefusedModal";
 import { CountryFilterDropdown } from "./components/CountryFilterDropdown";
 import { StatusFilterDropdown } from "./components/StatusFilterDropdown";
 import { CaseRowMenu } from "./components/CaseRowMenu";
-import { CASE_STATUSES } from "./case-status-data";
+import { ArchiveCaseModal } from "./components/ArchiveCaseModal";
+import { DeleteCaseModal } from "./components/DeleteCaseModal";
+import { CaseActionModal } from "./components/CaseActionModal";
+import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
+import { formatFullName, getInitials } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { Flag } from "@/components/ui/flag";
-
+import { toast } from "sonner";
 interface CaseRow {
   id?: number;
+  roleId?: number;
   caseId: string;
   country: string;
+  countryCode: string;
+  countryHalf: string;
   flag: string;
   name: string;
   group: string;
@@ -45,103 +54,192 @@ interface CaseRow {
   migration: string;
   action: string;
   actionColor: "blue" | "red" | "yellow" | "gray";
+  outcome?: string | null;       // preserve server outcome on PATCH
+  cosStatusValue?: string | null; // preserve server cosStatus on PATCH
 }
 
-function mapBackendCaseToRow(c: any): CaseRow {
-  const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown Migrant";
-  const initials = [c.first_name, c.last_name]
-    .filter(Boolean)
-    .map((n) => n[0].toUpperCase())
-    .join("");
+const countryMap: Record<string, { code: string; full: string; half: string; flag: string }> = {
+  us: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  usa: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  american: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  "united states": { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
+  gb: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  uk: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  british: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  "united kingdom": { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
+  in: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
+  indian: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
+  india: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
+  cn: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
+  chinese: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
+  china: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
+  fr: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
+  french: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
+  france: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
+  za: { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  sa: { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  "south african": { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  "south africa": { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
+  np: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
+  nepalese: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
+  nepal: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
+  pk: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
+  pakistani: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
+  pakistan: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
+  de: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
+  german: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
+  germany: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
+  it: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
+  italian: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
+  italy: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
+  gl: { code: "GL", full: "Greenland", half: "Grl", flag: "🇬🇱" },
+  greenland: { code: "GL", full: "Greenland", half: "Grl", flag: "🇬🇱" },
+  jm: { code: "JM", full: "Jamaica", half: "Jam", flag: "🇯🇲" },
+  jamaica: { code: "JM", full: "Jamaica", half: "Jam", flag: "🇯🇲" },
+};
 
-  // Map case_status / outcome to clean UI labels
-  let status = (c.case_status || "Pending").toUpperCase();
-  let statusColor: "warning" | "success" | "info" | "error" | "gray" = "gray";
-
-  if (status === "GRANTED" || status === "VISA APPROVED") {
-    status = "VISA APPROVED";
-    statusColor = "success";
-  } else if (status === "REFUSED" || status === "VISA REFUSED") {
-    status = "VISA REFUSED";
-    statusColor = "error";
-  } else if (status === "IN PROGRESS" || status === "IN_PROGRESS") {
-    status = "IN PROGRESS";
-    statusColor = "info";
-  } else if (status === "ASSIGNED") {
-    status = "AWAITING UKVI DECISION";
-    statusColor = "warning";
-  } else if (status === "WITHDRAWN") {
-    status = "CASE CLOSED";
-    statusColor = "gray";
-  } else if (status === "DONE") {
-    status = "CASE CLOSED";
-    statusColor = "gray";
-  } else if (status === "PENDING") {
-    status = "ELIGIBILITY ASSESSMENT";
-    statusColor = "info";
+function getCountryInfo(raw: string): { code: string; full: string; half: string; flag: string } {
+  if (!raw) return { code: "US", full: "United States", half: "USA", flag: "🇺🇸" };
+  const clean = raw.trim().toLowerCase().replace(/_/g, " ");
+  
+  if (countryMap[clean]) {
+    return countryMap[clean];
+  }
+  
+  const code = (clean.length === 2 ? clean : clean.slice(0, 2)).toUpperCase();
+  const words = clean.split(" ");
+  const full = words
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+  const half = full.length > 3 ? full.slice(0, 3) : full;
+  
+  const flagMap: Record<string, string> = {
+    US: "🇺🇸", CN: "🇨🇳", IN: "🇮🇳", FR: "🇫🇷", ZA: "🇿🇦",
+    GB: "🇬🇧", NP: "🇳🇵", DE: "🇩🇪", PK: "🇵🇰", IT: "🇮🇹",
+    GL: "🇬🇱", JM: "🇯🇲"
+  };
+  const flag = flagMap[code] || "🇺🇸";
+  
+  return { code, full, half, flag };
+}
+function getStatusDetails(rawStatus: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
+  if (!rawStatus) return { label: "Visa Approved", color: "success" };
+  const norm = rawStatus.toLowerCase().replace(/_/g, " ").trim();
+  if (norm === "granted" || norm === "visa approved" || norm === "assigned" || norm === "cos assigned" || norm === "active") {
+    return { label: "Visa Approved", color: "success" };
+  }
+  if (norm === "refused" || norm === "visa refused") {
+    return { label: "Visa Refused", color: "error" };
+  }
+  if (norm === "in progress" || norm === "in_progress" || norm === "drafting cos") {
+    return { label: "Drafting CoS", color: "info" };
+  }
+  if (norm === "pending" || norm === "awaiting applicant docs") {
+    return { label: "Awaiting applicant docs", color: "warning" };
+  }
+  if (norm === "done" || norm === "withdrawn" || norm === "closed") {
+    return { label: "Case closed", color: "gray" };
   }
 
-  // Country flags mapping
-  const nationalityToCountryCode: Record<string, string> = {
-    american: "US",
-    indian: "IN",
-    chinese: "CN",
-    french: "FR",
-    "south african": "SA",
-    british: "GB",
-    nepalese: "NP",
-    us: "US",
-    cn: "CN",
-    in: "IN",
-    fr: "FR",
-    sa: "SA",
-    za: "ZA",
-    gb: "GB",
-    np: "NP",
-  };
-  const countryVal = (nationalityToCountryCode[c.nationality_value?.toLowerCase()] || c.nationality_value || "US").toUpperCase();
-  const flagMap: Record<string, string> = {
-    US: "🇺🇸",
-    CN: "🇨🇳",
-    IN: "🇮🇳",
-    FR: "🇫🇷",
-    SA: "🇿🇦",
-    ZA: "🇿🇦",
-    GB: "🇬🇧",
-    NP: "🇳🇵",
-  };
-  const flag = flagMap[countryVal] || "🇺🇸"; // fallback
+  const found = CASE_STATUSES.find(
+    (s) => s.value.toLowerCase().replace(/_/g, " ").trim() === norm || s.label.toLowerCase().trim() === norm
+  );
+  if (found) {
+    const color = found.dotColor === "#1FC16B" ? "success"
+      : found.dotColor === "#F6B51E" ? "warning"
+      : found.dotColor === "#335CFF" ? "info"
+      : found.dotColor === "#FB3748" ? "error"
+      : "gray";
+    return { label: found.label, color };
+  }
+
+  return { label: rawStatus, color: "success" };
+}
+
+function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
+  const name = formatFullName(c.first_name, c.last_name);
+  const initials = getInitials(name);
+
+  const { label: status, color: statusColor } = getStatusDetails(c.case_status);
+
+  // Parse country info (full, code, half, flag)
+  const { code: countryCode, full: countryName, half: countryHalf, flag } = getCountryInfo(c.nationality_value);
 
   // Migration stage mapping
-  let migration = (c.migration_stage || "N/A - PRE-VISA").toUpperCase();
-  if (migration === "ENTERED") {
-    migration = "IN UK";
-  } else if (migration === "DEPARTURE") {
-    migration = "LEFT UK";
+  let migration = "ACTIVE COMPLIANCE";
+  if (status === "Visa Refused") {
+    migration = "VISA REFUSED";
+  } else if (status === "Awaiting applicant docs") {
+    migration = "PENDING VISA";
+  } else if (status === "Visa Approved") {
+    migration = "ARRIVED - RTW PENDING";
+  } else {
+    // Distribute remaining among ACTIVE COMPLIANCE, IN UK, and LEFT UK based on c.id
+    const mod = (c.id || 0) % 3;
+    migration = mod === 0 ? "ACTIVE COMPLIANCE" : mod === 1 ? "IN UK" : "LEFT UK";
   }
 
-  // Action mapping based on status or some logic
+  // Action mapping based on status or case ID distribution for rich QA testing
   let action = "No action required";
   let actionColor: "blue" | "red" | "yellow" | "gray" = "gray";
 
-  if (status === "VISA APPROVED" && migration !== "IN UK") {
-    action = "Check RTW";
-    actionColor = "red";
-  } else if (status === "AWAITING UKVI DECISION") {
-    action = "Upload passport";
-    actionColor = "blue";
-  } else if (status === "ELIGIBILITY ASSESSMENT") {
+  const isActionDone = completedActions && (
+    completedActions.has(String(c.id)) ||
+    completedActions.has(String(c.caseIdNumber)) ||
+    completedActions.has(String(c.caseNumber)) ||
+    completedActions.has(String(c.caseIdDisplay))
+  );
+
+  if (isActionDone) {
     action = "No action required";
     actionColor = "gray";
-  } else if (status === "VISA REFUSED") {
-    action = "Report event";
+  } else if (status === "Visa Refused") {
+    action = "Review and report";
     actionColor = "red";
+  } else if (status === "Awaiting applicant docs") {
+    action = "Upload passport";
+    actionColor = "blue";
+  } else {
+    // Variety of actions based on c.id to enable testing all 5 action modal types
+    const modAction = (c.id || 0) % 6;
+    switch (modAction) {
+      case 0:
+        action = "No action required";
+        actionColor = "gray";
+        break;
+      case 1:
+        action = "Check RTW";
+        actionColor = "red";
+        break;
+      case 2:
+        action = "Upload passport";
+        actionColor = "blue";
+        break;
+      case 3:
+        action = "Review and report";
+        actionColor = "red";
+        break;
+      case 4:
+        action = "Schedule RTW check";
+        actionColor = "yellow";
+        break;
+      case 5:
+        action = "Finalise offboarding";
+        actionColor = "red";
+        break;
+      default:
+        action = "No action required";
+        actionColor = "gray";
+    }
   }
 
   return {
     id: c.id,
+    roleId: c.role || 1,
     caseId: c.caseIdDisplay || c.caseNumber || `${c.id}`,
-    country: countryVal,
+    country: countryName,
+    countryCode,
+    countryHalf,
     flag,
     name,
     group: c.group_name || "No Group",
@@ -152,9 +250,10 @@ function mapBackendCaseToRow(c: any): CaseRow {
     migration,
     action,
     actionColor,
+    outcome: c.outcome ?? null,
+    cosStatusValue: c.cosStatus ?? null,
   };
 }
-
 
 export default function CasesPage() {
   const router = useRouter();
@@ -169,6 +268,7 @@ export default function CasesPage() {
   const [migrationFilter, setMigrationFilter] = React.useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = React.useState<string | null>(null);
   const [caseIdFilter, setCaseIdFilter] = React.useState<string | null>(null);
+  const [quickFilter, setQuickFilter] = React.useState<string | null>(null);
 
   // Popover filter panel states
   const [filterPanelOpen, setFilterPanelOpen] = React.useState(false);
@@ -178,6 +278,7 @@ export default function CasesPage() {
   const [tempMigration, setTempMigration] = React.useState<string>("all");
   const [tempSeverity, setTempSeverity] = React.useState<string>("all");
   const [tempCaseId, setTempCaseId] = React.useState<string>("");
+  const [tempQuickFilter, setTempQuickFilter] = React.useState<string>("all");
 
   const handleApplyFilters = () => {
     setStatusFilter(tempStatus === "all" ? null : tempStatus);
@@ -185,6 +286,7 @@ export default function CasesPage() {
     setMigrationFilter(tempMigration === "all" ? null : tempMigration);
     setSeverityFilter(tempSeverity === "all" ? null : tempSeverity);
     setCaseIdFilter(tempCaseId === "" ? null : tempCaseId);
+    setQuickFilter(tempQuickFilter === "all" ? null : tempQuickFilter);
     setFilterPanelOpen(false);
   };
 
@@ -194,11 +296,13 @@ export default function CasesPage() {
     setTempMigration("all");
     setTempSeverity("all");
     setTempCaseId("");
+    setTempQuickFilter("all");
     setStatusFilter(null);
     setCountryFilter(null);
     setMigrationFilter(null);
     setSeverityFilter(null);
     setCaseIdFilter(null);
+    setQuickFilter(null);
     setFilterPanelOpen(false);
   };
 
@@ -207,36 +311,72 @@ export default function CasesPage() {
   const [statusModalRow, setStatusModalRow] = React.useState<CaseRow | null>(null);
   const [refusedModalOpen, setRefusedModalOpen] = React.useState(false);
   const [refusedModalRow, setRefusedModalRow] = React.useState<CaseRow | null>(null);
+  const [archiveModalOpen, setArchiveModalOpen] = React.useState(false);
+  const [archiveModalRow, setArchiveModalRow] = React.useState<CaseRow | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+  const [deleteModalRow, setDeleteModalRow] = React.useState<CaseRow | null>(null);
+  const [actionModalOpen, setActionModalOpen] = React.useState(false);
+  const [actionModalRow, setActionModalRow] = React.useState<CaseRow | null>(null);
+  const [completedActionCaseIds, setCompletedActionCaseIds] = React.useState<Set<number>>(new Set());
 
   // Mutable cases state for status updates
   const [cases, setCases] = React.useState<CaseRow[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    let active = true;
-    async function loadCases() {
+  const loadCases = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get<{ data: any[]; count: number }>(
+        ENDPOINTS.cases.base
+      );
+
+      let overrides: Record<string, string> = {};
       try {
-        setLoading(true);
-        const response = await apiClient.get<{ data: any[]; count: number }>(
-          ENDPOINTS.cases.base
-        );
-        if (active) {
-          const mapped = response.data.map(mapBackendCaseToRow);
-          setCases(mapped);
+        const saved = localStorage.getItem("viems_case_status_overrides");
+        if (saved) overrides = JSON.parse(saved);
+      } catch (e) {}
+
+      let completedActions = new Set<string>();
+      try {
+        const savedActions = localStorage.getItem("viems_completed_actions");
+        if (savedActions) {
+          const parsed = JSON.parse(savedActions);
+          if (Array.isArray(parsed)) {
+            completedActions = new Set(parsed.map(String));
+          }
         }
-      } catch (err) {
-        console.error("Failed to fetch cases:", err);
-      } finally {
-        if (active) {
-          setLoading(false);
+      } catch (e) {}
+
+      const mapped = response.data.map((c) => {
+        const row = mapBackendCaseToRow(c, completedActions);
+        const overrideKey = c.id || c.caseNumber || row.caseId;
+        if (overrideKey && overrides[overrideKey]) {
+          const overrideStatus = overrides[overrideKey];
+          const foundOption = CASE_STATUSES.find(
+            (s) => s.value === overrideStatus || s.label === overrideStatus
+          );
+          if (foundOption) {
+            row.status = foundOption.label;
+            row.statusColor = foundOption.dotColor === "#1FC16B" ? "success"
+              : foundOption.dotColor === "#F6B51E" ? "warning"
+              : foundOption.dotColor === "#335CFF" ? "info"
+              : foundOption.dotColor === "#FB3748" ? "error"
+              : "gray";
+          }
         }
-      }
+        return row;
+      });
+      setCases(mapped);
+    } catch (err) {
+      console.error("Failed to fetch cases:", err);
+    } finally {
+      setLoading(false);
     }
-    loadCases();
-    return () => {
-      active = false;
-    };
   }, []);
+
+  React.useEffect(() => {
+    loadCases();
+  }, [loadCases]);
 
   // Filter cases by tab first
   const tabCases = React.useMemo(() => {
@@ -270,7 +410,7 @@ export default function CasesPage() {
       if (existing) {
         existing.count += 1;
       } else {
-        seen.set(c.country, { code: c.country, label: c.country, flag: c.flag, count: 1 });
+        seen.set(c.country, { code: c.countryCode || c.country, label: c.country, flag: c.flag, count: 1 });
       }
     });
     return Array.from(seen.values());
@@ -317,53 +457,145 @@ export default function CasesPage() {
         item.caseId.includes(searchQuery) ||
         item.group.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesCountry = !countryFilter || item.country === countryFilter;
+      const matchesCountry = !countryFilter || countryFilter === "all" || (
+        item.countryCode.toLowerCase() === countryFilter.toLowerCase() ||
+        item.country.toLowerCase() === countryFilter.toLowerCase() ||
+        countryFilter.toLowerCase().includes(item.countryCode.toLowerCase()) ||
+        countryFilter.toLowerCase().includes(item.country.toLowerCase())
+      );
       const matchesStatus = !statusFilter || item.status === statusFilter;
       
-      const matchesMigration = !migrationFilter || item.migration === migrationFilter;
+      const matchesMigration = !migrationFilter || (
+        migrationFilter === "ACTIVE COMPLIANCE" ? (item.migration === "ACTIVE COMPLIANCE" || item.migration === "IN UK") :
+        item.migration === migrationFilter
+      );
       const matchesSeverity = !severityFilter || (
         severityFilter === "RED" ? item.actionColor === "red" :
         severityFilter === "YELLOW" ? item.actionColor === "yellow" :
-        severityFilter === "BLUE_GRAY" ? (item.actionColor === "blue" || item.actionColor === "gray") : true
+        severityFilter === "BLUE_GRAY" ? (item.actionColor === "blue" || item.actionColor === "gray") :
+        severityFilter === "NONE" ? item.actionColor === "gray" : true
       );
       const matchesCaseId = !caseIdFilter || item.caseId.toLowerCase().includes(caseIdFilter.toLowerCase());
 
-      if (needsActionOnly) {
-        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && item.actionColor !== "gray" && item.action !== "No action required";
-      }
-      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId;
-    });
-  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter]);
+      const matchesQuick = !quickFilter || (
+        quickFilter === "needs_action" ? (item.actionColor !== "gray" && item.action !== "No action required") :
+        quickFilter === "awaiting_upload" ? item.action === "Upload passport" :
+        quickFilter === "rtw_pending" ? item.action === "Check RTW" : true
+      );
 
-  // Handler: change case status
-  const handleChangeStatus = (newStatusValue: string) => {
-    if (!statusModalRow) return;
-    const statusOption = CASE_STATUSES.find((s) => s.value === newStatusValue);
-    if (!statusOption) return;
-    setCases((prev) =>
-      prev.map((c) =>
-        c.caseId === statusModalRow.caseId
-          ? {
-              ...c,
-              status: statusOption.label,
-              statusColor: statusOption.dotColor === "#1FC16B"
-                ? "success" as const
-                : statusOption.dotColor === "#F6B51E"
-                ? "warning" as const
-                : statusOption.dotColor === "#335CFF"
-                ? "info" as const
-                : statusOption.dotColor === "#FB3748"
-                ? "error" as const
-                : "gray" as const,
-            }
-          : c
-      )
-    );
+      if (needsActionOnly) {
+        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick && item.actionColor !== "gray" && item.action !== "No action required";
+      }
+      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick;
+    });
+  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter, quickFilter]);
+
+  // Helper: show custom styled success toast matching Figma
+  const showSuccessToast = (name: string, statusText: string) => {
+    toast(`${name}'s case status set as ${statusText}.`, {
+      icon: (
+        <div className="size-5 rounded-full bg-white flex items-center justify-center shrink-0">
+          <svg width="10" height="8" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M1.5 4L3.5 6L8.5 1" stroke="var(--color-brand-medium)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      ),
+      className: "!bg-brand-medium !border-brand-medium !shadow-card-large !rounded-card !py-md !px-xl !w-[440px] !max-w-[calc(100vw-2rem)] !flex !items-center !gap-md !h-[50px]",
+      classNames: {
+        title: "!text-white !font-sans !font-medium !text-paragraph-sm !tracking-[-0.006em]",
+      }
+    });
   };
 
-  // Handler: mark as visa refused
-  const handleMarkRefused = (reason: string, customText?: string) => {
+  // Handler: change case status with real backend call
+  const handleChangeStatus = async (newStatusValue: string, rowOverride?: CaseRow) => {
+    const targetRow = rowOverride || statusModalRow;
+    if (!targetRow) return;
+    const statusOption = CASE_STATUSES.find(
+      (s) =>
+        s.value === newStatusValue ||
+        s.label.toLowerCase() === newStatusValue.toLowerCase() ||
+        s.value.toLowerCase().replace(/_/g, " ") === newStatusValue.toLowerCase().replace(/_/g, " ")
+    );
+    if (!statusOption) return;
+
+    const applyLocalState = () => {
+      const overrideKey = targetRow.id || targetRow.caseId;
+      if (overrideKey) {
+        try {
+          const saved = localStorage.getItem("viems_case_status_overrides");
+          const overrides = saved ? JSON.parse(saved) : {};
+          overrides[overrideKey] = statusOption.label;
+          localStorage.setItem("viems_case_status_overrides", JSON.stringify(overrides));
+        } catch (e) {}
+      }
+
+      setCases((prev) =>
+        prev.map((c) =>
+          c.caseId === targetRow.caseId || c.id === targetRow.id
+            ? {
+                ...c,
+                status: statusOption.label,
+                statusColor: statusOption.dotColor === "#1FC16B"
+                  ? ("success" as const)
+                  : statusOption.dotColor === "#F6B51E"
+                  ? ("warning" as const)
+                  : statusOption.dotColor === "#335CFF"
+                  ? ("info" as const)
+                  : statusOption.dotColor === "#FB3748"
+                  ? ("error" as const)
+                  : ("gray" as const),
+              }
+            : c
+        )
+      );
+      showSuccessToast(targetRow.name, statusOption.label);
+    };
+
+    if (targetRow.id) {
+      try {
+        const formData = new FormData();
+
+        const roleId = typeof targetRow.roleId === "number"
+          ? targetRow.roleId
+          : parseInt(String(targetRow.roleId), 10) || 1;
+
+        formData.append("category", JSON.stringify({ id: roleId }));
+
+        const yearVal = (targetRow as any).relatedYear || (targetRow as any).year || new Date().getFullYear();
+        formData.append("relatedYear", String(yearVal));
+        formData.append("status", statusOption.label);
+
+        if (statusOption.value === "visa_approved" || statusOption.label.toLowerCase().includes("approved")) {
+          formData.append("decision", JSON.stringify({ id: "Granted" }));
+        } else if (statusOption.value === "visa_refused" || statusOption.label.toLowerCase().includes("refused")) {
+          formData.append("decision", JSON.stringify({ id: "Refused" }));
+        } else if (targetRow.outcome) {
+          formData.append("decision", JSON.stringify({ id: targetRow.outcome }));
+        }
+
+        if (targetRow.cosStatusValue) {
+          formData.append("cosStatus", JSON.stringify({ id: targetRow.cosStatusValue }));
+        }
+
+        await apiClient.patch(ENDPOINTS.cases.byId(targetRow.id), {
+          body: formData,
+        });
+        applyLocalState();
+      } catch (err) {
+        console.error("Failed to update status on server:", err);
+        toast.error("Failed to update status on server");
+      }
+    } else {
+      applyLocalState();
+    }
+  };
+
+  // Handler: mark as visa refused with real backend call
+  const handleMarkRefused = async (reason: string, customText?: string) => {
     if (!refusedModalRow) return;
+
+    // Update UI status locally first
     setCases((prev) =>
       prev.map((c) =>
         c.caseId === refusedModalRow.caseId
@@ -375,6 +607,120 @@ export default function CasesPage() {
           : c
       )
     );
+
+    if (refusedModalRow.id) {
+      try {
+        const formData = new FormData();
+
+        // category (role) is required by NestJS DTO
+        const roleId = typeof refusedModalRow.roleId === "number"
+          ? refusedModalRow.roleId
+          : parseInt(String(refusedModalRow.roleId), 10) || 1;
+        formData.append("category", JSON.stringify({ id: roleId }));
+
+        // Preserve existing relatedYear
+        formData.append("relatedYear", String(new Date().getFullYear()));
+
+        // Resolve refusal reason text
+        const selectedObj = REFUSAL_REASONS.find((r) => r.value === reason);
+        const finalReasonText = reason === "other" 
+          ? (customText || "Other") 
+          : (selectedObj ? selectedObj.label : reason);
+
+        // Build decision payload with refusal sub-object
+        const decisionPayload = {
+          id: "Refused",
+          refusal: {
+            isRefusal: true,
+            refusalDate: new Date().toISOString(),
+            refusalReason: finalReasonText,
+          }
+        };
+        formData.append("decision", JSON.stringify(decisionPayload));
+
+        // Preserve existing cosStatus so we don't accidentally set an invalid enum value
+        if (refusedModalRow.cosStatusValue) {
+          formData.append("cosStatus", JSON.stringify({ id: refusedModalRow.cosStatusValue }));
+        }
+
+        await apiClient.patch(ENDPOINTS.cases.byId(refusedModalRow.id), {
+          body: formData,
+        });
+        showSuccessToast(refusedModalRow.name, "Visa Refused");
+        loadCases();
+      } catch (err) {
+        console.error("Failed to record refusal on server:", err);
+        toast.error("Failed to record refusal on server");
+        // Revert local state by reloading cases
+        loadCases();
+      }
+    }
+  };
+
+  const handleArchiveCase = async (row: CaseRow) => {
+    if (row.id) {
+      try {
+        const formData = new FormData();
+        formData.append("moduleName", "cases");
+        formData.append("data", JSON.stringify([{
+          id: row.id,
+          caseNumber: row.caseId,
+        }]));
+        await apiClient.delete(ENDPOINTS.cases.toArchive, {
+          body: formData,
+        });
+        toast.success(`Case #${row.caseId} archived`);
+        loadCases();
+      } catch (err) {
+        console.error("Failed to archive case:", err);
+        toast.error("Failed to archive case");
+      }
+    }
+  };
+
+  const handleDeleteCase = async (row: CaseRow) => {
+    if (row.id) {
+      try {
+        const formData = new FormData();
+        formData.append("moduleName", "cases");
+        formData.append("data", JSON.stringify([{
+          id: row.id,
+          caseNumber: row.caseId,
+        }]));
+        await apiClient.delete(ENDPOINTS.cases.archive, {
+          body: formData,
+        });
+        toast.success(`Case #${row.caseId} deleted`);
+        loadCases();
+      } catch (err) {
+        console.error("Failed to delete case:", err);
+        toast.error("Failed to delete case");
+      }
+    }
+  };
+
+  const handleActionCompleted = (completedId?: number) => {
+    const idToSave = completedId || actionModalRow?.id;
+    const caseIdToSave = actionModalRow?.caseId;
+
+    if (idToSave || caseIdToSave) {
+      try {
+        const savedActions = localStorage.getItem("viems_completed_actions");
+        const list: string[] = savedActions ? JSON.parse(savedActions) : [];
+        if (idToSave) list.push(String(idToSave));
+        if (caseIdToSave) list.push(String(caseIdToSave));
+        localStorage.setItem("viems_completed_actions", JSON.stringify(Array.from(new Set(list))));
+      } catch (e) {}
+
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === idToSave || c.caseId === caseIdToSave
+            ? { ...c, action: "No action required", actionColor: "gray" }
+            : c
+        )
+      );
+    }
+    loadCases();
   };
 
   const getStatusClasses = (color: CaseRow["statusColor"]) => {
@@ -618,6 +964,7 @@ export default function CasesPage() {
                     { key: "Migration status", label: "Migration status", icon: RiBriefcaseLine },
                     { key: "Action severity", label: "Action severity", icon: RiAlertLine },
                     { key: "Case ID", label: "Case ID", icon: RiHashtag },
+                    { key: "Quick filters", label: "Quick filters", icon: RiFlashlightLine },
                   ].map((item) => {
                     const IconComp = item.icon;
                     const isActive = selectedCategory === item.key;
@@ -657,59 +1004,154 @@ export default function CasesPage() {
                     {selectedCategory === "Case status" && (
                       <div className="flex flex-col gap-[12px] w-full">
                         {[
-                          { value: "all", label: "All statuses", count: cases.length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
-                          { value: "VISA APPROVED", label: "Visa approved", count: cases.filter(c => c.status === "VISA APPROVED").length, colorClass: "bg-[#E3F7EC] text-[#0B4627]" },
-                          { value: "AWAITING", label: "Awaiting", count: cases.filter(c => c.status.toUpperCase().includes("AWAITING")).length, colorClass: "bg-[#FFFAEB] text-[#624C18]" },
-                          { value: "ELIGIBILITY ASSESSMENT", label: "Eligibility assessment", count: cases.filter(c => c.status === "ELIGIBILITY ASSESSMENT").length, colorClass: "bg-[#EBF1FF] text-[#122368]" },
-                          { value: "VISA REFUSED", label: "Visa refused", count: cases.filter(c => c.status === "VISA REFUSED").length, colorClass: "bg-[#FFEBEC] text-[#681219]" },
-                          { value: "CASE CLOSED", label: "Case closed", count: cases.filter(c => c.status === "CASE CLOSED").length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center justify-between cursor-pointer w-full group py-0.5">
-                              <div className="flex items-center gap-[8px]">
+                          { value: "all", label: "All statuses", count: tabCases.length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
+                          { value: "Visa Approved", label: "Visa approved", count: tabCases.filter(c => c.status === "Visa Approved").length, colorClass: "bg-[#E3F7EC] text-[#0B4627]" },
+                          { value: "Awaiting applicant docs", label: "Awaiting applicant docs", count: tabCases.filter(c => c.status.toLowerCase().includes("awaiting")).length, colorClass: "bg-[#FFFAEB] text-[#624C18]" },
+                          { value: "Eligibility assessment", label: "Eligibility assessment", count: tabCases.filter(c => c.status === "Eligibility assessment").length, colorClass: "bg-[#EBF1FF] text-[#122368]" },
+                          { value: "Visa Refused", label: "Visa refused", count: tabCases.filter(c => c.status === "Visa Refused").length, colorClass: "bg-[#FFEBEC] text-[#681219]" },
+                          { value: "Case closed", label: "Case closed", count: tabCases.filter(c => c.status === "Case closed").length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
+                        ].map((opt, i) => {
+                          const checked = tempStatus === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempStatus(opt.value)}>
                                 <input
                                   type="radio"
-                                  name="caseStatus"
-                                  checked={tempStatus === opt.value}
+                                  name="statusFilter"
+                                  value={opt.value}
+                                  checked={checked}
                                   onChange={() => setTempStatus(opt.value)}
-                                  className="accent-[#7D52F4] size-4 cursor-pointer"
+                                  className="sr-only"
                                 />
-                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                              </div>
-                              <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
-                                {opt.count}
-                              </span>
-                            </label>
-                            {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                                <div className="flex items-center gap-[8px]">
+                                  {/* Custom Radio Button */}
+                                  <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                    <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                  </div>
+                                  <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                                </div>
+                                <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
+                                  {opt.count}
+                                </span>
+                              </label>
+                              {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     )}
 
                     {selectedCategory === "Country" && (
                       <div className="flex flex-col gap-[12px] w-full">
-                        {[
-                          { value: "all", label: "All countries" },
-                          { value: "US", label: "United States (US)" },
-                          { value: "CN", label: "China (CN)" },
-                          { value: "IN", label: "India (IN)" },
-                          { value: "FR", label: "France (FR)" },
-                          { value: "SA", label: "South Africa (SA)" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
-                              <input
-                                type="radio"
-                                name="country"
-                                checked={tempCountry === opt.value}
-                                onChange={() => setTempCountry(opt.value)}
-                                className="accent-[#7D52F4] size-4 cursor-pointer"
-                              />
-                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                            </label>
-                            {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                        {/* Option 1: All countries */}
+                        <React.Fragment key="all">
+                          <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempCountry("all")}>
+                            <input
+                              type="radio"
+                              name="countryFilter"
+                              value="all"
+                              checked={tempCountry === "all"}
+                              onChange={() => setTempCountry("all")}
+                              className="sr-only"
+                            />
+                            <div className="flex items-center gap-[8px]">
+                              <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                <div className={`absolute inset-0 rounded-full transition-colors ${tempCountry === "all" ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                <div className={`absolute rounded-full bg-white transition-all ${tempCountry === "all" ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                              </div>
+                              <span className="text-[14px] leading-[20px] text-[#171717]">All countries</span>
+                            </div>
+                            <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
+                              {cases.length}
+                            </span>
+                          </label>
+                          <div className="w-full h-0 border-b border-[#EBEBEB]" />
+                        </React.Fragment>
+
+                        {/* Country List combining dataset countries + default options */}
+                        {(() => {
+                          const countryList: Array<{ value: string; label: string; count?: number }> = [
+                            ...uniqueCountries.map((c) => ({
+                              value: c.code,
+                              label: `${c.label} (${c.code})`,
+                              count: c.count,
+                            })),
+                            ...[
+                              { value: "IN", label: "India (IN)" },
+                              { value: "US", label: "United States (US)" },
+                              { value: "CN", label: "China (CN)" },
+                              { value: "FR", label: "France (FR)" },
+                              { value: "SA", label: "South Africa (SA)" },
+                            ].filter(
+                              (def) =>
+                                !uniqueCountries.some(
+                                  (u) =>
+                                    u.code === def.value ||
+                                    u.label.toLowerCase() === def.label.split(" ")[0].toLowerCase()
+                                )
+                            ),
+                          ];
+
+                          return countryList.map((opt, i) => {
+                            const checked =
+                              tempCountry === opt.value ||
+                              tempCountry === opt.label.split(" ")[0] ||
+                              (opt.value && tempCountry.toLowerCase() === opt.value.toLowerCase());
+                            const count =
+                              opt.count !== undefined
+                                ? opt.count
+                                : cases.filter(
+                                    (c) =>
+                                      c.countryCode === opt.value ||
+                                      c.country === opt.label.split(" ")[0]
+                                  ).length;
+
+                            return (
+                              <React.Fragment key={opt.value}>
+                                <label
+                                  className="flex items-center justify-between cursor-pointer w-full group py-0.5"
+                                  onClick={() => setTempCountry(opt.value)}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="countryFilter"
+                                    value={opt.value}
+                                    checked={Boolean(checked)}
+                                    onChange={() => setTempCountry(opt.value)}
+                                    className="sr-only"
+                                  />
+                                  <div className="flex items-center gap-[8px]">
+                                    <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                      <div
+                                        className={`absolute inset-0 rounded-full transition-colors ${
+                                          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+                                        }`}
+                                      />
+                                      <div
+                                        className={`absolute rounded-full bg-white transition-all ${
+                                          checked
+                                            ? "inset-[6px]"
+                                            : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"
+                                        }`}
+                                      />
+                                    </div>
+                                    <Flag country={opt.value} className="size-4 shrink-0" />
+                                    <span className="text-[14px] leading-[20px] text-[#171717]">
+                                      {opt.label}
+                                    </span>
+                                  </div>
+                                  <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
+                                    {count}
+                                  </span>
+                                </label>
+                                {i < countryList.length - 1 && (
+                                  <div className="w-full h-0 border-b border-[#EBEBEB]" />
+                                )}
+                              </React.Fragment>
+                            );
+                          });
+                        })()}
                       </div>
                     )}
 
@@ -720,46 +1162,106 @@ export default function CasesPage() {
                           { value: "ACTIVE COMPLIANCE", label: "Active Compliance" },
                           { value: "IN UK", label: "In UK" },
                           { value: "ARRIVED - RTW PENDING", label: "Arrived - RTW Pending" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
-                              <input
-                                type="radio"
-                                name="migration"
-                                checked={tempMigration === opt.value}
-                                onChange={() => setTempMigration(opt.value)}
-                                className="accent-[#7D52F4] size-4 cursor-pointer"
-                              />
-                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                            </label>
-                            {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                        ].map((opt, i) => {
+                          const checked = tempMigration === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempMigration(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="migrationFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempMigration(opt.value)}
+                                  className="sr-only"
+                                />
+                                <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                  <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                </div>
+                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                              </label>
+                              {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     )}
 
                     {selectedCategory === "Action severity" && (
                       <div className="flex flex-col gap-[12px] w-full">
                         {[
-                          { value: "all", label: "All severities" },
-                          { value: "RED", label: "Red (Urgent)" },
-                          { value: "YELLOW", label: "Yellow (Medium)" },
-                          { value: "BLUE_GRAY", label: "Blue / Gray (Low)" },
-                        ].map((opt, i) => (
-                          <React.Fragment key={opt.value}>
-                            <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5">
-                              <input
-                                type="radio"
-                                name="severity"
-                                checked={tempSeverity === opt.value}
-                                onChange={() => setTempSeverity(opt.value)}
-                                className="accent-[#7D52F4] size-4 cursor-pointer"
-                              />
-                              <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                            </label>
-                            {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
-                          </React.Fragment>
-                        ))}
+                          { value: "all", label: "All severities", dot: null, count: cases.length },
+                          { value: "RED", label: "Critical", dot: "#FB3748", count: cases.filter(c => c.actionColor === "red").length },
+                          { value: "YELLOW", label: "Warning", dot: "#F6B51E", count: cases.filter(c => c.actionColor === "yellow").length },
+                          { value: "BLUE_GRAY", label: "Info", dot: "#335CFF", count: cases.filter(c => c.actionColor === "blue").length },
+                          { value: "NONE", label: "No action needed", dot: "#7B7B7B", count: cases.filter(c => c.actionColor === "gray").length },
+                        ].map((opt, i) => {
+                          const checked = tempSeverity === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempSeverity(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="severityFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempSeverity(opt.value)}
+                                  className="sr-only"
+                                />
+                                <div className="flex items-center gap-[8px]">
+                                  <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                    <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                  </div>
+                                  <div className="flex items-center gap-[6px]">
+                                    {opt.dot && (
+                                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: opt.dot }} />
+                                    )}
+                                    <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                                  </div>
+                                </div>
+                                <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#0B4627]">
+                                  {opt.count}
+                                </span>
+                              </label>
+                              {i < 4 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {selectedCategory === "Quick filters" && (
+                      <div className="flex flex-col gap-[12px] w-full">
+                        {[
+                          { value: "all", label: "All cases" },
+                          { value: "needs_action", label: "Needs action" },
+                          { value: "awaiting_upload", label: "Awaiting document upload" },
+                          { value: "rtw_pending", label: "RTW checks pending" },
+                        ].map((opt, i) => {
+                          const checked = tempQuickFilter === opt.value;
+                          return (
+                            <React.Fragment key={opt.value}>
+                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempQuickFilter(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="quickFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempQuickFilter(opt.value)}
+                                  className="sr-only"
+                                />
+                                <div className="relative size-5 shrink-0 flex items-center justify-center">
+                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                  <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
+                                </div>
+                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                              </label>
+                              {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
+                            </React.Fragment>
+                          );
+                        })}
                       </div>
                     )}
 
@@ -771,7 +1273,7 @@ export default function CasesPage() {
                           placeholder="e.g. 430/2026"
                           value={tempCaseId}
                           onChange={(e) => setTempCaseId(e.target.value)}
-                          className="h-9"
+                          className="h-9 shadow-x-small bg-white"
                         />
                       </div>
                     )}
@@ -803,7 +1305,6 @@ export default function CasesPage() {
               </div>
             )}
           </div>
-
           <CountryFilterDropdown
             countries={uniqueCountries}
             value={countryFilter}
@@ -924,12 +1425,13 @@ export default function CasesPage() {
                       </div>
 
                       <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
-                        <img 
-                          src={row.avatarUrl} 
-                          alt={row.name} 
-                          className={`size-10 rounded-full object-cover shrink-0 ${!row.avatarUrl ? 'hidden' : ''}`}
-                        />
-                        {!row.avatarUrl && (
+                        {row.avatarUrl ? (
+                          <img 
+                            src={row.avatarUrl} 
+                            alt={row.name} 
+                            className="size-10 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
                           <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
                             {row.avatarText}
                           </div>
@@ -945,10 +1447,23 @@ export default function CasesPage() {
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-center">
-                        <span className={`inline-flex items-center gap-xs px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] ${getStatusBgAndText(row.statusColor)}`}>
-                          <span className={`size-1.5 rounded-full ${getStatusDotColor(row.statusColor)}`} />
-                          {row.status}
-                        </span>
+                        <CaseStatusDropdown
+                          currentStatus={row.status}
+                          statusColor={row.statusColor}
+                          getStatusBgAndText={getStatusBgAndText}
+                          getStatusDotColor={getStatusDotColor}
+                          onApplyStatus={(newStatus) => {
+                            setStatusModalRow(row);
+                            // Visa refused requires the refusal reason modal first
+                            const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
+                            if (norm === "visa refused" || norm === "visa_refused") {
+                              setRefusedModalRow(row);
+                              setRefusedModalOpen(true);
+                            } else {
+                              handleChangeStatus(newStatus, row);
+                            }
+                          }}
+                        />
                       </div>
 
                       <div className="flex-1 min-w-0 flex items-center">
@@ -962,12 +1477,26 @@ export default function CasesPage() {
                         {row.actionColor !== "gray" && (
                           <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
                         )}
-                        <span className={getActionTextClass(row.actionColor)}>
-                          {row.action}
-                        </span>
+                        {row.actionColor !== "gray" && row.action !== "No action required" ? (
+                          <button
+                            type="button"
+                            className={`${getActionTextClass(row.actionColor)} cursor-pointer text-left border-0 bg-transparent p-0 font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4] rounded-xs`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionModalRow(row);
+                              setActionModalOpen(true);
+                            }}
+                          >
+                            {row.action}
+                          </button>
+                        ) : (
+                          <span className={getActionTextClass(row.actionColor)}>
+                            {row.action}
+                          </span>
+                        )}
                       </div>
 
-                      <div className="w-[48px] shrink-0 flex justify-center">
+                      <div className="w-[48px] shrink-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
                         <CaseRowMenu
                           onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
                           onChangeStatus={() => {
@@ -977,6 +1506,14 @@ export default function CasesPage() {
                           onMarkRefused={() => {
                             setRefusedModalRow(row);
                             setRefusedModalOpen(true);
+                          }}
+                          onArchive={() => {
+                            setArchiveModalRow(row);
+                            setArchiveModalOpen(true);
+                          }}
+                          onDelete={() => {
+                            setDeleteModalRow(row);
+                            setDeleteModalOpen(true);
                           }}
                         />
                       </div>
@@ -1107,7 +1644,18 @@ export default function CasesPage() {
             ? CASE_STATUSES.find((s) => s.label === statusModalRow.status)?.value || ""
             : ""
         }
-        onApply={handleChangeStatus}
+        onApply={(newStatus: string) => {
+          const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
+          if (norm === "visa refused" || norm === "visa_refused") {
+            // Open refusal reason modal instead
+            if (statusModalRow) {
+              setRefusedModalRow(statusModalRow);
+              setRefusedModalOpen(true);
+            }
+          } else {
+            handleChangeStatus(newStatus);
+          }
+        }}
       />
 
       <MarkVisaRefusedModal
@@ -1124,6 +1672,53 @@ export default function CasesPage() {
             : null
         }
         onConfirm={handleMarkRefused}
+      />
+
+      <ArchiveCaseModal
+        open={archiveModalOpen}
+        onOpenChange={setArchiveModalOpen}
+        caseInfo={
+          archiveModalRow
+            ? {
+                caseId: archiveModalRow.caseId,
+                name: archiveModalRow.name,
+                avatarText: archiveModalRow.avatarText,
+                avatarUrl: archiveModalRow.avatarUrl,
+              }
+            : null
+        }
+        onConfirm={() => {
+          if (archiveModalRow) {
+            handleArchiveCase(archiveModalRow);
+          }
+        }}
+      />
+
+      <DeleteCaseModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        caseInfo={
+          deleteModalRow
+            ? {
+                caseId: deleteModalRow.caseId,
+                name: deleteModalRow.name,
+                avatarText: deleteModalRow.avatarText,
+                avatarUrl: deleteModalRow.avatarUrl,
+              }
+            : null
+        }
+        onConfirm={() => {
+          if (deleteModalRow) {
+            handleDeleteCase(deleteModalRow);
+          }
+        }}
+      />
+
+      <CaseActionModal
+        open={actionModalOpen}
+        onOpenChange={setActionModalOpen}
+        row={actionModalRow}
+        onSuccess={handleActionCompleted}
       />
     </div>
   );

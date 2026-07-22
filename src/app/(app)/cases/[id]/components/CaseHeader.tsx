@@ -30,6 +30,7 @@ interface CaseHeaderProps {
   cosRef: string;
   approvalStatus: string;
   onBack: () => void;
+  onChangeStatus?: () => void;
 }
 
 export function CaseHeader({
@@ -41,6 +42,7 @@ export function CaseHeader({
   cosRef,
   approvalStatus,
   onBack,
+  onChangeStatus,
 }: CaseHeaderProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -57,20 +59,44 @@ export function CaseHeader({
         </button>
 
         {/* Avatar */}
-        <img
-          src={avatar}
-          alt={name}
-          className="size-14 rounded-full object-cover shrink-0"
-        />
+        {avatar ? (
+          <img
+            src={avatar}
+            alt={name}
+            className="size-14 rounded-full object-cover shrink-0"
+          />
+        ) : (
+          <div className="size-14 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[20px] tracking-[-0.015em] shrink-0 font-sans overflow-hidden">
+            {name ? name.split(" ").filter(Boolean).map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "—"}
+          </div>
+        )}
 
         {/* Name + Badges + Subtitle */}
         <div className="flex flex-col gap-xs flex-1 min-w-0">
           {/* Name Row */}
           <div className="flex items-center gap-[9px]">
             <h1 className="text-title-aeonik text-[#171717]">{name}</h1>
-            <Badge variant="success" withDot className="h-4 text-[11px] uppercase tracking-[0.02em] font-medium rounded-full px-2 gap-0 pl-[2px] pr-[8px]">
-              {visaStatus}
-            </Badge>
+            {(() => {
+              const isInactive = visaStatus?.toUpperCase().includes("INACTIVE");
+              const isRefused = visaStatus?.toUpperCase().includes("REFUSED");
+              const bgClass = isInactive
+                ? "bg-[#F3F4F6] text-[#374151]"
+                : isRefused
+                ? "bg-[#FDE8E8] text-[#9B1C1C]"
+                : "bg-[#E3F7EC] text-[#0B4627]";
+              const dotClass = isInactive
+                ? "bg-[#9CA3AF]"
+                : isRefused
+                ? "bg-[#FB3748]"
+                : "bg-[#1FC16B]";
+
+              return (
+                <span className={`inline-flex items-center gap-xs h-4 px-2 ${bgClass} rounded-full text-[11px] font-medium uppercase tracking-[0.02em]`}>
+                  <span className={`size-1.5 rounded-full ${dotClass}`} />
+                  {visaStatus}
+                </span>
+              );
+            })()}
             <span className="inline-flex items-center h-4 px-2 bg-[#EFEBFF] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717]">
               {location}
             </span>
@@ -87,16 +113,37 @@ export function CaseHeader({
       {/* Right: Status + Edit + More */}
       <div className="flex items-center gap-lg shrink-0">
         {/* Status Pill */}
-        <div className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white">
-          <div className="px-lg h-full flex items-center border-r border-[#EBEBEB]">
-            <span className="text-paragraph-xs font-medium text-[#A4A4A4]">Status</span>
-          </div>
-          <div className="px-[10px] h-full flex items-center gap-[2px]">
-            <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-            <span className="text-subheading-2xs text-[#0B4627] ml-1">{approvalStatus}</span>
-            <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
-          </div>
-        </div>
+        {(() => {
+          const isApprovedStatus = approvalStatus?.toUpperCase().includes("APPROVED");
+          const isRefusedStatus = approvalStatus?.toUpperCase().includes("REFUSED");
+          const statusDotClass = isApprovedStatus
+            ? "bg-[#1FC16B]"
+            : isRefusedStatus
+            ? "bg-[#FB3748]"
+            : "bg-[#F6B51E]";
+          const statusTextClass = isApprovedStatus
+            ? "text-[#0B4627]"
+            : isRefusedStatus
+            ? "text-[#9B1C1C]"
+            : "text-[#8A5300]";
+
+          return (
+            <button
+              type="button"
+              onClick={onChangeStatus}
+              className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white cursor-pointer hover:border-[#7D52F4] hover:shadow-x-small transition-all border-0 p-0"
+            >
+              <div className="px-lg h-full flex items-center border-r border-[#EBEBEB] bg-neutral-50/50">
+                <span className="text-paragraph-xs font-medium text-[#A4A4A4]">Status</span>
+              </div>
+              <div className="px-[10px] h-full flex items-center gap-[2px]">
+                <span className={`size-1.5 rounded-full ${statusDotClass}`} />
+                <span className={`text-subheading-2xs ${statusTextClass} ml-1`}>{approvalStatus}</span>
+                <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
+              </div>
+            </button>
+          );
+        })()}
 
         {/* Edit Button */}
         <Button

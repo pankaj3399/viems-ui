@@ -6,7 +6,9 @@ import { isAuthenticated, removeToken } from "@/lib/auth";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import Sidebar from "@/components/sidebar";
+import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { Loader2, Bell } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner";
 
 export default function ProtectedAppLayout({
   children,
@@ -48,7 +50,6 @@ export default function ProtectedAppLayout({
         setIsChecking(false);
       } catch (error) {
         console.error("Failed to load user profile:", error);
-        // If the token is invalid or request fails, clear session and force login
         removeToken();
         router.replace("/login");
       }
@@ -68,19 +69,6 @@ export default function ProtectedAppLayout({
       </div>
     );
   }
-
-  const getInitials = () => {
-    if (
-      userInfo?.personalInfo?.firstName &&
-      userInfo?.personalInfo?.lastName
-    ) {
-      return `${userInfo.personalInfo.firstName[0]}${userInfo.personalInfo.lastName[0]}`.toUpperCase();
-    }
-    if (userInfo?.email) {
-      return userInfo.email[0].toUpperCase();
-    }
-    return "AM";
-  };
 
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#171717] font-sans select-none">
@@ -126,10 +114,8 @@ export default function ProtectedAppLayout({
               <div className="absolute top-[14px] right-[14px] size-1.5 rounded-full bg-[#FB3748] border border-[#171717] shadow-x-small" />
             </button>
 
-            {/* Avatar Circle */}
-            <div className="size-12 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center select-none shadow-x-small shrink-0">
-              {getInitials()}
-            </div>
+            {/* Avatar Dropdown [1.1] */}
+            <UserProfileDropdown userInfo={userInfo} align="end" side="bottom" />
           </div>
         </header>
 
@@ -138,6 +124,7 @@ export default function ProtectedAppLayout({
           {children}
         </main>
       </div>
+      <Toaster position="top-right" closeButton={false} />
     </div>
   );
 }

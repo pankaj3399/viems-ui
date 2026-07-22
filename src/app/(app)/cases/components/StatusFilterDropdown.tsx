@@ -68,7 +68,7 @@ export function StatusFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-[120px] justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 px-[6px] py-[6px] gap-[2px] text-[14px] leading-5 tracking-[-0.006em] ${
+          className={`w-auto min-w-[120px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 ${
             open
               ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
               : value
@@ -91,22 +91,15 @@ export function StatusFilterDropdown({
           <button
             type="button"
             onClick={() => setTempValue(null)}
-            className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
-              tempValue === null
-                ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
-                : "text-foreground hover:bg-neutral-50"
-            }`}
+            className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
           >
             <span className="flex items-center gap-sm">
-              <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
-                tempValue === null ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+              <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
+                tempValue === null ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
               }`}>
-                {tempValue === null && <Check className="size-2.5 text-white" />}
+                {tempValue === null && <span className="size-2 rounded-full bg-[#7D52F4]" />}
               </span>
-              <span>All statuses</span>
-            </span>
-            <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium">
-              {totalCount}
+              <span className="text-neutral-900 font-normal">All statuses</span>
             </span>
           </button>
 
@@ -115,25 +108,27 @@ export function StatusFilterDropdown({
               key={status.label}
               type="button"
               onClick={() => setTempValue(status.label)}
-              className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
-                tempValue === status.label
-                  ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
-                  : "text-foreground hover:bg-neutral-50"
-              }`}
+              className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
             >
               <span className="flex items-center gap-sm min-w-0">
-                <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
-                  tempValue === status.label ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+                <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  tempValue === status.label ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
                 }`}>
-                  {tempValue === status.label && <Check className="size-2.5 text-white" />}
+                  {tempValue === status.label && <span className="size-2 rounded-full bg-[#7D52F4]" />}
                 </span>
                 <span
                   className="size-2 rounded-full shrink-0"
                   style={{ backgroundColor: getDotColor(status.label) }}
                 />
-                <span className="truncate text-left">{status.label}</span>
+                <span className="truncate text-left text-neutral-900 font-normal">{status.label}</span>
               </span>
-              <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium shrink-0">
+              <span className={`text-subheading-2xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                status.label === "Visa approved" ? "bg-[#E6F7F0] text-[#1FC16B]" :
+                status.label === "Awaiting" ? "bg-[#FFFBEB] text-[#D97706]" :
+                status.label === "Eligibility assessment" ? "bg-[#EFF6FF] text-[#1D4ED8]" :
+                status.label === "Visa refused" ? "bg-[#FEF2F2] text-[#DC2626]" :
+                "bg-[#F4F4F5] text-[#4B5563]"
+              }`}>
                 {status.count}
               </span>
             </button>
@@ -141,24 +136,29 @@ export function StatusFilterDropdown({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-lg py-lg border-t border-neutral-100 gap-sm">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleCancel}
-            className="h-8 px-xl text-label-sm bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px]"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleApply}
-            className="h-8 px-xl text-label-sm text-white rounded-[8px]"
-          >
-            Apply
-          </Button>
+        <div className="flex items-center justify-between px-lg py-lg border-t border-neutral-100">
+          <span className="text-paragraph-xs text-[#5C5C5C] font-normal">
+            {totalCount} results
+          </span>
+          <div className="flex items-center gap-sm">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCancel}
+              className="h-8 px-xl text-label-sm bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px]"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleApply}
+              className="h-8 px-xl text-label-sm text-white rounded-[8px]"
+            >
+              Apply
+            </Button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>

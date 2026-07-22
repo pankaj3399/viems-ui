@@ -7,9 +7,9 @@ import {
   RiPushpinLine,
   RiPushpinFill,
   RiAtLine,
-  RiSendPlane2Line,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface NoteItem {
   id: string;
@@ -21,7 +21,7 @@ interface NoteItem {
   pinned: boolean;
 }
 
-const initialNotes: NoteItem[] = [
+const defaultNotes: NoteItem[] = [
   {
     id: "n1",
     authorName: "Nathan Wood",
@@ -51,12 +51,48 @@ const initialNotes: NoteItem[] = [
   },
 ];
 
-export function NotesTab() {
-  const [notes, setNotes] = React.useState<NoteItem[]>(initialNotes);
+export function NotesTab({ id }: { id?: string }) {
+  const storageKey = id ? `viems_case_notes_${id}` : "viems_case_notes";
+  const [notes, setNotes] = React.useState<NoteItem[]>(defaultNotes);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [newNoteText, setNewNoteText] = React.useState("");
   const [shouldPinNewNote, setShouldPinNewNote] = React.useState(false);
   const [showMentions, setShowMentions] = React.useState(false);
+
+  const loadedKeyRef = React.useRef<string | null>(null);
+
+  // Load notes from localStorage when storageKey changes
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setNotes(parsed);
+          loadedKeyRef.current = storageKey;
+          return;
+        }
+      }
+      setNotes(defaultNotes);
+      loadedKeyRef.current = storageKey;
+    } catch (e) {
+      console.error("Failed to load notes from storage", e);
+      setNotes(defaultNotes);
+      loadedKeyRef.current = storageKey;
+    }
+  }, [storageKey]);
+
+  // Save notes to localStorage on state change (skipping initial save per storageKey)
+  React.useEffect(() => {
+    if (loadedKeyRef.current !== storageKey) {
+      return;
+    }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(notes));
+    } catch (e) {
+      console.error("Failed to save notes to storage", e);
+    }
+  }, [notes, storageKey]);
 
   const handlePostNote = () => {
     if (!newNoteText.trim()) return;
@@ -76,13 +112,14 @@ export function NotesTab() {
     };
 
     setNotes((prev) => [newNote, ...prev]);
+    toast.success("Note posted successfully");
     setNewNoteText("");
     setShouldPinNewNote(false);
   };
 
-  const togglePin = (id: string) => {
+  const togglePin = (pinId: string) => {
     setNotes((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
+      prev.map((n) => (n.id === pinId ? { ...n, pinned: !n.pinned } : n))
     );
   };
 

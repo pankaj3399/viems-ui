@@ -45,9 +45,17 @@ export function CountryFilterDropdown({
     );
   }, [countries, search]);
 
-  const selectedLabel = value
-    ? countries.find((c) => c.code === value)?.label
-    : null;
+  const selectedCountry = React.useMemo(() => {
+    if (!value) return null;
+    return countries.find(
+      (c) =>
+        c.code === value ||
+        c.label === value ||
+        c.code.toLowerCase() === value.toLowerCase()
+    );
+  }, [countries, value]);
+
+  const selectedLabel = selectedCountry ? selectedCountry.label : value;
 
   const totalCount = countries.reduce((acc, c) => acc + (c.count || 0), 0);
   const resultCount = filteredCountries.reduce((acc, c) => acc + (c.count || 0), 0);
@@ -69,7 +77,7 @@ export function CountryFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-[135px] justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 px-[6px] py-[6px] gap-[2px] text-[14px] leading-5 tracking-[-0.006em] ${
+          className={`w-auto min-w-[130px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 ${
             open
               ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
               : value
@@ -77,9 +85,9 @@ export function CountryFilterDropdown({
               : "border-border text-[#5C5C5C]"
           }`}
         >
-          <span className="truncate flex items-center gap-xs">
+          <span className="flex items-center gap-2 truncate">
             {value && (
-              <Flag country={value} className="size-4 shrink-0" />
+              <Flag country={selectedCountry?.code || value} className="size-4 shrink-0" />
             )}
             <span>{selectedLabel || "All countries"}</span>
           </span>
@@ -113,22 +121,15 @@ export function CountryFilterDropdown({
           <button
             type="button"
             onClick={() => setTempValue(null)}
-            className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
-              tempValue === null
-                ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
-                : "text-foreground hover:bg-neutral-50"
-            }`}
+            className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
           >
             <span className="flex items-center gap-sm">
-              <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
-                tempValue === null ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+              <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
+                tempValue === null ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
               }`}>
-                {tempValue === null && <Check className="size-2.5 text-white" />}
+                {tempValue === null && <span className="size-2 rounded-full bg-[#7D52F4]" />}
               </span>
-              <span>All countries</span>
-            </span>
-            <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium">
-              {totalCount}
+              <span className="text-neutral-900 font-normal">All countries</span>
             </span>
           </button>
 
@@ -137,23 +138,19 @@ export function CountryFilterDropdown({
               key={country.code}
               type="button"
               onClick={() => setTempValue(country.code)}
-              className={`w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer ${
-                tempValue === country.code
-                  ? "bg-[#F5F3FF] text-[#7D52F4] font-medium"
-                  : "text-foreground hover:bg-neutral-50"
-              }`}
+              className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
             >
               <span className="flex items-center gap-sm min-w-0">
-                <span className={`size-4 rounded-compact border flex items-center justify-center shrink-0 ${
-                  tempValue === country.code ? "bg-[#7D52F4] border-[#7D52F4]" : "border-neutral-300 bg-white"
+                <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
+                  tempValue === country.code ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
                 }`}>
-                  {tempValue === country.code && <Check className="size-2.5 text-white" />}
+                  {tempValue === country.code && <span className="size-2 rounded-full bg-[#7D52F4]" />}
                 </span>
                 <Flag country={country.code} className="size-4 shrink-0" />
-                <span className="truncate text-left">{country.label}</span>
+                <span className="truncate text-left text-neutral-900 font-normal">{country.label}</span>
               </span>
               {country.count !== undefined && (
-                <span className="text-subheading-2xs px-1.5 py-0.5 bg-neutral-100 text-neutral-600 rounded-full font-medium shrink-0">
+                <span className="text-subheading-2xs px-2 py-0.5 bg-[#E6F7F0] text-[#1FC16B] rounded-full font-medium shrink-0">
                   {country.count}
                 </span>
               )}
@@ -169,8 +166,8 @@ export function CountryFilterDropdown({
 
         {/* Footer */}
         <div className="flex items-center justify-between px-lg py-lg border-t border-neutral-100">
-          <span className="text-paragraph-xs text-[#5C5C5C]">
-            {resultCount} results
+          <span className="text-paragraph-xs text-[#5C5C5C] font-normal">
+            {totalCount} results
           </span>
           <div className="flex items-center gap-sm">
             <Button
