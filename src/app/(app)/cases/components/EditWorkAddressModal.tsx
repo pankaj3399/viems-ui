@@ -133,6 +133,7 @@ export function EditWorkAddressModal({
           mainWorkAddressLine2: addresses[0]?.line2 ? `${addresses[0].line2}, ${addresses[0].city}` : `${addresses[0]?.city || ""}, ${addresses[0]?.postCode || ""}`.trim(),
           secondWorkAddressLine1: addresses[1]?.line1 || "",
           secondWorkAddressLine2: addresses[1]?.line2 ? `${addresses[1].line2}, ${addresses[1].city}` : `${addresses[1]?.city || ""}, ${addresses[1]?.postCode || ""}`.trim(),
+          addressesList: addresses,
         };
         localStorage.setItem(`work_address_${caseId}`, JSON.stringify(savedWorkAddresses));
       }
@@ -161,6 +162,7 @@ export function EditWorkAddressModal({
           </h3>
           <button
             type="button"
+            aria-label="Close"
             onClick={() => onOpenChange(false)}
             className="size-6 rounded-[6px] bg-[#F7F7F7] text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors cursor-pointer"
           >

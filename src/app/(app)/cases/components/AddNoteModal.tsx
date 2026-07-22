@@ -46,7 +46,8 @@ export function AddNoteModal({ isOpen, onClose, caseId, onNoteAdded }: AddNoteMo
       }
 
       // 2. Persist to localStorage for immediate UI synchronization
-      const saved = localStorage.getItem("viems_case_notes");
+      const noteStorageKey = caseId ? `viems_case_notes_${caseId}` : "viems_case_notes";
+      const saved = localStorage.getItem(noteStorageKey);
       const existing = saved ? JSON.parse(saved) : [];
       const newNote = {
         id: "n_" + Date.now(),
@@ -58,7 +59,7 @@ export function AddNoteModal({ isOpen, onClose, caseId, onNoteAdded }: AddNoteMo
         pinned: isPinned,
       };
       const updatedNotes = [newNote, ...existing];
-      localStorage.setItem("viems_case_notes", JSON.stringify(updatedNotes));
+      localStorage.setItem(noteStorageKey, JSON.stringify(updatedNotes));
 
       if (onNoteAdded) {
         onNoteAdded(newNote);
@@ -91,6 +92,7 @@ export function AddNoteModal({ isOpen, onClose, caseId, onNoteAdded }: AddNoteMo
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="absolute top-[20px] right-[20px] size-6 bg-[#F7F7F7] hover:bg-neutral-200 rounded-[6px] flex items-center justify-center cursor-pointer transition-colors border-0 text-[#5C5C5C]"
           >
             <RiCloseLine className="size-4 text-[#5C5C5C]" />
@@ -102,7 +104,7 @@ export function AddNoteModal({ isOpen, onClose, caseId, onNoteAdded }: AddNoteMo
               Add note
             </h3>
             <p className="text-[14px] leading-[20px] tracking-[-0.006em] text-[#5C5C5C]">
-              Archiving will move this case out of your active cases list. You will be able to restore this later.
+              Add a note or update regarding this case. Notes are saved to the case timeline.
             </p>
           </div>
 

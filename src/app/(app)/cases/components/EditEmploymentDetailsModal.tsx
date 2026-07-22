@@ -70,6 +70,7 @@ export function EditEmploymentDetailsModal({
     try {
       setIsSaving(true);
       if (typeof window !== "undefined" && caseId) {
+        const fullWorkAddress2 = [addressLine2, city, postCode].filter(Boolean).join(", ");
         const savedData = {
           employer,
           jobTitle,
@@ -79,20 +80,23 @@ export function EditEmploymentDetailsModal({
           hoursPerWeek,
           grossSalary: annualSalary,
           mainWorkAddressLine1: addressLine1,
-          mainWorkAddressLine2: addressLine2,
+          mainWorkAddressLine2: fullWorkAddress2 || addressLine2,
+          city,
+          postCode,
         };
         localStorage.setItem(`employment_${caseId}`, JSON.stringify(savedData));
       }
 
       if (caseId) {
         try {
+          const fullWorkAddress2 = [addressLine2, city, postCode].filter(Boolean).join(", ");
           await apiClient.patch(ENDPOINTS.cases.byId(caseId), {
             personal: {
               groupName: employer,
               jobTitle: jobTitle,
               jobPay: annualSalary,
               workAddress1: addressLine1,
-              workAddress2: addressLine2,
+              workAddress2: fullWorkAddress2 || addressLine2,
             }
           });
         } catch (apiErr) {
@@ -124,6 +128,7 @@ export function EditEmploymentDetailsModal({
           </h3>
           <button
             type="button"
+            aria-label="Close"
             onClick={() => onOpenChange(false)}
             className="size-6 rounded-[6px] bg-[#F7F7F7] text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors cursor-pointer"
           >

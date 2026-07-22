@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
 import { XIcon, Sparkles, Upload, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +81,7 @@ export function EditPersonalDetailsModal({
   const [passportExpiryDate, setPassportExpiryDate] = React.useState("");
 
   // Preserved database states
+  const [migrantData, setMigrantData] = React.useState<any>(null);
   const [passportId, setPassportId] = React.useState<number | null>(null);
   const [stageName, setStageName] = React.useState("");
   const [withStageName, setWithStageName] = React.useState(false);
@@ -111,6 +113,7 @@ export function EditPersonalDetailsModal({
         // Fetch migrant profile
         const migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
         if (migrant) {
+          setMigrantData(migrant);
           setFirstName(migrant.user?.personalInfo?.firstName || "");
           setLastName(migrant.user?.personalInfo?.lastName || "");
           setDob(formatDisplayDate(migrant.user?.personalInfo?.dateOfBirth || ""));
@@ -182,27 +185,22 @@ export function EditPersonalDetailsModal({
     try {
       setIsSaving(true);
 
-      const rawStageName = stageName || `${firstName}${lastName}`;
-      const cleanStageName = rawStageName.replace(/[^a-zA-Z0-9]/g, "").toLowerCase() || `migrant${migrantId}`;
-
       const isoDob = parseDisplayDate(dob);
       const isoIssueDate = parseDisplayDate(passportIssueDate);
       const isoExpiryDate = parseDisplayDate(passportExpiryDate);
 
       // Build payload matching MigrantClientDto requirements
-      const contactEmail = contacts?.contact_email || `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`;
+      const contactEmail = contacts?.contact_email || "";
 
-      const payload: any = {
+      const overrides: any = {
         first_name: firstName,
         last_name: lastName,
         gender: gender || null,
         date_of_birth: isoDob || null,
         nationality: nationality ? (isNaN(Number(nationality)) ? nationality : Number(nationality)) : null,
         place_of_birth: cityOfBirth || null,
-        stage_name: cleanStageName,
+        stage_name: stageName,
         with_stage_name: Boolean(withStageName),
-        deletedFiles: [],
-        logs: [],
         contacts: {
           contact_email: contactEmail,
           address_line_1: contacts?.address_line_1 || "",
@@ -216,13 +214,15 @@ export function EditPersonalDetailsModal({
       };
 
       if (passportNumber || isoIssueDate || isoExpiryDate || passportId) {
-        payload.passport = {
+        overrides.passport = {
           ...(passportId ? { id: typeof passportId === "number" ? passportId : parseInt(passportId, 10) } : {}),
           ...(passportNumber ? { passport_number: passportNumber } : {}),
           ...(isoIssueDate ? { issue_passport_date: isoIssueDate } : {}),
           ...(isoExpiryDate ? { expired_passport_date: isoExpiryDate } : {}),
         };
       }
+
+      const payload = buildMigrantPatchPayload(migrantData, overrides);
 
       await apiClient.patch(ENDPOINTS.migrants.byId(migrantId), payload);
       toast.success("Personal details updated successfully");

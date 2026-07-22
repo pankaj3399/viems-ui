@@ -323,7 +323,7 @@ function mapBackendCaseToDetail(c: any) {
       lastName: lastName,
       gender: genderDisplay,
       dob: dobDisplay,
-      maritalStatus: emergency.relationship === "Spouse" ? "Married" : (emergency.relationship ? "Single" : "—"),
+      maritalStatus: m.maritalStatus || m.marital_status || m.personalInfo?.maritalStatus || c.personal?.maritalStatus || "—",
       nationality: country,
       nationalityCode: nationalityCode,
       nationalityFlag,
@@ -386,19 +386,19 @@ function mapBackendCaseToDetail(c: any) {
       ],
     },
     employment: {
-      cosReference: c.cosStatus?.assigned?.cosNumber || c.cosReference || "COS2026-00430",
-      socCode: c.personal?.jobSocCode || c.personal?.socCode || "3416 (Arts/Entertainment)",
-      employer: localEmp?.employer || c.personal?.groupName || c.employer || m.employer || "AX Studios",
-      jobTitle: localEmp?.jobTitle || c.personal?.jobTitle || "Singer",
-      startDate: localEmp?.startDate || (c.decision?.granted?.visaStartDate ? new Date(c.decision.granted.visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "15 Mar 2026"),
-      endDate: localEmp?.endDate || (c.decision?.granted?.visaEndDate ? new Date(c.decision.granted.visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "16 Mar 2027"),
-      contract: localEmp?.contract || c.personal?.employmentType || c.personal?.contractType || "Full-time",
-      grossSalary: localEmp?.grossSalary || (c.personal?.jobPay ? (String(c.personal.jobPay).includes("year") || String(c.personal.jobPay).startsWith("£") ? c.personal.jobPay : `£${c.personal.jobPay}/year`) : "£48,000/year"),
-      hoursPerWeek: localEmp?.hoursPerWeek || c.personal?.hoursPerWeek || "40",
-      mainWorkAddressLine1: localWork?.mainWorkAddressLine1 || localEmp?.mainWorkAddressLine1 || c.personal?.workAddress1 || "Royal Albert Hall,",
-      mainWorkAddressLine2: localWork?.mainWorkAddressLine2 || localEmp?.mainWorkAddressLine2 || c.personal?.workAddress2 || "South Kensington, London SW7 2AP",
-      secondWorkAddressLine1: localWork?.secondWorkAddress1 || c.personal?.secondWorkAddress1 || "45 Cromwell Road",
-      secondWorkAddressLine2: localWork?.secondWorkAddress2 || c.personal?.secondWorkAddress2 || "South Kensington, London SW7 2EF",
+      cosReference: c.cosStatus?.assigned?.cosNumber || c.cosReference || "",
+      socCode: c.personal?.jobSocCode || c.personal?.socCode || "",
+      employer: localEmp?.employer || c.personal?.groupName || c.employer || m.employer || "",
+      jobTitle: localEmp?.jobTitle || c.personal?.jobTitle || "",
+      startDate: localEmp?.startDate || (c.decision?.granted?.visaStartDate ? new Date(c.decision.granted.visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""),
+      endDate: localEmp?.endDate || (c.decision?.granted?.visaEndDate ? new Date(c.decision.granted.visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""),
+      contract: localEmp?.contract || c.personal?.employmentType || c.personal?.contractType || "",
+      grossSalary: localEmp?.grossSalary || (c.personal?.jobPay ? (String(c.personal.jobPay).includes("year") || String(c.personal.jobPay).startsWith("£") ? c.personal.jobPay : `£${c.personal.jobPay}/year`) : ""),
+      hoursPerWeek: localEmp?.hoursPerWeek || c.personal?.hoursPerWeek || "",
+      mainWorkAddressLine1: localWork?.mainWorkAddressLine1 || localEmp?.mainWorkAddressLine1 || c.personal?.workAddress1 || "",
+      mainWorkAddressLine2: localWork?.mainWorkAddressLine2 || localEmp?.mainWorkAddressLine2 || c.personal?.workAddress2 || "",
+      secondWorkAddressLine1: localWork?.secondWorkAddress1 || c.personal?.secondWorkAddress1 || "",
+      secondWorkAddressLine2: localWork?.secondWorkAddress2 || c.personal?.secondWorkAddress2 || "",
     },
   };
 }
@@ -625,6 +625,7 @@ export default function MigrantOverviewPage() {
                 employer={migrant.employer}
                 status={migrant.approvalStatus === "VISA APPROVED" ? "VISA APPROVED" : "AWAITING APPLICANT DOCS"}
                 onAddNote={() => setIsAddNoteOpen(true)}
+                onUpload={() => setActiveTab("Documents")}
                 onDocuments={() => setActiveTab("Documents")}
               />
               <MigrationStatusCard location={migrant.location} visa={migrant.visa} />

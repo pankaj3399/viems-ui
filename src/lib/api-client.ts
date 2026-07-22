@@ -122,14 +122,20 @@ function toErrorMessage(val: any): string {
 
   // ── Handle other HTTP errors ─────────────────────────────────────────────
   if (!response.ok) {
+    let errorText = "";
     let errorData: any = {};
     try {
-      errorData = await response.json();
+      errorText = await response.text();
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = errorText;
+      }
     } catch {
-      // response body is not JSON — ignore
+      // response body could not be read
     }
 
-    const parsedMsg = toErrorMessage(errorData.message) || toErrorMessage(errorData.error);
+    const parsedMsg = toErrorMessage(errorData);
     const errorMessage = parsedMsg || `Request failed with status ${response.status}`;
 
     throw new ApiError(
@@ -157,12 +163,18 @@ function toErrorMessage(val: any): string {
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
-function normalizeOptions(dataOrOptions?: unknown): RequestOptions | undefined {
-  if (!dataOrOptions) return undefined;
+function normalizeOptions(dataOrOptions?: unknown, explicitOptions?: RequestOptions): RequestOptions | undefined {
+  if (explicitOptions) {
+    return { ...explicitOptions, body: dataOrOptions };
+  }
+  if (dataOrOptions === undefined) return undefined;
   if (
     typeof dataOrOptions === "object" &&
     dataOrOptions !== null &&
-    ("body" in dataOrOptions || "headers" in dataOrOptions || "params" in dataOrOptions || "raw" in dataOrOptions)
+    !(dataOrOptions instanceof FormData) &&
+    !(dataOrOptions instanceof URLSearchParams) &&
+    !(dataOrOptions instanceof Blob) &&
+    ("headers" in dataOrOptions || "params" in dataOrOptions || "raw" in dataOrOptions)
   ) {
     return dataOrOptions as RequestOptions;
   }
@@ -174,19 +186,19 @@ export const apiClient = {
     return request<T>("GET", url, options);
   },
 
-  post<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
-    return request<T>("POST", url, normalizeOptions(dataOrOptions));
+  post<T = unknown>(url: string, dataOrOptions?: unknown, options?: RequestOptions): Promise<T> {
+    return request<T>("POST", url, normalizeOptions(dataOrOptions, options));
   },
 
-  put<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
-    return request<T>("PUT", url, normalizeOptions(dataOrOptions));
+  put<T = unknown>(url: string, dataOrOptions?: unknown, options?: RequestOptions): Promise<T> {
+    return request<T>("PUT", url, normalizeOptions(dataOrOptions, options));
   },
 
-  patch<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
-    return request<T>("PATCH", url, normalizeOptions(dataOrOptions));
+  patch<T = unknown>(url: string, dataOrOptions?: unknown, options?: RequestOptions): Promise<T> {
+    return request<T>("PATCH", url, normalizeOptions(dataOrOptions, options));
   },
 
-  delete<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
-    return request<T>("DELETE", url, normalizeOptions(dataOrOptions));
+  delete<T = unknown>(url: string, dataOrOptions?: unknown, options?: RequestOptions): Promise<T> {
+    return request<T>("DELETE", url, normalizeOptions(dataOrOptions, options));
   },
 };

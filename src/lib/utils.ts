@@ -20,11 +20,16 @@ export function formatFullName(firstName?: string, lastName?: string): string {
     return first;
   }
 
-  if (firstLower.includes(lastLower)) {
+  const firstWords = firstLower.split(/\s+/);
+  const lastWords = lastLower.split(/\s+/);
+
+  // If last name is already contained as a whole-word phrase in first name (e.g. first = "Gurjit Singh", last = "Singh")
+  if (lastWords.every((word) => firstWords.includes(word))) {
     return first;
   }
 
-  if (lastLower.includes(firstLower)) {
+  // If first name is already contained as a whole-word phrase in last name (e.g. first = "Singh", last = "Gurjit Singh")
+  if (firstWords.every((word) => lastWords.includes(word))) {
     return last;
   }
 
