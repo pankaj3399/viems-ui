@@ -113,20 +113,37 @@ export function CaseHeader({
       {/* Right: Status + Edit + More */}
       <div className="flex items-center gap-lg shrink-0">
         {/* Status Pill */}
-        <button
-          type="button"
-          onClick={onChangeStatus}
-          className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white cursor-pointer hover:border-[#7D52F4] hover:shadow-x-small transition-all border-0 p-0"
-        >
-          <div className="px-lg h-full flex items-center border-r border-[#EBEBEB] bg-neutral-50/50">
-            <span className="text-paragraph-xs font-medium text-[#A4A4A4]">Status</span>
-          </div>
-          <div className="px-[10px] h-full flex items-center gap-[2px]">
-            <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-            <span className="text-subheading-2xs text-[#0B4627] ml-1">{approvalStatus}</span>
-            <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
-          </div>
-        </button>
+        {(() => {
+          const isApprovedStatus = approvalStatus?.toUpperCase().includes("APPROVED");
+          const isRefusedStatus = approvalStatus?.toUpperCase().includes("REFUSED");
+          const statusDotClass = isApprovedStatus
+            ? "bg-[#1FC16B]"
+            : isRefusedStatus
+            ? "bg-[#FB3748]"
+            : "bg-[#F6B51E]";
+          const statusTextClass = isApprovedStatus
+            ? "text-[#0B4627]"
+            : isRefusedStatus
+            ? "text-[#9B1C1C]"
+            : "text-[#8A5300]";
+
+          return (
+            <button
+              type="button"
+              onClick={onChangeStatus}
+              className="flex items-center h-6 border border-[#EBEBEB] rounded-full overflow-hidden bg-white cursor-pointer hover:border-[#7D52F4] hover:shadow-x-small transition-all border-0 p-0"
+            >
+              <div className="px-lg h-full flex items-center border-r border-[#EBEBEB] bg-neutral-50/50">
+                <span className="text-paragraph-xs font-medium text-[#A4A4A4]">Status</span>
+              </div>
+              <div className="px-[10px] h-full flex items-center gap-[2px]">
+                <span className={`size-1.5 rounded-full ${statusDotClass}`} />
+                <span className={`text-subheading-2xs ${statusTextClass} ml-1`}>{approvalStatus}</span>
+                <RiArrowDownSLine className="size-4 text-[#A4A4A4] ml-0.5" />
+              </div>
+            </button>
+          );
+        })()}
 
         {/* Edit Button */}
         <Button

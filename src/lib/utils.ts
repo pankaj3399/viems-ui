@@ -22,7 +22,7 @@ export function formatFullName(firstName?: string, lastName?: string): string {
   }
 
   // If first name already ends with last name (e.g. "Gurjit Singh", "Singh")
-  if (firstLower.endsWith(" " + lastLower) || firstLower.endsWith(lastLower)) {
+  if (firstLower.endsWith(" " + lastLower)) {
     return first;
   }
 

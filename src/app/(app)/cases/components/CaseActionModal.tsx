@@ -173,9 +173,7 @@ export function CaseActionModal({
       if (onSuccess && row.id) onSuccess(row.id);
     } catch (err) {
       console.error("Action submit error:", err);
-      toast.success(config.toastSuccess);
-      onOpenChange(false);
-      if (onSuccess && row.id) onSuccess(row.id);
+      toast.error("Failed to complete action");
     } finally {
       setIsSubmitting(false);
     }

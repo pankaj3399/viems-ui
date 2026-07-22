@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { CASE_STATUSES } from "../case-status-data";
+import { CASE_STATUSES, isMatchingStatus } from "../case-status-data";
 
 interface CaseStatusDropdownProps {
   currentStatus: string;
@@ -11,14 +11,6 @@ interface CaseStatusDropdownProps {
   getStatusBgAndText: (color: "success" | "warning" | "error" | "info" | "gray") => string;
   getStatusDotColor: (color: "success" | "warning" | "error" | "info" | "gray") => string;
   onApplyStatus: (newStatus: string) => void;
-}
-
-function isMatchingStatus(selectedVal: string, option: { value: string; label: string }) {
-  if (!selectedVal) return false;
-  const normSelected = selectedVal.toLowerCase().replace(/_/g, " ").trim();
-  const normValue = option.value.toLowerCase().replace(/_/g, " ").trim();
-  const normLabel = option.label.toLowerCase().replace(/_/g, " ").trim();
-  return normSelected === normValue || normSelected === normLabel;
 }
 
 export function CaseStatusDropdown({

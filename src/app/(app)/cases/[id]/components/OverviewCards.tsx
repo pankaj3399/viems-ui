@@ -123,7 +123,7 @@ interface MigrationStatusCardProps {
 export function MigrationStatusCard({ location, visa }: MigrationStatusCardProps) {
   const daysLeft = visa?.daysLeft ?? 0;
   const totalDays = visa?.totalDays ?? 365;
-  const progressWidth = Math.min(100, Math.max(0, (daysLeft / totalDays) * 100));
+  const progressWidth = totalDays > 0 ? Math.min(100, Math.max(0, (daysLeft / totalDays) * 100)) : 0;
 
   return (
     <div className="flex flex-col gap-xs w-full">

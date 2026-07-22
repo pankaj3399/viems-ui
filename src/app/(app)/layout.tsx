@@ -70,19 +70,6 @@ export default function ProtectedAppLayout({
     );
   }
 
-  const getInitials = () => {
-    if (
-      userInfo?.personalInfo?.firstName &&
-      userInfo?.personalInfo?.lastName
-    ) {
-      return `${userInfo.personalInfo.firstName[0]}${userInfo.personalInfo.lastName[0]}`.toUpperCase();
-    }
-    if (userInfo?.email) {
-      return userInfo.email[0].toUpperCase();
-    }
-    return "AM";
-  };
-
   return (
     <div className="h-screen w-screen flex overflow-hidden bg-[#171717] font-sans select-none">
       {/* Sidebar Navigation */}

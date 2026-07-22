@@ -51,9 +51,11 @@ export function getTokenPayload(): JwtPayload | null {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
 
-    // Base64url → Base64 → decode
+    // Base64url → Base64 → UTF-8 decode
     const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const json = atob(base64);
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
 
     return JSON.parse(json) as JwtPayload;
   } catch {

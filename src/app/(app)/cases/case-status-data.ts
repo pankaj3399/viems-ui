@@ -5,6 +5,14 @@ export interface CaseStatusOption {
   category?: "active" | "pending" | "closed";
 }
 
+export function isMatchingStatus(selectedVal: string, option: { value: string; label: string }) {
+  if (!selectedVal) return false;
+  const normSelected = selectedVal.toLowerCase().replace(/_/g, " ").trim();
+  const normValue = option.value.toLowerCase().replace(/_/g, " ").trim();
+  const normLabel = option.label.toLowerCase().replace(/_/g, " ").trim();
+  return normSelected === normValue || normSelected === normLabel;
+}
+
 export const CASE_STATUSES: CaseStatusOption[] = [
   // Green statuses
   { value: "cos_assigned", label: "CoS Assigned", dotColor: "#1FC16B", category: "active" },

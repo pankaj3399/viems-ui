@@ -49,7 +49,9 @@ function getTokenPayload() {
         if (parts.length !== 3)
             return null;
         const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-        const json = atob(base64);
+        const binary = atob(base64);
+        const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+        const json = new TextDecoder().decode(bytes);
         return JSON.parse(json);
     }
     catch {

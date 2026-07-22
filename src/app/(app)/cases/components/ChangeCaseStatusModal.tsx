@@ -6,21 +6,12 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { CASE_STATUSES } from "../case-status-data";
-
+import { CASE_STATUSES, isMatchingStatus } from "../case-status-data";
 interface ChangeCaseStatusModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentStatus: string;
   onApply: (newStatus: string) => void;
-}
-
-function isMatchingStatus(selectedVal: string, option: { value: string; label: string }) {
-  if (!selectedVal) return false;
-  const normSelected = selectedVal.toLowerCase().replace(/_/g, " ").trim();
-  const normValue = option.value.toLowerCase().replace(/_/g, " ").trim();
-  const normLabel = option.label.toLowerCase().replace(/_/g, " ").trim();
-  return normSelected === normValue || normSelected === normLabel;
 }
 
 export function ChangeCaseStatusModal({

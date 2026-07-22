@@ -96,16 +96,7 @@ export function DocumentsTab() {
       setChecklist((prev) => [newChecklistItem, ...prev]);
     } catch (err: any) {
       toast.dismiss(toastId);
-      toast.success(`Uploaded ${file.name}`);
-      const newChecklistItem: ChecklistItem = {
-        id: "c_" + Date.now(),
-        name: file.name,
-        folder: "Migrant documents",
-        status: "completed",
-        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-        size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      };
-      setChecklist((prev) => [newChecklistItem, ...prev]);
+      toast.error(`Failed to upload ${file.name}`);
     } finally {
       if (event.target) {
         event.target.value = "";

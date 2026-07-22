@@ -30,19 +30,22 @@ export default function InsightsPage() {
   const [cases, setCases] = React.useState<any[]>([]);
   const [tasksCount, setTasksCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
+        setError(null);
         const [casesRes, tasksRes] = await Promise.all([
           apiClient.get<{ data: any[]; count: number }>(ENDPOINTS.cases.base),
           apiClient.get<{ data: any[]; count: number }>(ENDPOINTS.tasks.base).catch(() => ({ data: [], count: 0 }))
         ]);
         setCases(casesRes.data || []);
         setTasksCount(tasksRes.count ?? tasksRes.data?.length ?? 0);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Failed to load insights data:", err);
+        setError("Failed to load insights data");
       } finally {
         setLoading(false);
       }
@@ -50,58 +53,74 @@ export default function InsightsPage() {
     fetchData();
   }, []);
 
+  // Filter cases based on activeFilter
+  const filteredCases = React.useMemo(() => {
+    if (activeFilter === "ALL") return cases;
+    const now = new Date();
+    const monthsMap: Record<string, number> = { "3M": 3, "6M": 6, "1Y": 12 };
+    const months = monthsMap[activeFilter] || 6;
+    const cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+
+    return cases.filter((c) => {
+      const dateStr = c.creation_date || c.createdAt || c.decision?.granted?.visaStartDate;
+      if (!dateStr) return true;
+      return new Date(dateStr) >= cutoff;
+    });
+  }, [cases, activeFilter]);
+
   // 1. Total cases & In progress count
-  const totalCases = cases.length;
-  const inProgressCases = cases.filter(
+  const totalCases = filteredCases.length;
+  const inProgressCases = filteredCases.filter(
     (c) => c.is_active || c.case_status?.toLowerCase().includes("progress") || c.case_status?.toLowerCase().includes("draft")
   ).length;
 
   // 2. Approval Rate
-  const approvedCases = cases.filter(
+  const approvedCases = filteredCases.filter(
     (c) => c.case_status?.toUpperCase() === "GRANTED" || c.case_status?.toUpperCase() === "VISA APPROVED"
   ).length;
-  const refusedCases = cases.filter(
+  const refusedCases = filteredCases.filter(
     (c) => c.case_status?.toUpperCase() === "REFUSED" || c.case_status?.toUpperCase() === "VISA REFUSED"
   ).length;
   const totalDecisions = approvedCases + refusedCases;
-  const approvalRate = totalDecisions > 0 ? Math.round((approvedCases / totalDecisions) * 100) : 86;
+  const approvalRate = totalDecisions > 0 ? Math.round((approvedCases / totalDecisions) * 100) : 0;
 
   // 3. Avg. Processing Time
-  let avgProcessingDays = 34;
-  const completedCases = cases.filter(c => c.creation_date && c.visaEndDate);
+  let avgProcessingDays = 0;
+  const completedCases = filteredCases.filter(c => c.creation_date && c.decision?.granted?.visaEndDate);
   if (completedCases.length > 0) {
     const totalDays = completedCases.reduce((sum, c) => {
       const start = new Date(c.creation_date).getTime();
-      const end = new Date(c.visaEndDate).getTime();
+      const end = new Date(c.decision.granted.visaEndDate).getTime();
       const diff = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
-      return sum + (diff || 34);
+      return sum + diff;
     }, 0);
-    avgProcessingDays = Math.round(totalDays / completedCases.length) || 34;
+    avgProcessingDays = Math.round(totalDays / completedCases.length);
   }
 
   // 4. Compliance Rate
-  const compliantCases = cases.filter((c) => {
+  const compliantCases = filteredCases.filter((c) => {
     const status = c.case_status?.toUpperCase();
     const migration = (c.migration_stage || "").toUpperCase();
     const isApprovedWithoutRtw = status === "VISA APPROVED" && migration !== "IN UK";
     const isAwaitingDecision = status === "AWAITING UKVI DECISION";
     return !isApprovedWithoutRtw && !isAwaitingDecision;
   }).length;
-  const complianceRate = totalCases > 0 ? Math.round((compliantCases / totalCases) * 100) : 44;
+  const complianceRate = totalCases > 0 ? Math.round((compliantCases / totalCases) * 100) : 0;
 
   // 5. Active Migrants
-  const activeMigrants = cases.filter(
+  const activeMigrants = filteredCases.filter(
     (c) => c.migration_stage?.toUpperCase() === "ENTERED" || c.migration_stage?.toUpperCase() === "IN UK"
   ).length;
 
-  // Group cases dynamically by month of creation for the Stacked Bar Chart
+  // Group cases dynamically by month of creation for the Stacked Bar Chart (keyed by year + month)
   const chartData = React.useMemo(() => {
     const now = new Date();
-    const last5Months: { name: string; Approved: number; Refused: number; "In Progress": number; total: number }[] = [];
+    const last5Months: { key: string; name: string; Approved: number; Refused: number; "In Progress": number; total: number }[] = [];
     
     for (let i = 4; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       last5Months.push({
+        key: `${d.getFullYear()}-${d.getMonth()}`,
         name: monthNames[d.getMonth()],
         Approved: 0,
         Refused: 0,
@@ -110,12 +129,13 @@ export default function InsightsPage() {
       });
     }
 
-    cases.forEach((c) => {
-      if (!c.creation_date) return;
-      const createdDate = new Date(c.creation_date);
-      const monthLabel = monthNames[createdDate.getMonth()];
+    filteredCases.forEach((c) => {
+      const dateStr = c.creation_date || c.createdAt;
+      if (!dateStr) return;
+      const createdDate = new Date(dateStr);
+      const caseKey = `${createdDate.getFullYear()}-${createdDate.getMonth()}`;
       
-      const targetMonth = last5Months.find(m => m.name === monthLabel);
+      const targetMonth = last5Months.find(m => m.key === caseKey);
       if (targetMonth) {
         const status = c.case_status?.toUpperCase();
         if (status === "GRANTED" || status === "VISA APPROVED") {
@@ -129,40 +149,21 @@ export default function InsightsPage() {
       }
     });
 
-    const defaultData = [
-      { name: "JUN", Approved: 5, Refused: 0, "In Progress": 0, total: 5 },
-      { name: "JUL", Approved: 5, Refused: 1, "In Progress": 0, total: 6 },
-      { name: "AUG", Approved: 3, Refused: 0, "In Progress": 1, total: 4 },
-      { name: "SEP", Approved: 0, Refused: 2, "In Progress": 3, total: 5 },
-      { name: "OCT", Approved: 6, Refused: 1, "In Progress": 9, total: 16 },
-    ];
-
-    return last5Months.map((m, idx) => {
-      if (m.total === 0) {
-        return {
-          ...m,
-          Approved: defaultData[idx]?.Approved || 0,
-          Refused: defaultData[idx]?.Refused || 0,
-          "In Progress": defaultData[idx]?.["In Progress"] || 0,
-          total: defaultData[idx]?.total || 0,
-        };
-      }
-      return m;
-    });
-  }, [cases]);
+    return last5Months;
+  }, [filteredCases]);
 
   // KPI Metrics Configuration
   const metrics = [
     {
       title: "TOTAL CASES",
-      value: String(totalCases || 16),
-      subtext: `${inProgressCases || 7} in progress`,
+      value: String(totalCases),
+      subtext: `${inProgressCases} in progress`,
       icon: RiFileCopyLine,
     },
     {
       title: "APPROVAL RATE",
       value: `${approvalRate}%`,
-      subtext: `${approvedCases || 6} approved, ${refusedCases || 1} refused`,
+      subtext: `${approvedCases} approved, ${refusedCases} refused`,
       icon: RiInformationLine,
     },
     {
@@ -174,25 +175,25 @@ export default function InsightsPage() {
     {
       title: "COMPLIANCE RATE",
       value: `${complianceRate}%`,
-      subtext: `${compliantCases || 7} of ${totalCases || 16} cases compliant`,
+      subtext: `${compliantCases} of ${totalCases} cases compliant`,
       icon: RiCheckboxCircleLine,
     },
     {
       title: "ACTIVE MIGRANTS",
-      value: String(activeMigrants || 5),
+      value: String(activeMigrants),
       subtext: "Currently in the UK",
       icon: RiUserFollowLine,
     },
   ];
 
-  // Circular progress properties (75% Compliant)
+  // Circular progress properties
   const radius = 15;
   const strokeWidth = 3.5;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (complianceRate / 100) * circumference;
 
-  const pendingTasks = tasksCount !== null ? tasksCount : (cases.filter(c => c.case_status === "AWAITING UKVI DECISION" || c.case_status === "VISA APPROVED").length || 3);
-  const totalDocs = cases.reduce((sum, c) => sum + (c.files?.length || 0), 0) || 7;
+  const pendingTasks = tasksCount !== null ? tasksCount : filteredCases.filter(c => c.case_status === "AWAITING UKVI DECISION" || c.case_status === "VISA APPROVED").length;
+  const totalDocs = filteredCases.reduce((sum, c) => sum + (c.files?.length || 0), 0);
 
   if (loading) {
     return (
@@ -244,6 +245,16 @@ export default function InsightsPage() {
       </div>
 
       <div className="px-6 md:px-[64px] py-[32px] flex flex-col gap-[24px] flex-1">
+        {error ? (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-[12px] text-red-700 text-paragraph-sm font-medium">
+            {error}
+          </div>
+        ) : filteredCases.length === 0 ? (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-[12px] text-amber-800 text-paragraph-sm font-medium">
+            No cases found for the selected time filter.
+          </div>
+        ) : null}
+
         {/* Metric Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-md">
           {metrics.map((m, idx) => {
@@ -423,9 +434,10 @@ export default function InsightsPage() {
               {/* Compliance Items List */}
               <div className="flex flex-col gap-[10px] w-full">
                 {/* Item 1: Right to work check */}
-                <div 
+                <button 
+                  type="button"
                   onClick={() => router.push("/cases")}
-                  className="flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group"
+                  className="w-full flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group text-left font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4]"
                 >
                   <div className="flex items-center gap-[12px]">
                     <div className="size-8 rounded-full bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center font-bold text-[14px] shrink-0">
@@ -440,12 +452,13 @@ export default function InsightsPage() {
                   >
                     <RiArrowRightSLine className="size-4" />
                   </div>
-                </div>
+                </button>
 
                 {/* Item 2: Documents */}
-                <div 
+                <button 
+                  type="button"
                   onClick={() => router.push("/migrants")}
-                  className="flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group"
+                  className="w-full flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group text-left font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4]"
                 >
                   <div className="flex items-center gap-[12px]">
                     <div className="size-8 rounded-full bg-[#FEF2F2] text-[#EF4444] flex items-center justify-center font-bold text-[14px] shrink-0">
@@ -460,12 +473,13 @@ export default function InsightsPage() {
                   >
                     <RiArrowRightSLine className="size-4" />
                   </div>
-                </div>
+                </button>
 
                 {/* Item 3: Salary */}
-                <div 
+                <button 
+                  type="button"
                   onClick={() => router.push("/cases")}
-                  className="flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group"
+                  className="w-full flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group text-left font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4]"
                 >
                   <div className="flex items-center gap-[12px]">
                     <div className="size-8 rounded-full bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center shrink-0">
@@ -480,12 +494,13 @@ export default function InsightsPage() {
                   >
                     <RiArrowRightSLine className="size-4" />
                   </div>
-                </div>
+                </button>
 
                 {/* Item 4: SMS reports */}
-                <div 
+                <button 
+                  type="button"
                   onClick={() => router.push("/dashboard")}
-                  className="flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group"
+                  className="w-full flex items-center justify-between border border-[#EBEBEB] rounded-[12px] bg-white px-[16px] py-[12px] h-[52px] cursor-pointer hover:bg-[#FDFDFD] active:bg-neutral-50 transition-colors group text-left font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4]"
                 >
                   <div className="flex items-center gap-[12px]">
                     <div className="size-8 rounded-full bg-[#F3F4F6] text-[#4B5563] flex items-center justify-center shrink-0">
@@ -503,7 +518,7 @@ export default function InsightsPage() {
                       <RiArrowRightSLine className="size-4" />
                     </div>
                   </div>
-                </div>
+                </button>
               </div>
             </div>
           </div>

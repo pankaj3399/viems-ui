@@ -167,11 +167,11 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
 
   // Migration stage mapping
   let migration = "ACTIVE COMPLIANCE";
-  if (status === "Visa refused") {
+  if (status === "Visa Refused") {
     migration = "VISA REFUSED";
-  } else if (status === "Awaiting") {
+  } else if (status === "Awaiting applicant docs") {
     migration = "PENDING VISA";
-  } else if (status === "Visa approved") {
+  } else if (status === "Visa Approved") {
     migration = "ARRIVED - RTW PENDING";
   } else {
     // Distribute remaining among ACTIVE COMPLIANCE, IN UK, and LEFT UK based on c.id
@@ -193,10 +193,10 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
   if (isActionDone) {
     action = "No action required";
     actionColor = "gray";
-  } else if (status === "VISA REFUSED") {
+  } else if (status === "Visa Refused") {
     action = "Review and report";
     actionColor = "red";
-  } else if (status === "AWAITING UKVI DECISION") {
+  } else if (status === "Awaiting applicant docs") {
     action = "Upload passport";
     actionColor = "blue";
   } else {
@@ -660,16 +660,9 @@ export default function CasesPage() {
           id: row.id,
           caseNumber: row.caseId,
         }]));
-        const token = typeof window !== "undefined" ? localStorage.getItem("viems.auth.token") : null;
-        const res = await fetch("http://localhost:8081/cases/to-archive", {
-          method: "DELETE",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        await apiClient.delete(ENDPOINTS.cases.toArchive, {
           body: formData,
         });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          throw new Error(errBody.message || `Archive failed (${res.status})`);
-        }
         toast.success(`Case #${row.caseId} archived`);
         loadCases();
       } catch (err) {
@@ -688,16 +681,9 @@ export default function CasesPage() {
           id: row.id,
           caseNumber: row.caseId,
         }]));
-        const token = typeof window !== "undefined" ? localStorage.getItem("viems.auth.token") : null;
-        const res = await fetch("http://localhost:8081/cases/archive", {
-          method: "DELETE",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        await apiClient.delete(ENDPOINTS.cases.archive, {
           body: formData,
         });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          throw new Error(errBody.message || `Delete failed (${res.status})`);
-        }
         toast.success(`Case #${row.caseId} deleted`);
         loadCases();
       } catch (err) {
@@ -1437,18 +1423,23 @@ export default function CasesPage() {
                         {row.actionColor !== "gray" && (
                           <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
                         )}
-                        <span 
-                          className={getActionTextClass(row.actionColor)}
-                          onClick={(e) => {
-                            if (row.actionColor !== "gray" && row.action !== "No action required") {
+                        {row.actionColor !== "gray" && row.action !== "No action required" ? (
+                          <button
+                            type="button"
+                            className={`${getActionTextClass(row.actionColor)} cursor-pointer text-left border-0 bg-transparent p-0 font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4] rounded-xs`}
+                            onClick={(e) => {
                               e.stopPropagation();
                               setActionModalRow(row);
                               setActionModalOpen(true);
-                            }
-                          }}
-                        >
-                          {row.action}
-                        </span>
+                            }}
+                          >
+                            {row.action}
+                          </button>
+                        ) : (
+                          <span className={getActionTextClass(row.actionColor)}>
+                            {row.action}
+                          </span>
+                        )}
                       </div>
 
                       <div className="w-[48px] shrink-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
@@ -1599,7 +1590,7 @@ export default function CasesPage() {
             ? CASE_STATUSES.find((s) => s.label === statusModalRow.status)?.value || ""
             : ""
         }
-        onApply={(newStatus) => {
+        onApply={(newStatus: string) => {
           const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
           if (norm === "visa refused" || norm === "visa_refused") {
             // Open refusal reason modal instead

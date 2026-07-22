@@ -3,7 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { removeToken, isAdmin } from "@/lib/auth";
+import { isAdmin } from "@/lib/auth";
+import { formatFullName, getInitials as getInitialsHelper } from "@/lib/utils";
 import {
   LayoutGrid,
   Users,
@@ -65,13 +66,6 @@ interface SidebarProps {
 export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [dropdownOpen, setDropdownOpen] = React.useState(false);
-
-  // Handle Logout
-  const handleLogout = () => {
-    removeToken();
-    router.push("/login");
-  };
 
   // Nav Items definition
   const mainNavItems = [
@@ -121,25 +115,25 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
 
   // Helper to extract user initials for avatar
   const getInitials = () => {
-    if (
-      userInfo?.personalInfo?.firstName &&
+    const name = formatFullName(
+      userInfo?.personalInfo?.firstName,
       userInfo?.personalInfo?.lastName
-    ) {
-      return `${userInfo.personalInfo.firstName[0]}${userInfo.personalInfo.lastName[0]}`.toUpperCase();
+    );
+    if (name && name !== "Unknown Migrant") {
+      return getInitialsHelper(name);
     }
     if (userInfo?.email) {
       return userInfo.email[0].toUpperCase();
     }
-    return "AM"; // Default fallback (Alex Marin)
+    return "AM"; // Default fallback
   };
 
   const getFullName = () => {
-    if (
-      userInfo?.personalInfo?.firstName &&
+    const name = formatFullName(
+      userInfo?.personalInfo?.firstName,
       userInfo?.personalInfo?.lastName
-    ) {
-      return `${userInfo.personalInfo.firstName} ${userInfo.personalInfo.lastName}`;
-    }
+    );
+    if (name && name !== "Unknown Migrant") return name;
     return "Alex Marin";
   };
 

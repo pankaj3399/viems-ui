@@ -32,6 +32,8 @@ import { Flag } from "@/components/ui/flag";
 import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal";
 import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
 import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
+import { ChangeCaseStatusModal } from "../components/ChangeCaseStatusModal";
+import { toast } from "sonner";
 import { CaseHeader } from "./components/CaseHeader";
 import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard, ProfileCard } from "./components/OverviewCards";
 import { ComplianceCard } from "./components/ComplianceCard";
@@ -403,6 +405,7 @@ export default function MigrantOverviewPage() {
   const [isPersonalModalOpen, setIsPersonalModalOpen] = React.useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
+  const [isChangeStatusOpen, setIsChangeStatusOpen] = React.useState(false);
 
   const loadCaseDetail = React.useCallback(async () => {
     if (!id) return;
@@ -454,6 +457,7 @@ export default function MigrantOverviewPage() {
           cosRef={migrant.cosRef}
           approvalStatus={migrant.approvalStatus}
           onBack={() => router.push("/cases")}
+          onChangeStatus={() => setIsChangeStatusOpen(true)}
         />
 
         {/* ====== TAB MENU ====== */}
@@ -490,7 +494,7 @@ export default function MigrantOverviewPage() {
                 name={migrant.name}
                 initials={migrant.name ? migrant.name.split(" ").map((n: string) => n[0]).join("") : "TJ"}
                 employer={migrant.employer}
-                status={migrant.approvalStatus === "VISA APPROVED" ? "VISA APPROVED" : "AWAITING APPLICANT DOCS"}
+                status={migrant.approvalStatus}
               />
               <MigrationStatusCard location={migrant.location} visa={migrant.visa} />
               <TimelineCard timeline={migrant.timeline} onViewAll={() => setActiveTab("Timeline")} />
@@ -648,7 +652,7 @@ export default function MigrantOverviewPage() {
         ) : activeTab === "Documents" ? (
           <DocumentsTab />
         ) : activeTab === "Notes" ? (
-          <NotesTab />
+          <NotesTab id={id} />
         ) : (
           <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small font-sans select-none text-left">
             <h3 className="text-h6-title text-[#171717]">{activeTab} Section</h3>
@@ -656,6 +660,25 @@ export default function MigrantOverviewPage() {
           </div>
         )}
       </div>
+      <ChangeCaseStatusModal
+        open={isChangeStatusOpen}
+        onOpenChange={setIsChangeStatusOpen}
+        currentStatus={migrant.approvalStatus}
+        onApply={async (newStatus: string) => {
+          try {
+            if (id) {
+              await apiClient.patch(ENDPOINTS.cases.byId(id), {
+                body: JSON.stringify({ status: newStatus }),
+              });
+              toast.success("Case status updated");
+              loadCaseDetail();
+            }
+          } catch (err) {
+            console.error("Failed to update status:", err);
+            toast.error("Failed to update case status");
+          }
+        }}
+      />
       {migrant.migrantId && (
         <>
           <EditPersonalDetailsModal
