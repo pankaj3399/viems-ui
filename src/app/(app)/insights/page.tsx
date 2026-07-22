@@ -24,11 +24,17 @@ import { ENDPOINTS } from "@/lib/api-endpoints";
 
 const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
+function getCaseDate(c: any): Date | null {
+  const dateStr = c.creation_date || c.createdAt || c.decision?.granted?.visaStartDate;
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export default function InsightsPage() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = React.useState<"3M" | "6M" | "1Y" | "ALL">("6M");
   const [cases, setCases] = React.useState<any[]>([]);
-  const [tasksCount, setTasksCount] = React.useState<number | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -36,16 +42,13 @@ export default function InsightsPage() {
     async function fetchData() {
       try {
         setLoading(true);
+        const data = await apiClient.get<any[]>(ENDPOINTS.cases.base);
+        setCases(Array.isArray(data) ? data : []);
         setError(null);
-        const [casesRes, tasksRes] = await Promise.all([
-          apiClient.get<{ data: any[]; count: number }>(ENDPOINTS.cases.base),
-          apiClient.get<{ data: any[]; count: number }>(ENDPOINTS.tasks.base).catch(() => ({ data: [], count: 0 }))
-        ]);
-        setCases(casesRes.data || []);
-        setTasksCount(tasksRes.count ?? tasksRes.data?.length ?? 0);
       } catch (err: any) {
-        console.error("Failed to load insights data:", err);
-        setError("Failed to load insights data");
+        console.error("Failed to load insights cases", err);
+        setError("Failed to load data. Please try again later.");
+        setCases([]);
       } finally {
         setLoading(false);
       }
@@ -62,9 +65,9 @@ export default function InsightsPage() {
     const cutoff = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
 
     return cases.filter((c) => {
-      const dateStr = c.creation_date || c.createdAt || c.decision?.granted?.visaStartDate;
-      if (!dateStr) return true;
-      return new Date(dateStr) >= cutoff;
+      const caseDate = getCaseDate(c);
+      if (!caseDate) return false;
+      return caseDate >= cutoff;
     });
   }, [cases, activeFilter]);
 
@@ -84,14 +87,22 @@ export default function InsightsPage() {
   const totalDecisions = approvedCases + refusedCases;
   const approvalRate = totalDecisions > 0 ? Math.round((approvedCases / totalDecisions) * 100) : 0;
 
-  // 3. Avg. Processing Time
+  // 3. Avg. Processing Time (creation-to-decision duration using decision timestamp)
   let avgProcessingDays = 0;
-  const completedCases = filteredCases.filter(c => c.creation_date && c.decision?.granted?.visaEndDate);
+  const completedCases = filteredCases.filter((c) => {
+    const creation = getCaseDate(c);
+    const decisionDateStr = c.decision?.decisionDate || c.decision?.date || c.decision_date || c.decision?.granted?.visaStartDate;
+    if (!creation || !decisionDateStr) return false;
+    const decisionDate = new Date(decisionDateStr);
+    return !isNaN(decisionDate.getTime());
+  });
+
   if (completedCases.length > 0) {
     const totalDays = completedCases.reduce((sum, c) => {
-      const start = new Date(c.creation_date).getTime();
-      const end = new Date(c.decision.granted.visaEndDate).getTime();
-      const diff = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+      const creation = getCaseDate(c)!;
+      const decisionDateStr = c.decision?.decisionDate || c.decision?.date || c.decision_date || c.decision?.granted?.visaStartDate;
+      const decisionDate = new Date(decisionDateStr);
+      const diff = Math.max(0, Math.round((decisionDate.getTime() - creation.getTime()) / (1000 * 60 * 60 * 24)));
       return sum + diff;
     }, 0);
     avgProcessingDays = Math.round(totalDays / completedCases.length);
@@ -115,11 +126,23 @@ export default function InsightsPage() {
   // Group cases dynamically by month of creation for the Stacked Bar Chart (keyed by year + month)
   const chartData = React.useMemo(() => {
     const now = new Date();
-    const last5Months: { key: string; name: string; Approved: number; Refused: number; "In Progress": number; total: number }[] = [];
-    
-    for (let i = 4; i >= 0; i--) {
+    let countMonths = 6;
+    if (activeFilter === "3M") countMonths = 3;
+    else if (activeFilter === "6M") countMonths = 6;
+    else if (activeFilter === "1Y") countMonths = 12;
+    else if (activeFilter === "ALL") {
+      const datedCases = cases.map(getCaseDate).filter(Boolean) as Date[];
+      if (datedCases.length > 0) {
+        const minDate = new Date(Math.min(...datedCases.map((d) => d.getTime())));
+        const diffMonths = (now.getFullYear() - minDate.getFullYear()) * 12 + (now.getMonth() - minDate.getMonth()) + 1;
+        countMonths = Math.max(3, Math.min(diffMonths, 24));
+      }
+    }
+
+    const monthBuckets: { key: string; name: string; Approved: number; Refused: number; "In Progress": number; total: number }[] = [];
+    for (let i = countMonths - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      last5Months.push({
+      monthBuckets.push({
         key: `${d.getFullYear()}-${d.getMonth()}`,
         name: monthNames[d.getMonth()],
         Approved: 0,
@@ -130,17 +153,16 @@ export default function InsightsPage() {
     }
 
     filteredCases.forEach((c) => {
-      const dateStr = c.creation_date || c.createdAt;
-      if (!dateStr) return;
-      const createdDate = new Date(dateStr);
-      const caseKey = `${createdDate.getFullYear()}-${createdDate.getMonth()}`;
-      
-      const targetMonth = last5Months.find(m => m.key === caseKey);
+      const caseDate = getCaseDate(c);
+      if (!caseDate) return;
+      const caseKey = `${caseDate.getFullYear()}-${caseDate.getMonth()}`;
+
+      const targetMonth = monthBuckets.find((m) => m.key === caseKey);
       if (targetMonth) {
-        const status = c.case_status?.toUpperCase();
-        if (status === "GRANTED" || status === "VISA APPROVED") {
+        const status = (c.case_status || "").toUpperCase();
+        if (status === "GRANTED" || status.includes("APPROVED")) {
           targetMonth.Approved += 1;
-        } else if (status === "REFUSED" || status === "VISA REFUSED") {
+        } else if (status === "REFUSED" || status.includes("REFUSED")) {
           targetMonth.Refused += 1;
         } else {
           targetMonth["In Progress"] += 1;
@@ -149,8 +171,8 @@ export default function InsightsPage() {
       }
     });
 
-    return last5Months;
-  }, [filteredCases]);
+    return monthBuckets;
+  }, [cases, filteredCases, activeFilter]);
 
   // KPI Metrics Configuration
   const metrics = [
@@ -192,7 +214,7 @@ export default function InsightsPage() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (complianceRate / 100) * circumference;
 
-  const pendingTasks = tasksCount !== null ? tasksCount : filteredCases.filter(c => c.case_status === "AWAITING UKVI DECISION" || c.case_status === "VISA APPROVED").length;
+  const pendingTasks = filteredCases.filter(c => c.case_status === "AWAITING UKVI DECISION" || c.case_status === "VISA APPROVED").length;
   const totalDocs = filteredCases.reduce((sum, c) => sum + (c.files?.length || 0), 0);
 
   if (loading) {

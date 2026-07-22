@@ -113,19 +113,15 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     },
   ];
 
-  // Helper to extract user initials for avatar
-  const getInitials = () => {
-    const name = formatFullName(
-      userInfo?.personalInfo?.firstName,
-      userInfo?.personalInfo?.lastName
-    );
-    if (name && name !== "Unknown Migrant") {
-      return getInitialsHelper(name);
-    }
+  const getFallbackName = () => {
     if (userInfo?.email) {
-      return userInfo.email[0].toUpperCase();
+      const username = userInfo.email.split("@")[0];
+      return username
+        .split(/[._-]/)
+        .map((part: string) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
     }
-    return "AM"; // Default fallback
+    return "Alex Marin";
   };
 
   const getFullName = () => {
@@ -134,7 +130,12 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
       userInfo?.personalInfo?.lastName
     );
     if (name && name !== "Unknown Migrant") return name;
-    return "Alex Marin";
+    return getFallbackName();
+  };
+
+  const getInitials = () => {
+    const fullName = getFullName();
+    return getInitialsHelper(fullName);
   };
 
   const getEmail = () => {

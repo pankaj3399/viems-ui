@@ -33,6 +33,7 @@ import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal
 import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
 import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
 import { ChangeCaseStatusModal } from "../components/ChangeCaseStatusModal";
+import { CASE_STATUSES, isMatchingStatus } from "../case-status-data";
 import { toast } from "sonner";
 import { CaseHeader } from "./components/CaseHeader";
 import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard, ProfileCard } from "./components/OverviewCards";
@@ -88,7 +89,7 @@ const countryMap: Record<string, { code: string; full: string; half: string; fla
 };
 
 function getCountryInfo(raw: string): { code: string; full: string; half: string; flag: string } {
-  if (!raw) return { code: "US", full: "United States", half: "USA", flag: "🇺🇸" };
+  if (!raw) return { code: "UN", full: "Unknown", half: "UNK", flag: "🌐" };
   const clean = raw.trim().toLowerCase().replace(/_/g, " ");
   
   if (countryMap[clean]) {
@@ -107,7 +108,7 @@ function getCountryInfo(raw: string): { code: string; full: string; half: string
     GB: "🇬🇧", NP: "🇳🇵", DE: "🇩🇪", PK: "🇵🇰", IT: "🇮🇹",
     GL: "🇬🇱", JM: "🇯🇲"
   };
-  const flag = flagMap[code] || "🇺🇸";
+  const flag = flagMap[code] || "🌐";
   
   return { code, full, half, flag };
 }
@@ -140,6 +141,11 @@ function mapBackendCaseToDetail(c: any) {
     approvalStatus = "VISA APPROVED";
   } else if (c.decision?.id === "Refused") {
     approvalStatus = "VISA REFUSED";
+  } else if (c.status || c.case_status) {
+    const s = (c.status || c.case_status).toUpperCase().replace(/_/g, " ");
+    if (s.includes("APPROVED") || s.includes("GRANTED")) approvalStatus = "VISA APPROVED";
+    else if (s.includes("REFUSED")) approvalStatus = "VISA REFUSED";
+    else approvalStatus = s;
   }
 
   // Calculate days left
@@ -243,7 +249,7 @@ function mapBackendCaseToDetail(c: any) {
       nationality: country,
       nationalityFlag,
       countryOfBirth: c.migrant?.countryOfBirth || c.migrant?.placeOfBirth || "",
-      countryOfBirthFlag: "🇺🇸",
+      countryOfBirthFlag: getCountryInfo(c.migrant?.countryOfBirth || c.migrant?.placeOfBirth || "").flag,
       cityOfBirth: c.migrant?.placeOfBirth || c.migrant?.place_of_birth || "",
       employer: c.personal?.groupName || c.employer || c.migrant?.employer || "",
       jobTitle: c.personal?.jobTitle || "",
@@ -650,7 +656,7 @@ export default function MigrantOverviewPage() {
             </div>
           </div>
         ) : activeTab === "Documents" ? (
-          <DocumentsTab />
+          <DocumentsTab caseId={id} />
         ) : activeTab === "Notes" ? (
           <NotesTab id={id} />
         ) : (
@@ -667,8 +673,17 @@ export default function MigrantOverviewPage() {
         onApply={async (newStatus: string) => {
           try {
             if (id) {
+              const matching = CASE_STATUSES.find((s) => isMatchingStatus(newStatus, s));
+              const statusLabel = matching ? matching.label : newStatus;
+              const formData = new FormData();
+              formData.append("status", statusLabel);
+              if (newStatus.toLowerCase().includes("approved") || newStatus === "visa_approved") {
+                formData.append("decision", JSON.stringify({ id: "Granted" }));
+              } else if (newStatus.toLowerCase().includes("refused") || newStatus === "visa_refused") {
+                formData.append("decision", JSON.stringify({ id: "Refused" }));
+              }
               await apiClient.patch(ENDPOINTS.cases.byId(id), {
-                body: JSON.stringify({ status: newStatus }),
+                body: formData,
               });
               toast.success("Case status updated");
               loadCaseDetail();

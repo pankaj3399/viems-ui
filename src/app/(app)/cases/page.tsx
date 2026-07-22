@@ -472,7 +472,8 @@ export default function CasesPage() {
       const matchesSeverity = !severityFilter || (
         severityFilter === "RED" ? item.actionColor === "red" :
         severityFilter === "YELLOW" ? item.actionColor === "yellow" :
-        severityFilter === "BLUE_GRAY" ? (item.actionColor === "blue" || item.actionColor === "gray") : true
+        severityFilter === "BLUE_GRAY" ? (item.actionColor === "blue" || item.actionColor === "gray") :
+        severityFilter === "NONE" ? item.actionColor === "gray" : true
       );
       const matchesCaseId = !caseIdFilter || item.caseId.toLowerCase().includes(caseIdFilter.toLowerCase());
 
@@ -518,57 +519,61 @@ export default function CasesPage() {
     );
     if (!statusOption) return;
 
-    // Save to localStorage overrides
-    const overrideKey = targetRow.id || targetRow.caseId;
-    if (overrideKey) {
-      try {
-        const saved = localStorage.getItem("viems_case_status_overrides");
-        const overrides = saved ? JSON.parse(saved) : {};
-        overrides[overrideKey] = statusOption.label;
-        localStorage.setItem("viems_case_status_overrides", JSON.stringify(overrides));
-      } catch (e) {}
-    }
+    const applyLocalState = () => {
+      const overrideKey = targetRow.id || targetRow.caseId;
+      if (overrideKey) {
+        try {
+          const saved = localStorage.getItem("viems_case_status_overrides");
+          const overrides = saved ? JSON.parse(saved) : {};
+          overrides[overrideKey] = statusOption.label;
+          localStorage.setItem("viems_case_status_overrides", JSON.stringify(overrides));
+        } catch (e) {}
+      }
 
-    setCases((prev) =>
-      prev.map((c) =>
-        c.caseId === targetRow.caseId || c.id === targetRow.id
-          ? {
-              ...c,
-              status: statusOption.label,
-              statusColor: statusOption.dotColor === "#1FC16B"
-                ? ("success" as const)
-                : statusOption.dotColor === "#F6B51E"
-                ? ("warning" as const)
-                : statusOption.dotColor === "#335CFF"
-                ? ("info" as const)
-                : statusOption.dotColor === "#FB3748"
-                ? ("error" as const)
-                : ("gray" as const),
-            }
-          : c
-      )
-    );
+      setCases((prev) =>
+        prev.map((c) =>
+          c.caseId === targetRow.caseId || c.id === targetRow.id
+            ? {
+                ...c,
+                status: statusOption.label,
+                statusColor: statusOption.dotColor === "#1FC16B"
+                  ? ("success" as const)
+                  : statusOption.dotColor === "#F6B51E"
+                  ? ("warning" as const)
+                  : statusOption.dotColor === "#335CFF"
+                  ? ("info" as const)
+                  : statusOption.dotColor === "#FB3748"
+                  ? ("error" as const)
+                  : ("gray" as const),
+              }
+            : c
+        )
+      );
+      showSuccessToast(targetRow.name, statusOption.label);
+    };
 
     if (targetRow.id) {
       try {
         const formData = new FormData();
 
-        // category (role) is required by NestJS DTO
         const roleId = typeof targetRow.roleId === "number"
           ? targetRow.roleId
           : parseInt(String(targetRow.roleId), 10) || 1;
 
         formData.append("category", JSON.stringify({ id: roleId }));
 
-        // Preserve existing relatedYear
-        formData.append("relatedYear", String(new Date().getFullYear()));
+        const yearVal = (targetRow as any).relatedYear || (targetRow as any).year || new Date().getFullYear();
+        formData.append("relatedYear", String(yearVal));
+        formData.append("status", statusOption.label);
 
-        // Preserve existing outcome so we don't accidentally null it out
-        if (targetRow.outcome) {
+        if (statusOption.value === "visa_approved" || statusOption.label.toLowerCase().includes("approved")) {
+          formData.append("decision", JSON.stringify({ id: "Granted" }));
+        } else if (statusOption.value === "visa_refused" || statusOption.label.toLowerCase().includes("refused")) {
+          formData.append("decision", JSON.stringify({ id: "Refused" }));
+        } else if (targetRow.outcome) {
           formData.append("decision", JSON.stringify({ id: targetRow.outcome }));
         }
 
-        // Preserve existing cosStatus so we don't accidentally set an invalid enum value
         if (targetRow.cosStatusValue) {
           formData.append("cosStatus", JSON.stringify({ id: targetRow.cosStatusValue }));
         }
@@ -576,12 +581,13 @@ export default function CasesPage() {
         await apiClient.patch(ENDPOINTS.cases.byId(targetRow.id), {
           body: formData,
         });
-        showSuccessToast(targetRow.name, statusOption.label);
+        applyLocalState();
       } catch (err) {
         console.error("Failed to update status on server:", err);
+        toast.error("Failed to update status on server");
       }
     } else {
-      showSuccessToast(targetRow.name, statusOption.label);
+      applyLocalState();
     }
   };
 
@@ -998,17 +1004,25 @@ export default function CasesPage() {
                     {selectedCategory === "Case status" && (
                       <div className="flex flex-col gap-[12px] w-full">
                         {[
-                          { value: "all", label: "All statuses", count: cases.length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
-                          { value: "VISA APPROVED", label: "Visa approved", count: cases.filter(c => c.status === "VISA APPROVED").length, colorClass: "bg-[#E3F7EC] text-[#0B4627]" },
-                          { value: "AWAITING", label: "Awaiting", count: cases.filter(c => c.status.toUpperCase().includes("AWAITING")).length, colorClass: "bg-[#FFFAEB] text-[#624C18]" },
-                          { value: "ELIGIBILITY ASSESSMENT", label: "Eligibility assessment", count: cases.filter(c => c.status === "ELIGIBILITY ASSESSMENT").length, colorClass: "bg-[#EBF1FF] text-[#122368]" },
-                          { value: "VISA REFUSED", label: "Visa refused", count: cases.filter(c => c.status === "VISA REFUSED").length, colorClass: "bg-[#FFEBEC] text-[#681219]" },
-                          { value: "CASE CLOSED", label: "Case closed", count: cases.filter(c => c.status === "CASE CLOSED").length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
+                          { value: "all", label: "All statuses", count: tabCases.length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
+                          { value: "Visa Approved", label: "Visa approved", count: tabCases.filter(c => c.status === "Visa Approved").length, colorClass: "bg-[#E3F7EC] text-[#0B4627]" },
+                          { value: "Awaiting applicant docs", label: "Awaiting applicant docs", count: tabCases.filter(c => c.status.toLowerCase().includes("awaiting")).length, colorClass: "bg-[#FFFAEB] text-[#624C18]" },
+                          { value: "Eligibility assessment", label: "Eligibility assessment", count: tabCases.filter(c => c.status === "Eligibility assessment").length, colorClass: "bg-[#EBF1FF] text-[#122368]" },
+                          { value: "Visa Refused", label: "Visa refused", count: tabCases.filter(c => c.status === "Visa Refused").length, colorClass: "bg-[#FFEBEC] text-[#681219]" },
+                          { value: "Case closed", label: "Case closed", count: tabCases.filter(c => c.status === "Case closed").length, colorClass: "bg-[#F5F5F5] text-[#7B7B7B]" },
                         ].map((opt, i) => {
                           const checked = tempStatus === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
                               <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempStatus(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="statusFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempStatus(opt.value)}
+                                  className="sr-only"
+                                />
                                 <div className="flex items-center gap-[8px]">
                                   {/* Custom Radio Button */}
                                   <div className="relative size-5 shrink-0 flex items-center justify-center">
@@ -1033,6 +1047,14 @@ export default function CasesPage() {
                         {/* Option 1: All countries */}
                         <React.Fragment key="all">
                           <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempCountry("all")}>
+                            <input
+                              type="radio"
+                              name="countryFilter"
+                              value="all"
+                              checked={tempCountry === "all"}
+                              onChange={() => setTempCountry("all")}
+                              className="sr-only"
+                            />
                             <div className="flex items-center gap-[8px]">
                               <div className="relative size-5 shrink-0 flex items-center justify-center">
                                 <div className={`absolute inset-0 rounded-full transition-colors ${tempCountry === "all" ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
@@ -1091,6 +1113,14 @@ export default function CasesPage() {
                                   className="flex items-center justify-between cursor-pointer w-full group py-0.5"
                                   onClick={() => setTempCountry(opt.value)}
                                 >
+                                  <input
+                                    type="radio"
+                                    name="countryFilter"
+                                    value={opt.value}
+                                    checked={Boolean(checked)}
+                                    onChange={() => setTempCountry(opt.value)}
+                                    className="sr-only"
+                                  />
                                   <div className="flex items-center gap-[8px]">
                                     <div className="relative size-5 shrink-0 flex items-center justify-center">
                                       <div
@@ -1137,6 +1167,14 @@ export default function CasesPage() {
                           return (
                             <React.Fragment key={opt.value}>
                               <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempMigration(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="migrationFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempMigration(opt.value)}
+                                  className="sr-only"
+                                />
                                 <div className="relative size-5 shrink-0 flex items-center justify-center">
                                   <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
                                   <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
@@ -1163,6 +1201,14 @@ export default function CasesPage() {
                           return (
                             <React.Fragment key={opt.value}>
                               <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempSeverity(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="severityFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempSeverity(opt.value)}
+                                  className="sr-only"
+                                />
                                 <div className="flex items-center gap-[8px]">
                                   <div className="relative size-5 shrink-0 flex items-center justify-center">
                                     <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
@@ -1198,6 +1244,14 @@ export default function CasesPage() {
                           return (
                             <React.Fragment key={opt.value}>
                               <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempQuickFilter(opt.value)}>
+                                <input
+                                  type="radio"
+                                  name="quickFilter"
+                                  value={opt.value}
+                                  checked={checked}
+                                  onChange={() => setTempQuickFilter(opt.value)}
+                                  className="sr-only"
+                                />
                                 <div className="relative size-5 shrink-0 flex items-center justify-center">
                                   <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
                                   <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />

@@ -59,6 +59,8 @@ export function NotesTab({ id }: { id?: string }) {
   const [shouldPinNewNote, setShouldPinNewNote] = React.useState(false);
   const [showMentions, setShowMentions] = React.useState(false);
 
+  const loadedKeyRef = React.useRef<string | null>(null);
+
   // Load notes from localStorage when storageKey changes
   React.useEffect(() => {
     try {
@@ -67,21 +69,22 @@ export function NotesTab({ id }: { id?: string }) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setNotes(parsed);
+          loadedKeyRef.current = storageKey;
           return;
         }
       }
       setNotes(defaultNotes);
+      loadedKeyRef.current = storageKey;
     } catch (e) {
       console.error("Failed to load notes from storage", e);
       setNotes(defaultNotes);
+      loadedKeyRef.current = storageKey;
     }
   }, [storageKey]);
 
-  // Save notes to localStorage on state change
-  const isInitialMount = React.useRef(true);
+  // Save notes to localStorage on state change (skipping initial save per storageKey)
   React.useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
+    if (loadedKeyRef.current !== storageKey) {
       return;
     }
     try {

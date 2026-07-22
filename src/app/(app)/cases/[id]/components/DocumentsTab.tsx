@@ -53,7 +53,7 @@ const initialChecklist: ChecklistItem[] = [
   { id: "c7", name: "Proof of address in home country", folder: "Travel & Logistics", status: "completed", date: "10 Jul 2026", size: "1.8 MB" },
 ];
 
-export function DocumentsTab() {
+export function DocumentsTab({ caseId }: { caseId?: string }) {
   const [viewMode, setViewMode] = React.useState<"checklist" | "folders">("folders");
   const [folders, setFolders] = React.useState<FolderItem[]>(initialFolders);
   const [checklist, setChecklist] = React.useState<ChecklistItem[]>(initialChecklist);
@@ -79,14 +79,19 @@ export function DocumentsTab() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      await apiClient.post(ENDPOINTS.files.uploadCustom, {
+      if (caseId) {
+        formData.append("caseId", caseId);
+        formData.append("moduleName", "cases");
+      }
+      const response = await apiClient.post<any>(ENDPOINTS.files.uploadCustom, {
         body: formData,
       });
       toast.dismiss(toastId);
       toast.success(`Successfully uploaded ${file.name}`);
 
+      const returnedId = response?.id || response?.data?.id || "c_" + Date.now();
       const newChecklistItem: ChecklistItem = {
-        id: "c_" + Date.now(),
+        id: String(returnedId),
         name: file.name,
         folder: "Migrant documents",
         status: "completed",
@@ -282,9 +287,17 @@ export function DocumentsTab() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            onClick={() => {
-                              setChecklist((prev) => prev.filter((i) => i.id !== item.id));
-                              toast.success(`Deleted ${item.name}`);
+                            onClick={async () => {
+                              try {
+                                if (item.id && !item.id.startsWith("c_")) {
+                                  await apiClient.delete(`/api/files/${item.id}`);
+                                }
+                                setChecklist((prev) => prev.filter((i) => i.id !== item.id));
+                                toast.success(`Deleted ${item.name}`);
+                              } catch (err) {
+                                console.error("Failed to delete document:", err);
+                                toast.error(`Failed to delete ${item.name}`);
+                              }
                             }}
                             className="text-error-dark hover:bg-error-light/10"
                           >
