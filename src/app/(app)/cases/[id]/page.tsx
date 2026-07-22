@@ -39,6 +39,8 @@ import { Flag } from "@/components/ui/flag";
 import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal";
 import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
 import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
+import { EditEmploymentDetailsModal } from "../components/EditEmploymentDetailsModal";
+import { EditWorkAddressModal } from "../components/EditWorkAddressModal";
 import { ChangeCaseStatusModal } from "../components/ChangeCaseStatusModal";
 import { CASE_STATUSES, isMatchingStatus } from "../case-status-data";
 import { toast } from "sonner";
@@ -121,6 +123,36 @@ function getCountryInfo(raw: string): { code: string; full: string; half: string
   return { code, full, half, flag };
 }
 
+function sanitizeFirstAndLastName(rawFirst: string, rawLast: string) {
+  let first = (rawFirst || "").trim();
+  let last = (rawLast || "").trim();
+
+  if (first && last) {
+    const firstParts = first.split(/\s+/);
+    const lastParts = last.split(/\s+/);
+
+    if (firstParts.length > 1 && last.toLowerCase().includes(firstParts[0].toLowerCase())) {
+      first = firstParts[0];
+      if (lastParts.length > 1) {
+        last = lastParts[lastParts.length - 1];
+      } else if (last.toLowerCase() === rawFirst.trim().toLowerCase()) {
+        last = firstParts.slice(1).join(" ");
+      }
+    } else if (last.toLowerCase() === first.toLowerCase() && firstParts.length > 1) {
+      first = firstParts[0];
+      last = firstParts.slice(1).join(" ");
+    }
+  } else if (first && !last) {
+    const firstParts = first.split(/\s+/);
+    if (firstParts.length > 1) {
+      first = firstParts[0];
+      last = firstParts.slice(1).join(" ");
+    }
+  }
+
+  return { firstName: first, lastName: last };
+}
+
 function mapBackendCaseToDetail(c: any) {
   const m = c.migrant || c;
   const pInfo = m.user?.personalInfo || {};
@@ -128,8 +160,9 @@ function mapBackendCaseToDetail(c: any) {
     ? (m.passports.find((p: any) => p.is_actual) || m.passports[0] || {})
     : (m.passport || {});
 
-  const firstName = m.first_name || pInfo.firstName || m.firstName || "";
-  const lastName = m.last_name || pInfo.lastName || m.lastName || "";
+  const rawFirstName = m.first_name || pInfo.firstName || m.firstName || "";
+  const rawLastName = m.last_name || pInfo.lastName || m.lastName || "";
+  const { firstName, lastName } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
   const name = formatFullName(firstName, lastName) || m.stage_name || m.stageName || "Unknown Migrant";
 
   const rawGender = m.gender || pInfo.sex || m.sex || "";
@@ -208,6 +241,18 @@ function mapBackendCaseToDetail(c: any) {
       } catch (e) {
         console.error(e);
       }
+    }
+  }
+  let localEmp: any = null;
+  let localWork: any = null;
+  if (typeof window !== "undefined" && c.id) {
+    const storedEmp = localStorage.getItem(`employment_${c.id}`);
+    if (storedEmp) {
+      try { localEmp = JSON.parse(storedEmp); } catch (e) {}
+    }
+    const storedWork = localStorage.getItem(`work_address_${c.id}`);
+    if (storedWork) {
+      try { localWork = JSON.parse(storedWork); } catch (e) {}
     }
   }
 
@@ -340,6 +385,21 @@ function mapBackendCaseToDetail(c: any) {
         { icon: "bell", label: "SMS reports", extra: "None yet" },
       ],
     },
+    employment: {
+      cosReference: c.cosStatus?.assigned?.cosNumber || c.cosReference || "COS2026-00430",
+      socCode: c.personal?.jobSocCode || c.personal?.socCode || "3416 (Arts/Entertainment)",
+      employer: localEmp?.employer || c.personal?.groupName || c.employer || m.employer || "AX Studios",
+      jobTitle: localEmp?.jobTitle || c.personal?.jobTitle || "Singer",
+      startDate: localEmp?.startDate || (c.decision?.granted?.visaStartDate ? new Date(c.decision.granted.visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "15 Mar 2026"),
+      endDate: localEmp?.endDate || (c.decision?.granted?.visaEndDate ? new Date(c.decision.granted.visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "16 Mar 2027"),
+      contract: localEmp?.contract || c.personal?.employmentType || c.personal?.contractType || "Full-time",
+      grossSalary: localEmp?.grossSalary || (c.personal?.jobPay ? (String(c.personal.jobPay).includes("year") || String(c.personal.jobPay).startsWith("£") ? c.personal.jobPay : `£${c.personal.jobPay}/year`) : "£48,000/year"),
+      hoursPerWeek: localEmp?.hoursPerWeek || c.personal?.hoursPerWeek || "40",
+      mainWorkAddressLine1: localWork?.mainWorkAddressLine1 || localEmp?.mainWorkAddressLine1 || c.personal?.workAddress1 || "Royal Albert Hall,",
+      mainWorkAddressLine2: localWork?.mainWorkAddressLine2 || localEmp?.mainWorkAddressLine2 || c.personal?.workAddress2 || "South Kensington, London SW7 2AP",
+      secondWorkAddressLine1: localWork?.secondWorkAddress1 || c.personal?.secondWorkAddress1 || "45 Cromwell Road",
+      secondWorkAddressLine2: localWork?.secondWorkAddress2 || c.personal?.secondWorkAddress2 || "South Kensington, London SW7 2EF",
+    },
   };
 }
 
@@ -453,6 +513,8 @@ export default function MigrantOverviewPage() {
   const [isPersonalModalOpen, setIsPersonalModalOpen] = React.useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
+  const [isEmploymentModalOpen, setIsEmploymentModalOpen] = React.useState(false);
+  const [isWorkAddressModalOpen, setIsWorkAddressModalOpen] = React.useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = React.useState(false);
   const [isAddNoteOpen, setIsAddNoteOpen] = React.useState(false);
 
@@ -510,7 +572,7 @@ export default function MigrantOverviewPage() {
   const visaProgress = ((migrant.visa.totalDays - migrant.visa.daysLeft) / migrant.visa.totalDays) * 100;
 
   return (
-    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full">
+    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full overflow-x-hidden">
       {/* ====== WHITE HEADER ====== */}
       <div className="bg-white rounded-t-card flex flex-col shrink-0">
         <CaseHeader
@@ -551,7 +613,7 @@ export default function MigrantOverviewPage() {
       </div>
 
       {/* ====== CONTENT AREA ====== */}
-      <div className="flex-1 px-[32px] py-2xl">
+      <div className="flex-1 px-[32px] py-2xl max-w-full overflow-x-hidden">
         {activeTab === "Overview" ? (
           <div className="flex gap-[24px] items-start w-full">
             {/* ====== COLUMN 1 (Left 303.5px): Profile & Migration Status & Timeline ====== */}
@@ -596,9 +658,9 @@ export default function MigrantOverviewPage() {
             </div>
           </div>
         ) : activeTab === "Personal Details" ? (
-          <div className="flex gap-[24px] items-start w-full font-inter select-none">
+          <div className="flex gap-[24px] items-start w-full font-inter select-none max-w-full">
             {/* LEFT COLUMN: Personal details widget */}
-            <div className="w-[540px] flex flex-col gap-[12px] shrink-0">
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
               <div className="flex items-center justify-between h-[30px]">
                 <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                   Personal details
@@ -613,9 +675,9 @@ export default function MigrantOverviewPage() {
               </div>
               
               {/* Outer white card */}
-              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-[450px] shrink-0">
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[450px]">
                 {/* Inner gray container */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-[8px_20px_16px] w-[532px] h-[442px] flex flex-col gap-[8px] justify-between">
+                <div className="bg-[#F7F7F7] rounded-[16px] p-[8px_20px_16px] w-full h-[442px] flex flex-col gap-[8px] justify-between">
                   <KVRow label="First Name" value={migrant.personalInfo.firstName} />
                   <KVRow label="Last Name" value={migrant.personalInfo.lastName} />
                   <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
@@ -657,9 +719,9 @@ export default function MigrantOverviewPage() {
             </div>
 
             {/* RIGHT COLUMN: Home address and Contact details widgets */}
-            <div className="w-[540px] flex flex-col gap-[24px] shrink-0">
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[24px]">
               {/* Home address widget */}
-              <div className="flex flex-col gap-[12px] w-[540px]">
+              <div className="flex flex-col gap-[12px] w-full">
                 <div className="flex items-center justify-between h-[30px]">
                   <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                     Home address
@@ -673,8 +735,8 @@ export default function MigrantOverviewPage() {
                   </button>
                 </div>
                 
-                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-[80px]">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-[532px] h-[72px] flex items-center gap-[8px]">
+                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[80px]">
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[72px] flex items-center gap-[8px]">
                     <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
                     <div className="flex flex-col text-left font-inter">
                       {migrant.contact.addressLine1 || migrant.contact.addressLine2 ? (
@@ -699,7 +761,7 @@ export default function MigrantOverviewPage() {
               </div>
 
               {/* Contact details widget */}
-              <div className="flex flex-col gap-[12px] w-[540px]">
+              <div className="flex flex-col gap-[12px] w-full">
                 <div className="flex items-center justify-between h-[30px]">
                   <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                     Contact details
@@ -713,10 +775,10 @@ export default function MigrantOverviewPage() {
                   </button>
                 </div>
 
-                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-[424px]">
-                  <div className="w-[532px] h-[416px] flex flex-col gap-[4px]">
+                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[424px]">
+                  <div className="w-full h-[416px] flex flex-col gap-[4px]">
                     {/* PRIMARY CONTACT Section */}
-                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-[532px] h-[206px] flex flex-col justify-between font-inter">
+                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
                       <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-inter">
                         Primary Contact
                       </span>
@@ -731,7 +793,7 @@ export default function MigrantOverviewPage() {
                     </div>
 
                     {/* EMERGENCY CONTACT Section */}
-                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-[532px] h-[206px] flex flex-col justify-between font-inter">
+                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
                       <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-inter">
                         Emergency Contact
                       </span>
@@ -739,6 +801,101 @@ export default function MigrantOverviewPage() {
                       <KVRow label="Relationship" value={migrant.contact.emergency.relationship} />
                       <KVRow label="Phone" value={migrant.contact.emergency.phone} />
                       <KVRow label="Email" value={migrant.contact.emergency.email} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "Employment" ? (
+          <div className="flex gap-[24px] items-start w-full font-inter select-none max-w-full">
+            {/* LEFT COLUMN: Employment details widget */}
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
+              <div className="flex items-center justify-between h-[30px]">
+                <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
+                  Employment details
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsEmploymentModalOpen(true)}
+                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
+                >
+                  Edit
+                </button>
+              </div>
+
+              {/* Outer white card */}
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[340px]">
+                {/* Inner gray container */}
+                <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[332px] flex flex-col justify-between">
+                  <KVRow label="CoS Reference" value={migrant.employment?.cosReference} />
+                  <KVRow label="SOC Code" value={migrant.employment?.socCode} />
+                  <KVRow label="Employer" value={migrant.employment?.employer} />
+                  <KVRow label="Job Title" value={migrant.employment?.jobTitle} />
+                  <KVRow label="Start/End Date" value={migrant.employment?.startDate && migrant.employment?.endDate ? `${migrant.employment.startDate} – ${migrant.employment.endDate}` : "—"} />
+                  <KVRow label="Contract" value={migrant.employment?.contract} />
+                  <KVRow label="Gross Salary" value={migrant.employment?.grossSalary} />
+                  <KVRow label="Hours/Week" value={migrant.employment?.hoursPerWeek} />
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Work address widget */}
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
+              <div className="flex items-center justify-between h-[30px]">
+                <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
+                  Work address
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsWorkAddressModalOpen(true)}
+                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
+                >
+                  Edit
+                </button>
+              </div>
+
+              {/* Outer white card */}
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[220px]">
+                <div className="w-full h-[212px] flex flex-col gap-[4px]">
+                  {/* MAIN ADDRESS Section */}
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
+                    <span className="text-[12px] font-medium tracking-[0.04em] text-[#171717] uppercase font-inter">
+                      MAIN ADDRESS
+                    </span>
+                    <div className="flex items-center gap-[8px]">
+                      <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
+                      <div className="flex flex-col text-left font-inter">
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.mainWorkAddressLine1}
+                        </span>
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.mainWorkAddressLine2}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECOND ADDRESS Section */}
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
+                    <div className="flex items-center gap-[8px]">
+                      <span className="text-[12px] font-medium tracking-[0.04em] text-[#171717] uppercase font-inter">
+                        SECOND ADDRESS
+                      </span>
+                      <span className="bg-[#EBEBEB] text-[#7B7B7B] text-[11px] font-medium px-[8px] py-[2px] rounded-full uppercase tracking-[0.02em] font-inter">
+                        UNVERIFIED
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-[8px]">
+                      <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
+                      <div className="flex flex-col text-left font-inter">
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.secondWorkAddressLine1}
+                        </span>
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.secondWorkAddressLine2}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -802,6 +959,22 @@ export default function MigrantOverviewPage() {
             open={isContactModalOpen}
             onOpenChange={setIsContactModalOpen}
             migrantId={migrant.migrantId}
+            onSuccess={loadCaseDetail}
+          />
+          <EditEmploymentDetailsModal
+            open={isEmploymentModalOpen}
+            onOpenChange={setIsEmploymentModalOpen}
+            caseId={id}
+            migrantId={migrant.migrantId}
+            initialData={migrant.employment}
+            onSuccess={loadCaseDetail}
+          />
+          <EditWorkAddressModal
+            open={isWorkAddressModalOpen}
+            onOpenChange={setIsWorkAddressModalOpen}
+            caseId={id}
+            migrantId={migrant.migrantId}
+            initialData={migrant.employment}
             onSuccess={loadCaseDetail}
           />
           <AddNoteModal
