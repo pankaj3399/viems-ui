@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { Users } from "lucide-react";
 import {
   RiSearchLine,
   RiFilterLine,
@@ -14,11 +15,16 @@ import {
   RiAddLine,
   RiDownloadLine,
   RiGlobalLine,
-  RiBriefcaseLine,
   RiAlertLine,
   RiHashtag,
   RiListCheck,
   RiFlashlightLine,
+  RiBriefcaseLine,
+  RiBriefcaseFill,
+  RiUser3Line,
+  RiUser3Fill,
+  RiThumbDownLine,
+  RiThumbDownFill,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +43,40 @@ import { formatFullName, getInitials } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { Flag } from "@/components/ui/flag";
 import { toast } from "sonner";
+
+const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
+  active ? (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 6.46967C2.86032 6.32902 3.05109 6.25 3.25 6.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  ) : (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <g transform="translate(2.5, 3)">
+        <path
+          d="M3 3V0.75C3 0.551088 3.07902 0.360322 3.21967 0.21967C3.36032 0.0790176 3.55109 0 3.75 0H8.5605L10.0605 1.5H14.25C14.4489 1.5 14.6397 1.57902 14.7803 1.71967C14.921 1.86032 15 2.05109 15 2.25V9.75C15 9.94891 14.921 10.1397 14.7803 10.2803C14.6397 10.421 14.4489 10.5 14.25 10.5H12V12.75C12 12.9489 11.921 13.1397 11.7803 13.2803C11.6397 13.421 11.4489 13.5 11.25 13.5H0.75C0.551088 13.5 0.360322 13.421 0.21967 13.2803C0.0790176 13.1397 0 12.9489 0 12.75V3.75C0 3.55109 0.0790176 3.36032 0.21967 3.21967C0.360322 3.07902 0.551088 3 0.75 3H3ZM3 4.5H1.5V12H10.5V10.5H3V4.5ZM4.5 1.5V9H13.5V3H9.4395L7.9395 1.5H4.5Z"
+          fill="currentColor"
+        />
+      </g>
+    </svg>
+  )
+);
 interface CaseRow {
   id?: number;
   roleId?: number;
@@ -759,17 +799,7 @@ export default function CasesPage() {
   };
 
   const getAvatarBg = (text: string) => {
-    const t = text.toUpperCase();
-    if (t === "GS" || t === "AM") {
-      return "bg-[#FFECC0] text-[#71330A]";
-    }
-    if (t === "EP" || t === "JB" || t === "TJ") {
-      return "bg-[#CAC0FF] text-[#351A75]";
-    }
-    if (t === "JO" || t === "SR") {
-      return "bg-[#FFD9C0] text-[#71330A]";
-    }
-    return "bg-neutral-100 text-neutral-600";
+    return "bg-[#F5F5F5] text-[#5C5C5C]";
   };
 
   const getStatusBgAndText = (color: CaseRow["statusColor"]) => {
@@ -880,9 +910,10 @@ export default function CasesPage() {
                 : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-              <path d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 16.5303C2.57902 16.3897 2.5 16.1989 2.5 16V7C2.5 6.80109 2.57902 6.61032 2.71967 6.46967C2.86032 6.32902 3.05109 6.25 3.25 6.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z" fill="currentColor" />
-            </svg>
+            <CasesIcon
+              active={activeTab === "cases"}
+              className={`size-4 shrink-0 ${activeTab === "cases" ? "text-[#171717]" : "text-neutral-400"}`}
+            />
             <span>Cases</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
               {activeTab === "cases" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() !== "VISA REFUSED" && c.status.toLowerCase() !== "visa refused").length}
@@ -897,12 +928,11 @@ export default function CasesPage() {
                 : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-4 shrink-0">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            {activeTab === "groups" ? (
+              <Users className="size-4 shrink-0 text-[#171717] fill-current" />
+            ) : (
+              <Users className="size-4 shrink-0 text-neutral-400 fill-none" />
+            )}
             <span>Groups</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
               {Array.from(new Set(cases.map((c) => c.group))).length}
@@ -917,9 +947,11 @@ export default function CasesPage() {
                 : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-              <path d="M11.95 13.0002L16.75 13.0002C17.1478 13.0002 17.5294 12.8422 17.8107 12.5609C18.092 12.2796 18.25 11.8981 18.25 11.5002L18.25 9.92223C18.2502 9.72621 18.212 9.53205 18.1375 9.35073L15.8155 3.71523C15.759 3.5778 15.663 3.46023 15.5396 3.37744C15.4163 3.29465 15.2711 3.25038 15.1225 3.25023L2.5 3.25023C2.30109 3.25023 2.11032 3.32925 1.96967 3.4699C1.82902 3.61055 1.75 3.80132 1.75 4.00023L1.75 11.5002C1.75 11.6991 1.82901 11.8899 1.96967 12.0306C2.11032 12.1712 2.30109 12.2502 2.5 12.2502L5.1115 12.2502C5.23157 12.2502 5.34989 12.279 5.45652 12.3342C5.56315 12.3894 5.65497 12.4694 5.72425 12.5675L9.814 18.362C9.8657 18.4352 9.94194 18.4876 10.0289 18.5094C10.1159 18.5313 10.2078 18.5213 10.288 18.4812L11.6485 17.8002C12.0314 17.6089 12.3372 17.2922 12.5153 16.903C12.6933 16.5137 12.7329 16.0753 12.6272 15.6605L11.95 13.0002ZM6.25 11.0592L6.25 4.75023L14.62 4.75023L16.75 9.92223L16.75 11.5002L11.95 11.5002C11.7215 11.5003 11.4961 11.5525 11.2909 11.6529C11.0857 11.7533 10.9062 11.8993 10.766 12.0796C10.6257 12.26 10.5286 12.47 10.4819 12.6936C10.4352 12.9172 10.4402 13.1486 10.4965 13.37L11.1737 16.031C11.1949 16.114 11.1871 16.2017 11.1515 16.2797C11.1159 16.3576 11.0546 16.4209 10.978 16.4592L10.4822 16.7067L6.94975 11.7027C6.76225 11.4372 6.52225 11.2197 6.25 11.0592ZM4.75 10.7502L3.25 10.7502L3.25 4.75023L4.75 4.75023L4.75 10.7502Z" fill="currentColor" />
-            </svg>
+            {activeTab === "refusals" ? (
+              <RiThumbDownFill className="size-4 shrink-0 text-[#171717]" />
+            ) : (
+              <RiThumbDownLine className="size-4 shrink-0 text-neutral-400" />
+            )}
             <span>Refusals</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
               {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() === "VISA REFUSED" || c.status.toLowerCase() === "visa refused").length}
@@ -1440,7 +1472,7 @@ export default function CasesPage() {
                           <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm">
                             {row.name}
                           </span>
-                          <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-none">
+                          <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-normal">
                             {row.group}
                           </span>
                         </div>

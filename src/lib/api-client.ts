@@ -100,26 +100,41 @@ async function request<T = unknown>(
     throw new ApiError(401, "Unauthorized — session expired.");
   }
 
-  if (response.status === 403) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new ApiError(
-      403,
-      (errorData as { message?: string }).message || "Access denied.",
-      errorData
-    );
+
+function toErrorMessage(val: any): string {
+  if (!val) return "";
+  if (typeof val === "string") return val;
+  if (Array.isArray(val)) return val.map(toErrorMessage).filter(Boolean).join(", ");
+  if (typeof val === "object") {
+    if (val.constraints && typeof val.constraints === "object") {
+      return Object.values(val.constraints).map(toErrorMessage).filter(Boolean).join(", ");
+    }
+    if (val.message) return toErrorMessage(val.message);
+    if (val.error) return toErrorMessage(val.error);
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
   }
+  return String(val);
+}
 
   // ── Handle other HTTP errors ─────────────────────────────────────────────
   if (!response.ok) {
-    let errorData: { message?: string; statusCode?: number } = {};
+    let errorData: any = {};
     try {
       errorData = await response.json();
     } catch {
       // response body is not JSON — ignore
     }
+
+    const parsedMsg = toErrorMessage(errorData.message) || toErrorMessage(errorData.error);
+    const errorMessage = parsedMsg || `Request failed with status ${response.status}`;
+
     throw new ApiError(
       response.status,
-      errorData.message || `Request failed with status ${response.status}`,
+      errorMessage,
       errorData
     );
   }
@@ -142,24 +157,36 @@ async function request<T = unknown>(
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
+function normalizeOptions(dataOrOptions?: unknown): RequestOptions | undefined {
+  if (!dataOrOptions) return undefined;
+  if (
+    typeof dataOrOptions === "object" &&
+    dataOrOptions !== null &&
+    ("body" in dataOrOptions || "headers" in dataOrOptions || "params" in dataOrOptions || "raw" in dataOrOptions)
+  ) {
+    return dataOrOptions as RequestOptions;
+  }
+  return { body: dataOrOptions };
+}
+
 export const apiClient = {
   get<T = unknown>(url: string, options?: RequestOptions): Promise<T> {
     return request<T>("GET", url, options);
   },
 
-  post<T = unknown>(url: string, options?: RequestOptions): Promise<T> {
-    return request<T>("POST", url, options);
+  post<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
+    return request<T>("POST", url, normalizeOptions(dataOrOptions));
   },
 
-  put<T = unknown>(url: string, options?: RequestOptions): Promise<T> {
-    return request<T>("PUT", url, options);
+  put<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
+    return request<T>("PUT", url, normalizeOptions(dataOrOptions));
   },
 
-  patch<T = unknown>(url: string, options?: RequestOptions): Promise<T> {
-    return request<T>("PATCH", url, options);
+  patch<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
+    return request<T>("PATCH", url, normalizeOptions(dataOrOptions));
   },
 
-  delete<T = unknown>(url: string, options?: RequestOptions): Promise<T> {
-    return request<T>("DELETE", url, options);
+  delete<T = unknown>(url: string, dataOrOptions?: unknown): Promise<T> {
+    return request<T>("DELETE", url, normalizeOptions(dataOrOptions));
   },
 };

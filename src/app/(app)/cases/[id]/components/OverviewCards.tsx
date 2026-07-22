@@ -45,7 +45,8 @@ function SectionHeader({ title, badge, action, onAction }: { title: string; badg
 }
 
 // ====== PROFILE CARD (Column 1 Top) ======
-export function ProfileCard({ name, initials, employer, status }: any) {
+export function ProfileCard({ name, initials, avatar, employer, status, onAddNote, onUpload, onDocuments }: any) {
+  const [imgError, setImgError] = React.useState(false);
   const normStatus = (status || "").toUpperCase();
   const isApproved = normStatus.includes("APPROVED") || normStatus.includes("ACTIVE");
   const isInactive = normStatus.includes("INACTIVE");
@@ -69,9 +70,18 @@ export function ProfileCard({ name, initials, employer, status }: any) {
 
   return (
     <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[24px_16px_20px] flex flex-col items-center shadow-[0px_1px_2px_rgba(10,13,20,0.03)] text-center w-full shrink-0">
-      <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[34px] tracking-[-0.015em] mb-md font-sans overflow-hidden">
-        {initials || "—"}
-      </div>
+      {avatar && !imgError ? (
+        <img
+          src={avatar}
+          alt={name}
+          onError={() => setImgError(true)}
+          className="size-[80px] rounded-full object-cover mb-md shrink-0"
+        />
+      ) : (
+        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[34px] tracking-[-0.015em] mb-md font-sans overflow-hidden select-none">
+          {initials || "—"}
+        </div>
+      )}
       <h3 className="font-aeonik-medium text-[24px] leading-[32px] text-[#171717] mb-[2px]">{name || "Unknown Migrant"}</h3>
       <span className="text-[14px] font-medium text-[#171717] mb-md">{employer || "—"}</span>
       
@@ -81,27 +91,56 @@ export function ProfileCard({ name, initials, employer, status }: any) {
       </span>
 
       <div className="flex items-center gap-sm">
-        <button
-          type="button"
-          className="size-8 rounded-[8px] bg-[#F5F5F5] hover:bg-neutral-200 flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer transition-colors"
-          title="Upload"
-        >
-          <RiUploadLine className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="size-8 rounded-[8px] bg-[#F5F5F5] hover:bg-neutral-200 flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer transition-colors"
-          title="Documents"
-        >
-          <RiFileTextLine className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="size-8 rounded-[8px] bg-[#171717] hover:bg-[#333] flex items-center justify-center text-white border-0 cursor-pointer transition-colors"
-          title="Add Note"
-        >
-          <RiStickyNoteLine className="size-4" />
-        </button>
+        {/* Upload Button */}
+        <div className="relative group/tooltip">
+          <button
+            type="button"
+            onClick={onUpload}
+            className="size-8 rounded-[8px] bg-[#F5F5F5] hover:bg-[#171717] hover:text-white active:bg-[#171717] active:text-white focus:bg-[#171717] focus:text-white flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer transition-colors"
+          >
+            <RiUploadLine className="size-4" />
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:flex flex-col items-center z-30 pointer-events-none">
+            <span className="px-2 py-1 bg-[#171717] text-white text-[11px] font-medium rounded-[6px] whitespace-nowrap shadow-md">
+              Upload document
+            </span>
+            <span className="border-4 border-transparent border-t-[#171717] -mt-[1px]" />
+          </div>
+        </div>
+
+        {/* Documents Button */}
+        <div className="relative group/tooltip">
+          <button
+            type="button"
+            onClick={onDocuments}
+            className="size-8 rounded-[8px] bg-[#F5F5F5] hover:bg-[#171717] hover:text-white active:bg-[#171717] active:text-white focus:bg-[#171717] focus:text-white flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer transition-colors"
+          >
+            <RiFileTextLine className="size-4" />
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:flex flex-col items-center z-30 pointer-events-none">
+            <span className="px-2 py-1 bg-[#171717] text-white text-[11px] font-medium rounded-[6px] whitespace-nowrap shadow-md">
+              View documents
+            </span>
+            <span className="border-4 border-transparent border-t-[#171717] -mt-[1px]" />
+          </div>
+        </div>
+
+        {/* Add Note Button */}
+        <div className="relative group/tooltip">
+          <button
+            type="button"
+            onClick={onAddNote}
+            className="size-8 rounded-[8px] bg-[#F5F5F5] hover:bg-[#171717] hover:text-white active:bg-[#171717] active:text-white focus:bg-[#171717] focus:text-white flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer transition-colors"
+          >
+            <RiStickyNoteLine className="size-4" />
+          </button>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/tooltip:flex flex-col items-center z-30 pointer-events-none">
+            <span className="px-2 py-1 bg-[#171717] text-white text-[11px] font-medium rounded-[6px] whitespace-nowrap shadow-md">
+              Add note
+            </span>
+            <span className="border-4 border-transparent border-t-[#171717] -mt-[1px]" />
+          </div>
+        </div>
       </div>
     </div>
   );

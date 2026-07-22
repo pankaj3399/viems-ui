@@ -16,18 +16,15 @@ export function formatFullName(firstName?: string, lastName?: string): string {
   const firstLower = first.toLowerCase();
   const lastLower = last.toLowerCase();
 
-  // If first name equals last name (e.g. "Singh", "Singh")
   if (firstLower === lastLower) {
     return first;
   }
 
-  // If first name already ends with last name (e.g. "Gurjit Singh", "Singh")
-  if (firstLower.endsWith(" " + lastLower)) {
+  if (firstLower.includes(lastLower)) {
     return first;
   }
 
-  // If last name already starts with first name (e.g. "Taylor", "Taylor Johnson")
-  if (lastLower.startsWith(firstLower + " ")) {
+  if (lastLower.includes(firstLower)) {
     return last;
   }
 
