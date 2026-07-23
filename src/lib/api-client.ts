@@ -174,7 +174,7 @@ function normalizeOptions(dataOrOptions?: unknown, explicitOptions?: RequestOpti
     !(dataOrOptions instanceof FormData) &&
     !(dataOrOptions instanceof URLSearchParams) &&
     !(dataOrOptions instanceof Blob) &&
-    ("headers" in dataOrOptions || "params" in dataOrOptions || "raw" in dataOrOptions)
+    ("headers" in dataOrOptions || "params" in dataOrOptions || "raw" in dataOrOptions || "body" in dataOrOptions)
   ) {
     return dataOrOptions as RequestOptions;
   }
