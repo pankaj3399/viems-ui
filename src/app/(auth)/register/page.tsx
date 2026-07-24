@@ -130,7 +130,7 @@ function RegisterForm() {
   // If no invite code, block access with a clear message
   if (!inviteToken) {
     return (
-      <Card className="border-border bg-card text-card-foreground shadow-card-large p-lg">
+      <Card className="bg-transparent text-card-foreground p-lg border-none shadow-none ring-0">
         <CardHeader className="text-center pb-md">
           <CardTitle className="text-h5-title font-bold tracking-tight text-error-dark flex flex-col items-center gap-sm">
             <AlertCircle className="size-12 text-error-dark shrink-0" />
@@ -169,7 +169,7 @@ function RegisterForm() {
     agree;
 
   return (
-    <Card className="border-border bg-card text-card-foreground shadow-card-large p-lg">
+    <Card className="bg-transparent text-card-foreground p-lg border-none shadow-none ring-0">
       <CardHeader className="text-center pb-md">
         <CardTitle className="text-h5-title font-bold tracking-tight text-neutral-900 dark:text-white">
           Create your account
@@ -371,7 +371,7 @@ function RegisterForm() {
 export default function RegisterPage() {
   return (
     <Suspense fallback={
-      <Card className="border-border bg-card text-card-foreground shadow-card-large p-lg flex flex-col items-center justify-center min-h-[400px]">
+      <Card className="bg-transparent text-card-foreground p-lg flex flex-col items-center justify-center min-h-[400px] border-none shadow-none ring-0">
         <Loader2 className="size-8 animate-spin text-brand-medium" />
         <span className="text-paragraph-sm text-neutral-400 mt-sm">Loading registration...</span>
       </Card>

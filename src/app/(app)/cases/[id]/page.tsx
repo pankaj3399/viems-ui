@@ -50,6 +50,9 @@ import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, Timeline
 import { ComplianceCard } from "./components/ComplianceCard";
 import { DocumentsTab } from "./components/DocumentsTab";
 import { NotesTab } from "./components/NotesTab";
+import { TasksTab } from "./components/TasksTab";
+import { TimelineTab } from "./components/TimelineTab";
+import { ComplianceTab } from "./components/ComplianceTab";
 
 // -- CasesIcon (same as sidebar) --
 const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -905,6 +908,12 @@ export default function MigrantOverviewPage() {
           </div>
         ) : activeTab === "Documents" ? (
           <DocumentsTab caseId={id} />
+        ) : activeTab === "Tasks" ? (
+          <TasksTab caseId={id} />
+        ) : activeTab === "Timeline" ? (
+          <TimelineTab id={id} />
+        ) : activeTab === "Compliance" ? (
+          <ComplianceTab id={id} />
         ) : activeTab === "Notes" ? (
           <NotesTab id={id} />
         ) : (
