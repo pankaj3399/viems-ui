@@ -8,43 +8,45 @@ import { formatFullName, getInitials as getInitialsHelper } from "@/lib/utils";
 import {
   LayoutGrid,
   Users,
-  FolderOpen,
-  PieChart,
   Sliders,
   Settings,
   Headphones,
-  LogOut,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { RiPieChartLine, RiPieChartFill } from "@remixicon/react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
-import {
-  RiSettings2Line,
-  RiEqualizerLine,
-  RiHeadphoneLine,
-  RiStarLine,
-  RiLogoutBoxRLine,
-  RiArrowRightSLine,
-} from "@remixicon/react";
 
-const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 20 20"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
-    <path
-      d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 16.5303C2.57902 16.3897 2.5 16.1989 2.5 16V7C2.5 6.80109 2.57902 6.61032 2.71967 6.46967C2.86032 6.32902 3.05109 6.25 3.25 6.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z"
-      fill="currentColor"
-    />
-  </svg>
+const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
+  active ? (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 16.46967C2.86032 16.32902 3.05109 16.25 3.25 16.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  ) : (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <g transform="translate(2.5, 3)">
+        <path
+          d="M3 3V0.75C3 0.551088 3.07902 0.360322 3.21967 0.21967C3.36032 0.0790176 3.55109 0 3.75 0H8.5605L10.0605 1.5H14.25C14.4489 1.5 14.6397 1.57902 14.7803 1.71967C14.921 1.86032 15 2.05109 15 2.25V9.75C15 9.94891 14.921 10.1397 14.7803 10.2803C14.6397 10.421 14.4489 10.5 14.25 10.5H12V12.75C12 12.9489 11.921 13.1397 11.7803 13.2803C11.6397 13.421 11.4489 13.5 11.25 13.5H0.75C0.551088 13.5 0.360322 13.421 0.21967 13.2803C0.0790176 13.1397 0 12.9489 0 12.75V3.75C0 3.55109 0.0790176 3.36032 0.21967 3.21967C0.360322 3.07902 0.551088 3 0.75 3H3ZM3 4.5H1.5V12H10.5V10.5H3V4.5ZM4.5 1.5V9H13.5V3H9.4395L7.9395 1.5H4.5Z"
+          fill="currentColor"
+        />
+      </g>
+    </svg>
+  )
 );
 
 interface SidebarProps {
@@ -67,7 +69,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
   const pathname = usePathname();
   const router = useRouter();
 
-  // Nav Items definition
+  // Nav Items definition using original icons (LayoutGrid, Users, CasesIcon, PieChart, Sliders, Settings, Headphones)
   const mainNavItems = [
     {
       name: "Dashboard",
@@ -87,7 +89,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     {
       name: "Insights",
       href: "/insights",
-      icon: PieChart,
+      icon: RiPieChartLine,
     },
     ...(!userInfo || isAdmin(userInfo)
       ? [
@@ -148,7 +150,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
         isOpen ? "w-64" : "w-20"
       }`}
     >
-      {/* ─── Sidebar Header [Sidebar] [1.1] ──────────────────────────────────── */}
+      {/* Sidebar Header */}
       <div
         className={`h-[88px] w-full flex items-center bg-[#171717] shrink-0 transition-all duration-300 relative ${
           isOpen ? "px-6 justify-between" : "justify-center"
@@ -184,7 +186,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
               className="text-[#A4A4A4]"
             >
               <path
-                d="M14.25 0C14.4489 0 14.6397 0.0790176 14.7803 0.21967C14.921 0.360322 15 0.551088 15 0.75L15 12.75C15 12.9489 14.921 13.1397 14.7803 13.2803C14.6397 13.421 14.4489 13.5 14.25 13.5L0.75 13.5C0.551088 13.5 0.360322 13.421 0.21967 13.2803C0.0790176 13.1397 0 12.9489 0 12.75L0 0.75C0 0.551088 0.0790176 0.360322 0.21967 0.21967C0.360322 0.0790176 0.551088 0 0.75 0L14.25 0ZM9.75 1.5L1.5 1.5L1.5 12L9.75 12L9.75 1.5ZM13.5 1.5L11.25 1.5L11.25 12H13.5L13.5 1.5Z"
+                d="M14.25 0C14.4489 0 14.6397 0.0790176 14.7803 0.21967C14.921 0.360322 15 0.551088 15 0.75L15 12.75C15 12.9489 14.921 13.1397 14.7803 13.2803C14.6397 13.421 14.4489 13.5 14.25 13.5L0.75 13.5C0.551088 13.5 0.360322 13.421 0.21967 13.2803C0.0790176 13.1397 0 12.9489 0 12.75L0 0.75C0 0.551088 0.0790176 0.360322 0.21967 0.21967C0.360322 0.0790176 0.551088 0L14.25 0ZM9.75 1.5L1.5 1.5L1.5 12L9.75 12L9.75 1.5ZM13.5 1.5L11.25 1.5L11.25 12H13.5L13.5 1.5Z"
                 fill="currentColor"
               />
             </svg>
@@ -192,7 +194,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
         )}
       </div>
 
-      {/* ─── Content Navigation Group ────────────────────────────────────────── */}
+      {/* Content Navigation Group */}
       <div
         className={`flex-1 flex flex-col py-6 gap-6 bg-[#171717] overflow-y-auto transition-all duration-300 ${
           isOpen ? "items-stretch" : "items-center"
@@ -220,11 +222,26 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 }`}
                 title={item.name}
               >
-                <Icon
-                  className={`size-6 shrink-0 transition-colors ${
-                    isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
-                  }`}
-                />
+                {item.name === "Insights" ? (
+                  isActive ? (
+                    <RiPieChartFill className="size-6 shrink-0 text-white transition-colors" />
+                  ) : (
+                    <RiPieChartLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                  )
+                ) : item.icon === CasesIcon ? (
+                  <CasesIcon
+                    active={isActive}
+                    className={`size-6 shrink-0 transition-colors ${
+                      isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                    }`}
+                  />
+                ) : (
+                  <Icon
+                    className={`size-6 shrink-0 transition-colors ${
+                      isActive ? "text-white fill-current" : "text-[#5C5C5C] fill-none group-hover:text-white"
+                    }`}
+                  />
+                )}
                 <span
                   className={`text-paragraph-sm font-medium whitespace-nowrap transition-all duration-300 ${
                     isOpen
@@ -239,7 +256,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
           })}
         </nav>
 
-        {/* ─── Supporting Content Group (Pushes to bottom) ───────────────────── */}
+        {/* Supporting Content Group */}
         <div
           className={`mt-auto flex flex-col gap-6 transition-all duration-300 ${
             isOpen ? "items-stretch" : "items-center"
@@ -269,7 +286,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 >
                   <Icon
                     className={`size-6 shrink-0 transition-colors ${
-                      isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                      isActive ? "text-white fill-current" : "text-[#5C5C5C] fill-none group-hover:text-white"
                     }`}
                   />
                   <span
@@ -288,7 +305,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
         </div>
       </div>
 
-      {/* ─── Sidebar Footer [Sidebar] [1.1] ──────────────────────────────────── */}
+      {/* Sidebar Footer */}
       <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] border-t border-[#262626]/20 shrink-0">
         <UserProfileDropdown
           userInfo={userInfo}

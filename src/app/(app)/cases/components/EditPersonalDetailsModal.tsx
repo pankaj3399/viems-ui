@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
 import { XIcon, Sparkles, Upload, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +81,7 @@ export function EditPersonalDetailsModal({
   const [passportExpiryDate, setPassportExpiryDate] = React.useState("");
 
   // Preserved database states
+  const [migrantData, setMigrantData] = React.useState<any>(null);
   const [passportId, setPassportId] = React.useState<number | null>(null);
   const [stageName, setStageName] = React.useState("");
   const [withStageName, setWithStageName] = React.useState(false);
@@ -111,6 +113,7 @@ export function EditPersonalDetailsModal({
         // Fetch migrant profile
         const migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
         if (migrant) {
+          setMigrantData(migrant);
           setFirstName(migrant.user?.personalInfo?.firstName || "");
           setLastName(migrant.user?.personalInfo?.lastName || "");
           setDob(formatDisplayDate(migrant.user?.personalInfo?.dateOfBirth || ""));
@@ -182,38 +185,44 @@ export function EditPersonalDetailsModal({
     try {
       setIsSaving(true);
 
-      const cleanStageName = stageName || `${firstName}${lastName}`.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
-
       const isoDob = parseDisplayDate(dob);
       const isoIssueDate = parseDisplayDate(passportIssueDate);
       const isoExpiryDate = parseDisplayDate(passportExpiryDate);
 
       // Build payload matching MigrantClientDto requirements
-      const payload: any = {
+      const contactEmail = contacts?.contact_email || "";
+
+      const overrides: any = {
         first_name: firstName,
         last_name: lastName,
         gender: gender || null,
         date_of_birth: isoDob || null,
-        nationality: nationality || null,
-        place_of_birth: cityOfBirth,
-        stage_name: cleanStageName,
-        with_stage_name: withStageName,
-        contacts: contacts ? {
-          contact_email: contacts.contact_email,
-          address_line_1: contacts.address_line_1,
-          phone_1: contacts.phone_1,
-          country: contacts.country?.id,
-          state: contacts.state?.id,
-          city: contacts.city?.id,
-          zip_code: contacts.zip_code,
-        } : undefined,
-        passport: {
-          id: passportId || undefined,
-          passport_number: passportNumber,
-          issue_passport_date: isoIssueDate || null,
-          expired_passport_date: isoExpiryDate || null,
+        nationality: nationality ? (isNaN(Number(nationality)) ? nationality : Number(nationality)) : null,
+        place_of_birth: cityOfBirth || null,
+        stage_name: stageName,
+        with_stage_name: Boolean(withStageName),
+        contacts: {
+          contact_email: contactEmail,
+          address_line_1: contacts?.address_line_1 || "",
+          address_line_2: contacts?.address_line_2 || "",
+          zip_code: contacts?.zip_code || "",
+          phone_1: contacts?.phone_1 || "",
+          country: contacts?.country?.id || null,
+          state: contacts?.state?.id || null,
+          city: contacts?.city?.id || null,
         },
       };
+
+      if (passportNumber || isoIssueDate || isoExpiryDate || passportId) {
+        overrides.passport = {
+          ...(passportId ? { id: typeof passportId === "number" ? passportId : parseInt(passportId, 10) } : {}),
+          ...(passportNumber ? { passport_number: passportNumber } : {}),
+          ...(isoIssueDate ? { issue_passport_date: isoIssueDate } : {}),
+          ...(isoExpiryDate ? { expired_passport_date: isoExpiryDate } : {}),
+        };
+      }
+
+      const payload = buildMigrantPatchPayload(migrantData, overrides);
 
       await apiClient.patch(ENDPOINTS.migrants.byId(migrantId), payload);
       toast.success("Personal details updated successfully");
@@ -221,7 +230,8 @@ export function EditPersonalDetailsModal({
       onOpenChange(false);
     } catch (err: any) {
       console.error("Failed to save personal details:", err);
-      toast.error(err?.message || "Failed to save personal details");
+      const errorMsg = typeof err?.message === "string" && err.message ? err.message : "Failed to save personal details";
+      toast.error(errorMsg);
     } finally {
       setIsSaving(false);
     }

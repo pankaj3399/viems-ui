@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
 import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -141,29 +142,15 @@ export function EditHomeAddressModal({
       }
 
       // Build payload preserving unchanged details
-      const payload: any = {
-        first_name: migrantData.user?.personalInfo?.firstName || "",
-        last_name: migrantData.user?.personalInfo?.lastName || "",
-        gender: migrantData.user?.personalInfo?.sex || null,
-        date_of_birth: migrantData.user?.personalInfo?.dateOfBirth || null,
-        nationality: migrantData.user?.personalInfo?.nationality?.id || null,
-        place_of_birth: migrantData.place_of_birth || "",
-        stage_name: migrantData.stage_name,
-        with_stage_name: migrantData.with_stage_name,
+      const payload = buildMigrantPatchPayload(migrantData, {
         contacts: {
-          contact_email: migrantData.contacts?.contact_email || migrantData.user?.email || "",
           address_line_1: addressLine1,
           address_line_2: addressLine2 || null,
           zip_code: postCode,
-          phone_1: migrantData.contacts?.phone_1 || "",
-          phone_2: migrantData.contacts?.phone_2 || null,
-          phone_3: migrantData.contacts?.phone_3 || null,
-          phone_4: migrantData.contacts?.phone_4 || null,
           country: currentCountryId ? parseInt(currentCountryId, 10) : migrantData.contacts?.country?.id,
-          state: migrantData.contacts?.state?.id || null,
           city: resolvedCityId || null,
         },
-      };
+      });
 
       // Handle active passport if any
       const activePassport = migrantData.passports?.find((p: any) => p.is_actual === true);

@@ -7,21 +7,28 @@ import {
   RiArrowRightSLine,
   RiArrowDownSLine,
   RiLayoutGridLine,
+  RiLayoutGridFill,
   RiUserLine,
+  RiUserFill,
   RiBriefcaseLine,
+  RiBriefcaseFill,
   RiFileTextLine,
+  RiFileTextFill,
   RiListCheck,
+  RiCheckboxCircleFill,
   RiStickyNoteLine,
+  RiStickyNoteFill,
   RiMore2Line,
   RiUploadLine,
   RiClipboardLine,
   RiBellLine,
-  RiCheckboxCircleLine,
-  RiAlertLine,
-  RiPencilLine,
+  RiFolderShieldLine,
+  RiFolderShieldFill,
   RiGitBranchLine,
+  RiGitBranchFill,
   RiMapPinLine,
-  RiShieldCheckLine,
+  RiAlertLine,
+  RiCheckboxCircleLine,
 } from "@remixicon/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,14 +39,20 @@ import { Flag } from "@/components/ui/flag";
 import { EditPersonalDetailsModal } from "../components/EditPersonalDetailsModal";
 import { EditHomeAddressModal } from "../components/EditHomeAddressModal";
 import { EditContactDetailsModal } from "../components/EditContactDetailsModal";
+import { EditEmploymentDetailsModal } from "../components/EditEmploymentDetailsModal";
+import { EditWorkAddressModal } from "../components/EditWorkAddressModal";
 import { ChangeCaseStatusModal } from "../components/ChangeCaseStatusModal";
 import { CASE_STATUSES, isMatchingStatus } from "../case-status-data";
 import { toast } from "sonner";
+import { AddNoteModal } from "../components/AddNoteModal";
 import { CaseHeader } from "./components/CaseHeader";
 import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard, ProfileCard } from "./components/OverviewCards";
 import { ComplianceCard } from "./components/ComplianceCard";
 import { DocumentsTab } from "./components/DocumentsTab";
 import { NotesTab } from "./components/NotesTab";
+import { TasksTab } from "./components/TasksTab";
+import { TimelineTab } from "./components/TimelineTab";
+import { ComplianceTab } from "./components/ComplianceTab";
 
 // -- CasesIcon (same as sidebar) --
 const CasesIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -113,11 +126,67 @@ function getCountryInfo(raw: string): { code: string; full: string; half: string
   return { code, full, half, flag };
 }
 
+function sanitizeFirstAndLastName(rawFirst: string, rawLast: string) {
+  let first = (rawFirst || "").trim();
+  let last = (rawLast || "").trim();
+
+  if (first && last) {
+    const firstParts = first.split(/\s+/);
+    const lastParts = last.split(/\s+/);
+
+    if (firstParts.length > 1 && last.toLowerCase().includes(firstParts[0].toLowerCase())) {
+      first = firstParts[0];
+      if (lastParts.length > 1) {
+        last = lastParts[lastParts.length - 1];
+      } else if (last.toLowerCase() === rawFirst.trim().toLowerCase()) {
+        last = firstParts.slice(1).join(" ");
+      }
+    } else if (last.toLowerCase() === first.toLowerCase() && firstParts.length > 1) {
+      first = firstParts[0];
+      last = firstParts.slice(1).join(" ");
+    }
+  } else if (first && !last) {
+    const firstParts = first.split(/\s+/);
+    if (firstParts.length > 1) {
+      first = firstParts[0];
+      last = firstParts.slice(1).join(" ");
+    }
+  }
+
+  return { firstName: first, lastName: last };
+}
+
 function mapBackendCaseToDetail(c: any) {
-  const name = formatFullName(c.migrant?.firstName, c.migrant?.lastName) || c.migrant?.stageName || "Unknown Migrant";
-  
-  // Nationality mapping using getCountryInfo
-  const { full: country, flag: nationalityFlag } = getCountryInfo(c.migrant?.nationality?.value);
+  const m = c.migrant || c;
+  const pInfo = m.user?.personalInfo || {};
+  const activePassport = Array.isArray(m.passports)
+    ? (m.passports.find((p: any) => p.is_actual) || m.passports[0] || {})
+    : (m.passport || {});
+
+  const rawFirstName = m.first_name || pInfo.firstName || m.firstName || "";
+  const rawLastName = m.last_name || pInfo.lastName || m.lastName || "";
+  const { firstName, lastName } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
+  const name = formatFullName(firstName, lastName) || m.stage_name || m.stageName || "Unknown Migrant";
+
+  const rawGender = m.gender || pInfo.sex || m.sex || "";
+  const genderDisplay = rawGender ? (rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()) : "";
+
+  const rawDob = m.date_of_birth || pInfo.dateOfBirth || m.dateOfBirth || "";
+  const dobDisplay = rawDob ? (isNaN(new Date(rawDob).getTime()) ? rawDob : new Date(rawDob).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "";
+
+  const rawNationality = m.nationality?.name || m.nationality?.value || m.nationality?.title || pInfo.nationality?.name || pInfo.nationality?.value || (typeof m.nationality === "string" ? m.nationality : "");
+  const { code: nationalityCode, full: country, flag: nationalityFlag } = getCountryInfo(rawNationality);
+
+  const rawCityOfBirth = m.place_of_birth || m.city_of_birth || m.cityOfBirth || "";
+  const rawCountryOfBirth = m.country_of_birth || m.contacts?.country?.name || m.countryOfBirth || "";
+  const { code: countryOfBirthCode, flag: countryOfBirthFlag } = getCountryInfo(rawCountryOfBirth);
+
+  const passportNumber = activePassport.passport_number || m.passportNumber || activePassport.passportNumber || "";
+  const rawIssueDate = activePassport.issue_passport_date || m.issuePassportDate || activePassport.issuePassportDate || "";
+  const passportIssueDate = rawIssueDate ? (isNaN(new Date(rawIssueDate).getTime()) ? rawIssueDate : new Date(rawIssueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "";
+
+  const rawExpiryDate = activePassport.expired_passport_date || m.expiredPassportDate || activePassport.expiredPassportDate || "";
+  const passportExpiryDate = rawExpiryDate ? (isNaN(new Date(rawExpiryDate).getTime()) ? rawExpiryDate : new Date(rawExpiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "";
 
   // Visa Status
   let visaStatus = "VISA INACTIVE";
@@ -158,14 +227,14 @@ function mapBackendCaseToDetail(c: any) {
     daysLeft = Math.max(0, Math.ceil((end.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
   }
 
-  const migrantId = c.migrantId || c.migrant?.id || "";
+  const migrantId = c.migrantId || m.id || c.id || "";
 
   // Resolve emergency contact from localStorage if exists
   let emergency = {
-    name: "Morgan Johnson",
-    relationship: "Spouse",
-    phone: "+1 (555) 012-3456",
-    email: "morgan.j@email.com",
+    name: "",
+    relationship: "",
+    phone: "",
+    email: "",
   };
   if (typeof window !== "undefined" && migrantId) {
     const stored = localStorage.getItem(`emergency_${migrantId}`);
@@ -177,17 +246,29 @@ function mapBackendCaseToDetail(c: any) {
       }
     }
   }
+  let localEmp: any = null;
+  let localWork: any = null;
+  if (typeof window !== "undefined" && c.id) {
+    const storedEmp = localStorage.getItem(`employment_${c.id}`);
+    if (storedEmp) {
+      try { localEmp = JSON.parse(storedEmp); } catch (e) {}
+    }
+    const storedWork = localStorage.getItem(`work_address_${c.id}`);
+    if (storedWork) {
+      try { localWork = JSON.parse(storedWork); } catch (e) {}
+    }
+  }
 
   // Resolve address details
-  const addressLine1 = c.migrant?.contacts?.address_line_1 || "742 Evergreen Terrace";
-  const addressLine2 = c.migrant?.contacts?.address_line_2 || "";
-  const cityName = c.migrant?.contacts?.city?.name || c.migrant?.contacts?.city || "Los Angeles";
-  const stateName = c.migrant?.contacts?.state?.name || c.migrant?.contacts?.state || "CA";
-  const zipCode = c.migrant?.contacts?.zip_code || "90026";
-  const countryName = c.migrant?.contacts?.country?.name || c.migrant?.contacts?.country || "United States";
+  const addressLine1 = m.contacts?.address_line_1 || "";
+  const addressLine2 = m.contacts?.address_line_2 || "";
+  const cityName = m.contacts?.city?.name || m.contacts?.city || "";
+  const stateName = m.contacts?.state?.name || m.contacts?.state || "";
+  const zipCode = m.contacts?.zip_code || "";
+  const countryName = m.contacts?.country?.name || m.contacts?.country || "";
 
-  const fullHomeAddress = c.migrant?.contacts?.address_line_1
-    ? [c.migrant.contacts.address_line_1, addressLine2, `${cityName}, ${stateName} ${zipCode}`.trim(), countryName].filter(Boolean).join(", ")
+  const fullHomeAddress = m.contacts?.address_line_1
+    ? [m.contacts.address_line_1, addressLine2, [cityName, stateName, zipCode].filter(Boolean).join(" ").trim(), countryName].filter(Boolean).join(", ")
     : "";
 
   // Dynamic Open Tasks count
@@ -230,10 +311,10 @@ function mapBackendCaseToDetail(c: any) {
     id: c.id.toString(),
     migrantId,
     name,
-    employer: c.personal?.groupName || c.employer || c.migrant?.employer || "",
+    employer: c.personal?.groupName || c.employer || m.employer || "",
     caseId: c.caseIdNumber && c.relatedYear ? `#${c.caseIdNumber}/${c.relatedYear}` : c.caseNumber || `#${c.id}`,
     cosRef: c.cosStatus?.assigned?.cosNumber || c.cosReference || "",
-    avatar: c.migrant?.avatar || "",
+    avatar: m.avatar || "",
     visaStatus,
     location,
     approvalStatus,
@@ -241,33 +322,42 @@ function mapBackendCaseToDetail(c: any) {
     missingDocsCount,
     personalInfo: {
       fullName: name,
-      firstName: c.migrant?.firstName || name.split(" ")[0] || "",
-      lastName: c.migrant?.lastName || name.split(" ")[1] || "",
-      gender: c.migrant?.gender || "",
-      dob: c.migrant?.dateOfBirth ? new Date(c.migrant.dateOfBirth).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
-      maritalStatus: emergency.relationship === "Spouse" ? "Married" : "Single",
+      firstName: firstName,
+      lastName: lastName,
+      gender: genderDisplay,
+      dob: dobDisplay,
+      maritalStatus: m.maritalStatus || m.marital_status || m.personalInfo?.maritalStatus || c.personal?.maritalStatus || "—",
       nationality: country,
+      nationalityCode: nationalityCode,
       nationalityFlag,
-      countryOfBirth: c.migrant?.countryOfBirth || c.migrant?.placeOfBirth || "",
-      countryOfBirthFlag: getCountryInfo(c.migrant?.countryOfBirth || c.migrant?.placeOfBirth || "").flag,
-      cityOfBirth: c.migrant?.placeOfBirth || c.migrant?.place_of_birth || "",
-      employer: c.personal?.groupName || c.employer || c.migrant?.employer || "",
+      countryOfBirth: rawCountryOfBirth,
+      countryOfBirthCode: countryOfBirthCode,
+      countryOfBirthFlag,
+      cityOfBirth: rawCityOfBirth,
+      employer: c.personal?.groupName || c.employer || m.employer || "",
       jobTitle: c.personal?.jobTitle || "",
-      address: c.migrant?.contacts?.address_line_1 
-        ? [c.migrant.contacts.address_line_1, `${cityName}, ${stateName} ${zipCode}`.trim()].filter(Boolean)
+      address: m.contacts?.address_line_1 
+        ? [m.contacts.address_line_1, `${cityName}, ${stateName} ${zipCode}`.trim()].filter(Boolean)
         : [],
     },
     passport: {
-      number: c.migrant?.passportNumber || "",
-      issueDate: c.migrant?.issuePassportDate ? new Date(c.migrant.issuePassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
-      expiryDate: c.migrant?.expiredPassportDate ? new Date(c.migrant.expiredPassportDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+      number: passportNumber,
+      issueDate: passportIssueDate,
+      expiryDate: passportExpiryDate,
     },
     contact: {
-      email: c.migrant?.user?.email || c.migrant?.email || "",
-      phone: c.migrant?.contacts?.phone_1 || "",
+      email: m.user?.email || m.contacts?.contact_email || m.email || "",
+      phone: m.contacts?.phone_1 || "",
       homeAddress: fullHomeAddress,
+      addressLine1: addressLine1,
+      addressLine2: [addressLine2, cityName, stateName, zipCode].filter(Boolean).join(", "),
       lastConfirmed: "Not yet verified",
-      emergency,
+      emergency: {
+        name: emergency.name || "",
+        relationship: emergency.relationship || "",
+        phone: emergency.phone || "",
+        email: emergency.email || "",
+      },
     },
     cos: {
       status: c.cosStatus?.id || (approvalStatus === "VISA APPROVED" ? "ASSIGNED" : "DRAFT"),
@@ -298,27 +388,42 @@ function mapBackendCaseToDetail(c: any) {
         { icon: "bell", label: "SMS reports", extra: "None yet" },
       ],
     },
+    employment: {
+      cosReference: c.cosStatus?.assigned?.cosNumber || c.cosReference || "",
+      socCode: c.personal?.jobSocCode || c.personal?.socCode || "",
+      employer: localEmp?.employer || c.personal?.groupName || c.employer || m.employer || "",
+      jobTitle: localEmp?.jobTitle || c.personal?.jobTitle || "",
+      startDate: localEmp?.startDate || (c.decision?.granted?.visaStartDate ? new Date(c.decision.granted.visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""),
+      endDate: localEmp?.endDate || (c.decision?.granted?.visaEndDate ? new Date(c.decision.granted.visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : ""),
+      contract: localEmp?.contract || c.personal?.employmentType || c.personal?.contractType || "",
+      grossSalary: localEmp?.grossSalary || (c.personal?.jobPay ? (String(c.personal.jobPay).includes("year") || String(c.personal.jobPay).startsWith("£") ? c.personal.jobPay : `£${c.personal.jobPay}/year`) : ""),
+      hoursPerWeek: localEmp?.hoursPerWeek || c.personal?.hoursPerWeek || "",
+      mainWorkAddressLine1: localWork?.mainWorkAddressLine1 || localEmp?.mainWorkAddressLine1 || c.personal?.workAddress1 || "",
+      mainWorkAddressLine2: localWork?.mainWorkAddressLine2 || localEmp?.mainWorkAddressLine2 || c.personal?.workAddress2 || "",
+      secondWorkAddressLine1: localWork?.secondWorkAddress1 || c.personal?.secondWorkAddress1 || "",
+      secondWorkAddressLine2: localWork?.secondWorkAddress2 || c.personal?.secondWorkAddress2 || "",
+    },
   };
 }
 
 const tabs = [
-  { label: "Overview", icon: RiLayoutGridLine },
-  { label: "Personal Details", icon: RiUserLine },
-  { label: "Employment", icon: RiBriefcaseLine },
-  { label: "Documents", icon: RiFileTextLine },
-  { label: "Tasks", icon: RiListCheck },
-  { label: "Compliance", icon: RiShieldCheckLine },
-  { label: "Timeline", icon: RiGitBranchLine },
-  { label: "Notes", icon: RiStickyNoteLine },
+  { label: "Overview", iconLine: RiLayoutGridLine, iconFill: RiLayoutGridFill },
+  { label: "Personal Details", iconLine: RiUserLine, iconFill: RiUserFill },
+  { label: "Employment", iconLine: RiBriefcaseLine, iconFill: RiBriefcaseFill },
+  { label: "Documents", iconLine: RiFileTextLine, iconFill: RiFileTextFill },
+  { label: "Tasks", iconLine: RiListCheck, iconFill: RiListCheck },
+  { label: "Compliance", iconLine: RiFolderShieldLine, iconFill: RiFolderShieldFill },
+  { label: "Timeline", iconLine: RiGitBranchLine, iconFill: RiGitBranchFill },
+  { label: "Notes", iconLine: RiStickyNoteLine, iconFill: RiStickyNoteFill },
 ];
 
 // -- Helper: Key-Value Row --
 function KVRow({ label, value, children }: { label: string; value?: string; children?: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between py-sm">
-      <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em]">{label}</span>
+    <div className="flex items-start justify-between py-sm font-inter">
+      <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em] font-inter font-normal">{label}</span>
       {children ? children : (
-        <span className="text-[14px] font-medium text-[#171717] text-right tracking-[-0.006em]">{value}</span>
+        <span className="text-[14px] font-medium text-[#171717] text-right tracking-[-0.006em] font-inter">{value || "—"}</span>
       )}
     </div>
   );
@@ -411,13 +516,32 @@ export default function MigrantOverviewPage() {
   const [isPersonalModalOpen, setIsPersonalModalOpen] = React.useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = React.useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
+  const [isEmploymentModalOpen, setIsEmploymentModalOpen] = React.useState(false);
+  const [isWorkAddressModalOpen, setIsWorkAddressModalOpen] = React.useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = React.useState(false);
+  const [isAddNoteOpen, setIsAddNoteOpen] = React.useState(false);
 
   const loadCaseDetail = React.useCallback(async () => {
     if (!id) return;
     try {
-      const response = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
-      const detail = mapBackendCaseToDetail(response);
+      const caseResponse = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
+      const migrantId = caseResponse?.migrantId || caseResponse?.migrant?.id || id;
+      let fullMigrantData = null;
+      if (migrantId) {
+        try {
+          fullMigrantData = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
+        } catch (e) {
+          console.error("Failed to fetch full migrant details:", e);
+        }
+      }
+      const combined = {
+        ...caseResponse,
+        migrant: {
+          ...(caseResponse?.migrant || {}),
+          ...(fullMigrantData || {}),
+        },
+      };
+      const detail = mapBackendCaseToDetail(combined);
       setMigrant(detail);
     } catch (err) {
       console.error("Failed to fetch case detail:", err);
@@ -451,7 +575,7 @@ export default function MigrantOverviewPage() {
   const visaProgress = ((migrant.visa.totalDays - migrant.visa.daysLeft) / migrant.visa.totalDays) * 100;
 
   return (
-    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full">
+    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full overflow-x-hidden">
       {/* ====== WHITE HEADER ====== */}
       <div className="bg-white rounded-t-card flex flex-col shrink-0">
         <CaseHeader
@@ -464,13 +588,14 @@ export default function MigrantOverviewPage() {
           approvalStatus={migrant.approvalStatus}
           onBack={() => router.push("/cases")}
           onChangeStatus={() => setIsChangeStatusOpen(true)}
+          onAddNote={() => setIsAddNoteOpen(true)}
         />
 
         {/* ====== TAB MENU ====== */}
         <div className="px-[64px] flex items-center gap-2xl h-[50px] border-b border-[#EBEBEB]">
           {tabs.map((tab) => {
-            const Icon = tab.icon;
             const isActive = activeTab === tab.label;
+            const IconComponent = isActive ? tab.iconFill : tab.iconLine;
             return (
               <Button
                 key={tab.label}
@@ -482,7 +607,7 @@ export default function MigrantOverviewPage() {
                     : "border-transparent text-[#5C5C5C] hover:text-[#171717]"
                 }`}
               >
-                <Icon className="size-5" />
+                <IconComponent className="size-5" />
                 <span>{tab.label}</span>
               </Button>
             );
@@ -491,16 +616,20 @@ export default function MigrantOverviewPage() {
       </div>
 
       {/* ====== CONTENT AREA ====== */}
-      <div className="flex-1 px-[32px] py-2xl">
+      <div className="flex-1 px-[32px] py-2xl max-w-full overflow-x-hidden">
         {activeTab === "Overview" ? (
           <div className="flex gap-[24px] items-start w-full">
             {/* ====== COLUMN 1 (Left 303.5px): Profile & Migration Status & Timeline ====== */}
             <div className="w-[303px] shrink-0 flex flex-col gap-[24px]">
               <ProfileCard
                 name={migrant.name}
-                initials={migrant.name ? migrant.name.split(" ").map((n: string) => n[0]).join("") : "TJ"}
+                initials={migrant.name ? migrant.name.split(" ").filter(Boolean).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "—"}
+                avatar={migrant.avatar}
                 employer={migrant.employer}
-                status={migrant.approvalStatus}
+                status={migrant.approvalStatus === "VISA APPROVED" ? "VISA APPROVED" : "AWAITING APPLICANT DOCS"}
+                onAddNote={() => setIsAddNoteOpen(true)}
+                onUpload={() => setActiveTab("Documents")}
+                onDocuments={() => setActiveTab("Documents")}
               />
               <MigrationStatusCard location={migrant.location} visa={migrant.visa} />
               <TimelineCard timeline={migrant.timeline} onViewAll={() => setActiveTab("Timeline")} />
@@ -533,26 +662,26 @@ export default function MigrantOverviewPage() {
             </div>
           </div>
         ) : activeTab === "Personal Details" ? (
-          <div className="flex gap-[24px] items-start w-full font-sans select-none">
+          <div className="flex gap-[24px] items-start w-full font-inter select-none max-w-full">
             {/* LEFT COLUMN: Personal details widget */}
-            <div className="w-[540px] flex flex-col gap-[12px] shrink-0">
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
               <div className="flex items-center justify-between h-[30px]">
-                <h2 className="font-medium text-[20px] text-[#171717] leading-[32px] font-sans">
+                <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                   Personal details
                 </h2>
                 <button
                   type="button"
                   onClick={() => setIsPersonalModalOpen(true)}
-                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
                 >
                   Edit
                 </button>
               </div>
               
               {/* Outer white card */}
-              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-auto">
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[450px]">
                 {/* Inner gray container */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-[532px] h-auto flex flex-col gap-xs">
+                <div className="bg-[#F7F7F7] rounded-[16px] p-[8px_20px_16px] w-full h-[442px] flex flex-col gap-[8px] justify-between">
                   <KVRow label="First Name" value={migrant.personalInfo.firstName} />
                   <KVRow label="Last Name" value={migrant.personalInfo.lastName} />
                   <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
@@ -560,17 +689,29 @@ export default function MigrantOverviewPage() {
                   <KVRow label="Marital Status" value={migrant.personalInfo.maritalStatus} />
                   
                   <KVRow label="Nationality">
-                    <div className="flex items-center gap-xs">
-                      {renderCircularFlag(migrant.personalInfo.nationality, migrant.personalInfo.nationalityFlag)}
-                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-sans">{migrant.personalInfo.nationality}</span>
-                    </div>
+                    {migrant.personalInfo.nationality ? (
+                      <div className="flex items-center gap-xs font-inter">
+                        {renderCircularFlag(migrant.personalInfo.nationality, migrant.personalInfo.nationalityFlag)}
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.personalInfo.nationalityCode}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">—</span>
+                    )}
                   </KVRow>
                   
                   <KVRow label="Country of Birth">
-                    <div className="flex items-center gap-xs">
-                      {renderCircularFlag(migrant.personalInfo.countryOfBirth, migrant.personalInfo.countryOfBirthFlag)}
-                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-sans">{migrant.personalInfo.countryOfBirth}</span>
-                    </div>
+                    {migrant.personalInfo.countryOfBirth ? (
+                      <div className="flex items-center gap-xs font-inter">
+                        {renderCircularFlag(migrant.personalInfo.countryOfBirth, migrant.personalInfo.countryOfBirthFlag)}
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.personalInfo.countryOfBirthCode}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">—</span>
+                    )}
                   </KVRow>
                   
                   <KVRow label="City of Birth" value={migrant.personalInfo.cityOfBirth} />
@@ -582,67 +723,82 @@ export default function MigrantOverviewPage() {
             </div>
 
             {/* RIGHT COLUMN: Home address and Contact details widgets */}
-            <div className="w-[540px] flex flex-col gap-[24px] shrink-0">
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[24px]">
               {/* Home address widget */}
-              <div className="flex flex-col gap-[12px] w-[540px]">
+              <div className="flex flex-col gap-[12px] w-full">
                 <div className="flex items-center justify-between h-[30px]">
-                  <h2 className="font-medium text-[20px] text-[#171717] leading-[32px] font-sans">
+                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                     Home address
                   </h2>
                   <button
                     type="button"
                     onClick={() => setIsAddressModalOpen(true)}
-                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
                   >
                     Edit
                   </button>
                 </div>
                 
-                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-[80px]">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-[532px] h-[72px] flex items-center gap-sm">
+                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[80px]">
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[72px] flex items-center gap-[8px]">
                     <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
-                    <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-sans">
-                      {migrant.contact.homeAddress}
-                    </span>
+                    <div className="flex flex-col text-left font-inter">
+                      {migrant.contact.addressLine1 || migrant.contact.addressLine2 ? (
+                        <>
+                          {migrant.contact.addressLine1 && (
+                            <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                              {migrant.contact.addressLine1}
+                            </span>
+                          )}
+                          {migrant.contact.addressLine2 && (
+                            <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                              {migrant.contact.addressLine2}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">—</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Contact details widget */}
-              <div className="flex flex-col gap-[12px] w-[540px]">
+              <div className="flex flex-col gap-[12px] w-full">
                 <div className="flex items-center justify-between h-[30px]">
-                  <h2 className="font-medium text-[20px] text-[#171717] leading-[32px] font-sans">
+                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                     Contact details
                   </h2>
                   <button
                     type="button"
                     onClick={() => setIsContactModalOpen(true)}
-                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
                   >
                     Edit
                   </button>
                 </div>
 
-                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-[540px] h-auto">
-                  <div className="w-[532px] h-auto flex flex-col gap-md">
+                <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[424px]">
+                  <div className="w-full h-[416px] flex flex-col gap-[4px]">
                     {/* PRIMARY CONTACT Section */}
-                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] flex flex-col gap-xs h-auto">
-                      <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-sans">
+                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
+                      <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-inter">
                         Primary Contact
                       </span>
                       <KVRow label="Email" value={migrant.contact.email} />
                       <KVRow label="Phone" value={migrant.contact.phone} />
                       <KVRow label="Home Address" value={migrant.contact.homeAddress} />
                       <KVRow label="Last Confirmed">
-                        <span className="text-[14px] font-medium text-[#A4A4A4] tracking-[-0.006em] font-sans">
+                        <span className="text-[14px] font-medium text-[#A4A4A4] tracking-[-0.006em] font-inter">
                           {migrant.contact.lastConfirmed}
                         </span>
                       </KVRow>
                     </div>
 
                     {/* EMERGENCY CONTACT Section */}
-                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] flex flex-col gap-xs h-auto font-sans">
-                      <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-sans">
+                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
+                      <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-inter">
                         Emergency Contact
                       </span>
                       <KVRow label="Name" value={migrant.contact.emergency.name} />
@@ -655,8 +811,109 @@ export default function MigrantOverviewPage() {
               </div>
             </div>
           </div>
+        ) : activeTab === "Employment" ? (
+          <div className="flex gap-[24px] items-start w-full font-inter select-none max-w-full">
+            {/* LEFT COLUMN: Employment details widget */}
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
+              <div className="flex items-center justify-between h-[30px]">
+                <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
+                  Employment details
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsEmploymentModalOpen(true)}
+                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
+                >
+                  Edit
+                </button>
+              </div>
+
+              {/* Outer white card */}
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[340px]">
+                {/* Inner gray container */}
+                <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[332px] flex flex-col justify-between">
+                  <KVRow label="CoS Reference" value={migrant.employment?.cosReference} />
+                  <KVRow label="SOC Code" value={migrant.employment?.socCode} />
+                  <KVRow label="Employer" value={migrant.employment?.employer} />
+                  <KVRow label="Job Title" value={migrant.employment?.jobTitle} />
+                  <KVRow label="Start/End Date" value={migrant.employment?.startDate && migrant.employment?.endDate ? `${migrant.employment.startDate} – ${migrant.employment.endDate}` : "—"} />
+                  <KVRow label="Contract" value={migrant.employment?.contract} />
+                  <KVRow label="Gross Salary" value={migrant.employment?.grossSalary} />
+                  <KVRow label="Hours/Week" value={migrant.employment?.hoursPerWeek} />
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: Work address widget */}
+            <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
+              <div className="flex items-center justify-between h-[30px]">
+                <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
+                  Work address
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsWorkAddressModalOpen(true)}
+                  className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-inter"
+                >
+                  Edit
+                </button>
+              </div>
+
+              {/* Outer white card */}
+              <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[220px]">
+                <div className="w-full h-[212px] flex flex-col gap-[4px]">
+                  {/* MAIN ADDRESS Section */}
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
+                    <span className="text-[12px] font-medium tracking-[0.04em] text-[#171717] uppercase font-inter">
+                      MAIN ADDRESS
+                    </span>
+                    <div className="flex items-center gap-[8px]">
+                      <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
+                      <div className="flex flex-col text-left font-inter">
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.mainWorkAddressLine1}
+                        </span>
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.mainWorkAddressLine2}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SECOND ADDRESS Section */}
+                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
+                    <div className="flex items-center gap-[8px]">
+                      <span className="text-[12px] font-medium tracking-[0.04em] text-[#171717] uppercase font-inter">
+                        SECOND ADDRESS
+                      </span>
+                      <span className="bg-[#EBEBEB] text-[#7B7B7B] text-[11px] font-medium px-[8px] py-[2px] rounded-full uppercase tracking-[0.02em] font-inter">
+                        UNVERIFIED
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-[8px]">
+                      <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
+                      <div className="flex flex-col text-left font-inter">
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.secondWorkAddressLine1}
+                        </span>
+                        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] font-inter">
+                          {migrant.employment?.secondWorkAddressLine2}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         ) : activeTab === "Documents" ? (
           <DocumentsTab caseId={id} />
+        ) : activeTab === "Tasks" ? (
+          <TasksTab caseId={id} />
+        ) : activeTab === "Timeline" ? (
+          <TimelineTab id={id} />
+        ) : activeTab === "Compliance" ? (
+          <ComplianceTab id={id} />
         ) : activeTab === "Notes" ? (
           <NotesTab id={id} />
         ) : (
@@ -713,6 +970,28 @@ export default function MigrantOverviewPage() {
             onOpenChange={setIsContactModalOpen}
             migrantId={migrant.migrantId}
             onSuccess={loadCaseDetail}
+          />
+          <EditEmploymentDetailsModal
+            open={isEmploymentModalOpen}
+            onOpenChange={setIsEmploymentModalOpen}
+            caseId={id}
+            migrantId={migrant.migrantId}
+            initialData={migrant.employment}
+            onSuccess={loadCaseDetail}
+          />
+          <EditWorkAddressModal
+            open={isWorkAddressModalOpen}
+            onOpenChange={setIsWorkAddressModalOpen}
+            caseId={id}
+            migrantId={migrant.migrantId}
+            initialData={migrant.employment}
+            onSuccess={loadCaseDetail}
+          />
+          <AddNoteModal
+            isOpen={isAddNoteOpen}
+            onClose={() => setIsAddNoteOpen(false)}
+            caseId={id}
+            onNoteAdded={loadCaseDetail}
           />
         </>
       )}
