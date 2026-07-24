@@ -72,9 +72,9 @@ export function EditPersonalDetailsModal({
   const [lastName, setLastName] = React.useState("");
   const [dob, setDob] = React.useState("");
   const [gender, setGender] = React.useState("");
-  const [maritalStatus, setMaritalStatus] = React.useState("Married");
+  const [maritalStatus, setMaritalStatus] = React.useState("");
   const [nationality, setNationality] = React.useState("");
-  const [countryOfBirth, setCountryOfBirth] = React.useState("United States");
+  const [countryOfBirth, setCountryOfBirth] = React.useState("");
   const [cityOfBirth, setCityOfBirth] = React.useState("");
   const [passportNumber, setPassportNumber] = React.useState("");
   const [passportIssueDate, setPassportIssueDate] = React.useState("");
@@ -118,6 +118,8 @@ export function EditPersonalDetailsModal({
           setLastName(migrant.user?.personalInfo?.lastName || "");
           setDob(formatDisplayDate(migrant.user?.personalInfo?.dateOfBirth || ""));
           setGender(migrant.user?.personalInfo?.sex || "");
+          setMaritalStatus(migrant.marital_status || migrant.maritalStatus || "");
+          setCountryOfBirth(migrant.country_of_birth || migrant.countryOfBirth || "");
           
           if (migrant.user?.personalInfo?.nationality?.id) {
             setNationality(migrant.user.personalInfo.nationality.id.toString());
@@ -197,6 +199,8 @@ export function EditPersonalDetailsModal({
         last_name: lastName,
         gender: gender || null,
         date_of_birth: isoDob || null,
+        marital_status: maritalStatus || null,
+        country_of_birth: countryOfBirth || null,
         nationality: nationality ? (isNaN(Number(nationality)) ? nationality : Number(nationality)) : null,
         place_of_birth: cityOfBirth || null,
         stage_name: stageName,

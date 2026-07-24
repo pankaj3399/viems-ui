@@ -23,13 +23,28 @@ export function formatFullName(firstName?: string, lastName?: string): string {
   const firstWords = firstLower.split(/\s+/);
   const lastWords = lastLower.split(/\s+/);
 
-  // If last name is already contained as a whole-word phrase in first name (e.g. first = "Gurjit Singh", last = "Singh")
-  if (lastWords.every((word) => firstWords.includes(word))) {
+  const isContiguousSubsequence = (sub: string[], arr: string[]): boolean => {
+    if (sub.length === 0 || sub.length > arr.length) return false;
+    for (let i = 0; i <= arr.length - sub.length; i++) {
+      let match = true;
+      for (let j = 0; j < sub.length; j++) {
+        if (arr[i + j] !== sub[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) return true;
+    }
+    return false;
+  };
+
+  // If last name is already contained as a contiguous phrase in first name
+  if (isContiguousSubsequence(lastWords, firstWords)) {
     return first;
   }
 
-  // If first name is already contained as a whole-word phrase in last name (e.g. first = "Singh", last = "Gurjit Singh")
-  if (firstWords.every((word) => lastWords.includes(word))) {
+  // If first name is already contained as a contiguous phrase in last name
+  if (isContiguousSubsequence(firstWords, lastWords)) {
     return last;
   }
 

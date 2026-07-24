@@ -46,56 +46,44 @@ export function EditWorkAddressModal({
   initialData,
   onSuccess,
 }: EditWorkAddressModalProps) {
-  const [addresses, setAddresses] = React.useState<AddressItem[]>([
-    {
-      id: "main",
-      type: "Hotel",
-      line1: "Royal Albert Hall",
-      line2: "",
-      city: "London",
-      postCode: "SW7 2AP",
-      country: "United Kingdom",
-    },
-    {
-      id: "second",
-      type: "Office",
-      line1: "45 Cromwell Road",
-      line2: "",
-      city: "London",
-      postCode: "SW7 2EF",
-      country: "United States",
-    },
-  ]);
-
+  const [addresses, setAddresses] = React.useState<AddressItem[]>([]);
   const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
     if (open && initialData) {
-      const mainLine1 = initialData.mainWorkAddressLine1 || "Royal Albert Hall";
-      const mainLine2 = initialData.mainWorkAddressLine2 || "";
-      const secondLine1 = initialData.secondWorkAddressLine1 || "45 Cromwell Road";
-      const secondLine2 = initialData.secondWorkAddressLine2 || "";
+      if (initialData.addressesList && Array.isArray(initialData.addressesList) && initialData.addressesList.length > 0) {
+        setAddresses(initialData.addressesList);
+      } else {
+        const mainLine1 = initialData.mainWorkAddressLine1 || "";
+        const mainLine2 = initialData.mainWorkAddressLine2 || "";
+        const secondLine1 = initialData.secondWorkAddressLine1 || "";
+        const secondLine2 = initialData.secondWorkAddressLine2 || "";
 
-      setAddresses([
-        {
-          id: "main",
-          type: "Hotel",
-          line1: mainLine1,
-          line2: mainLine2,
-          city: "London",
-          postCode: "SW7 2AP",
-          country: "United Kingdom",
-        },
-        {
-          id: "second",
-          type: "Office",
-          line1: secondLine1,
-          line2: secondLine2,
-          city: "London",
-          postCode: "SW7 2EF",
-          country: "United States",
-        },
-      ]);
+        const newAddrs: AddressItem[] = [];
+        if (mainLine1 || mainLine2) {
+          newAddrs.push({
+            id: "main",
+            type: "Hotel",
+            line1: mainLine1,
+            line2: mainLine2,
+            city: "",
+            postCode: "",
+            country: "United Kingdom",
+          });
+        }
+        if (secondLine1 || secondLine2) {
+          newAddrs.push({
+            id: "second",
+            type: "Office",
+            line1: secondLine1,
+            line2: secondLine2,
+            city: "",
+            postCode: "",
+            country: "United Kingdom",
+          });
+        }
+        setAddresses(newAddrs);
+      }
     }
   }, [open, initialData]);
 

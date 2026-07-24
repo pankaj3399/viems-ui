@@ -33,6 +33,7 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
   const contactsOverride = overrides.contacts || {};
 
   const payload: any = {
+    ...overrides,
     first_name: firstName,
     last_name: lastName,
     gender:
@@ -106,7 +107,6 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
           : existingContacts.city?.id || null,
       ...contactsOverride,
     },
-    ...overrides,
   };
 
   if (overrides.passport) {

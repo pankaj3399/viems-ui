@@ -165,7 +165,10 @@ export function TimelineTab({ id }: { id?: string }) {
         </div>
         <button
           type="button"
-          className="size-9 rounded-[8px] bg-white border border-[#EBEBEB] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 transition-colors cursor-pointer"
+          aria-label="Filter timeline events"
+          title="Filter timeline (coming soon)"
+          disabled
+          className="size-9 rounded-[8px] bg-white border border-[#EBEBEB] flex items-center justify-center text-[#5C5C5C] opacity-50 cursor-not-allowed"
         >
           <RiFilter3Line className="size-4" />
         </button>

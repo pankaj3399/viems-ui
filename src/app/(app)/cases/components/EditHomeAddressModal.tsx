@@ -152,17 +152,6 @@ export function EditHomeAddressModal({
         },
       });
 
-      // Handle active passport if any
-      const activePassport = migrantData.passports?.find((p: any) => p.is_actual === true);
-      if (activePassport) {
-        payload.passport = {
-          id: activePassport.id,
-          passport_number: activePassport.passport_number,
-          issue_passport_date: activePassport.issue_passport_date,
-          expired_passport_date: activePassport.expired_passport_date,
-        };
-      }
-
       await apiClient.patch(ENDPOINTS.migrants.byId(migrantId), payload);
       toast.success("Home address updated successfully");
       onSuccess();

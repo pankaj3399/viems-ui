@@ -14,18 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-
-interface DocumentItem {
-  id: string;
-  name: string;
-  subtitle: string;
-  folderId: string;
-  folderName: string;
-  status: "uploaded" | "not_uploaded" | "required_asap" | "under_review";
-  date?: string;
-  dateWarning?: string;
-  isAlert?: boolean;
-}
+import { DocumentItem } from "./types";
 
 interface ReplaceFileModalProps {
   isOpen: boolean;
@@ -51,17 +40,12 @@ export function ReplaceFileModal({
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Reset modal state on open/close
+  // Sync documentType on document change
   React.useEffect(() => {
-    if (isOpen) {
-      setStep("form");
-      setSelectedFile(null);
-      setDragActive(false);
-      if (document) {
-        setDocumentType(document.name);
-      }
+    if (document) {
+      setDocumentType(document.name);
     }
-  }, [isOpen, document]);
+  }, [document]);
 
   if (!isOpen || !document) return null;
 
@@ -95,6 +79,7 @@ export function ReplaceFileModal({
   };
 
   const handleStartReplace = async () => {
+    if (!selectedFile) return;
     setStep("scanning");
 
     // Simulate AI extraction delay
@@ -106,6 +91,7 @@ export function ReplaceFileModal({
   const handleConfirmReplacement = () => {
     const updated: DocumentItem = {
       ...document,
+      name: documentType || document.name,
       status: "uploaded",
       subtitle: selectedFile
         ? `${selectedFile.name} · ${(selectedFile.size / (1024 * 1024)).toFixed(1)} MB`
@@ -115,13 +101,15 @@ export function ReplaceFileModal({
       isAlert: false,
     };
 
-    toast.success(`${document.name} replaced successfully`, {
+    toast.success(`${documentType || document.name} replaced successfully`, {
       description: "AI automatically extracted 9 fields and updated the profile details.",
     });
 
     if (onReplaceSuccess) {
       onReplaceSuccess(updated);
     }
+    setStep("form");
+    setSelectedFile(null);
     onClose();
   };
 
@@ -140,6 +128,7 @@ export function ReplaceFileModal({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close modal"
               className="size-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer border-0"
             >
               <X className="size-4" />
@@ -168,11 +157,12 @@ export function ReplaceFileModal({
 
           {/* Document Type Selector */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-medium text-[#171717]">
+            <label htmlFor="replace-doc-type" className="text-[13px] font-medium text-[#171717]">
               Document Type
             </label>
             <div className="relative">
               <select
+                id="replace-doc-type"
                 value={documentType}
                 onChange={(e) => setDocumentType(e.target.value)}
                 className="w-full h-10 px-3 pr-8 rounded-[10px] border border-[#E5E7EB] bg-white text-[14px] font-medium text-[#171717] focus:outline-hidden focus:border-[#7D52F4] appearance-none cursor-pointer"
@@ -189,11 +179,19 @@ export function ReplaceFileModal({
 
           {/* Dashed Drag & Drop Box */}
           <div
+            role="button"
+            tabIndex={0}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
             className={`border-2 border-dashed rounded-[16px] p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative group ${
               dragActive || selectedFile
                 ? "border-[#7D52F4] bg-[#F3E8FF]/30"
@@ -231,12 +229,13 @@ export function ReplaceFileModal({
           {/* Form Fields: Passport Number */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="replace-passport-number" className="text-[13px] font-medium text-[#171717]">
                 Passport Number
               </label>
               <Info className="size-3.5 text-[#A4A4A4]" />
             </div>
             <input
+              id="replace-passport-number"
               type="text"
               value={passportNumber}
               onChange={(e) => setPassportNumber(e.target.value)}
@@ -247,11 +246,12 @@ export function ReplaceFileModal({
           {/* Form Fields: Start Date & End Date Row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="replace-start-date" className="text-[13px] font-medium text-[#171717]">
                 Start Date
               </label>
               <div className="relative">
                 <input
+                  id="replace-start-date"
                   type="text"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
@@ -261,11 +261,12 @@ export function ReplaceFileModal({
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="replace-end-date" className="text-[13px] font-medium text-[#171717]">
                 End Date
               </label>
               <div className="relative">
                 <input
+                  id="replace-end-date"
                   type="text"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
@@ -278,10 +279,11 @@ export function ReplaceFileModal({
 
           {/* Form Fields: Notes */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-medium text-[#171717]">
+            <label htmlFor="replace-notes" className="text-[13px] font-medium text-[#171717]">
               Notes
             </label>
             <textarea
+              id="replace-notes"
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -317,8 +319,9 @@ export function ReplaceFileModal({
             </Button>
             <Button
               type="button"
+              disabled={!selectedFile}
               onClick={handleStartReplace}
-              className="h-10 px-5 rounded-[10px] text-[14px] font-medium bg-[#7D52F4] hover:bg-[#683fd1] text-white"
+              className="h-10 px-5 rounded-[10px] text-[14px] font-medium bg-[#7D52F4] hover:bg-[#683fd1] text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Replace
             </Button>
@@ -332,6 +335,7 @@ export function ReplaceFileModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="size-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-700 absolute top-4 right-4 cursor-pointer border-0"
           >
             <X className="size-4" />
@@ -379,6 +383,7 @@ export function ReplaceFileModal({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close modal"
               className="size-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer border-0"
             >
               <X className="size-4" />
@@ -408,7 +413,7 @@ export function ReplaceFileModal({
               <div className="size-20 rounded-[12px] overflow-hidden bg-neutral-200 border border-neutral-300">
                 <img
                   src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-                  alt="Taylor Johnson Photo"
+                  alt="Taylor Johnson Profile"
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -446,11 +451,11 @@ export function ReplaceFileModal({
               </div>
               <div className="flex justify-between items-center py-1 border-b border-neutral-200/60">
                 <span className="text-[#6B7280]">Passport Number</span>
-                <span className="font-semibold text-[#171717]">LQ41932345</span>
+                <span className="font-semibold text-[#171717]">{passportNumber || "LQ41932345"}</span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-neutral-200/60">
                 <span className="text-[#6B7280]">Passport Expiry</span>
-                <span className="font-semibold text-[#171717]">22 Nov 2027</span>
+                <span className="font-semibold text-[#171717]">{endDate || "22 Nov 2027"}</span>
               </div>
             </div>
           </div>

@@ -29,18 +29,8 @@ interface FolderItem {
   total: number;
 }
 
-interface DocumentItem {
-  id: string;
-  name: string;
-  subtitle: string;
-  folderId: string;
-  folderName: string;
-  status: "uploaded" | "not_uploaded" | "required_asap" | "under_review";
-  date?: string;
-  dateWarning?: string;
-  isAlert?: boolean;
-  fileUrl?: string;
-}
+import { DocumentItem } from "@/app/(app)/cases/components/types";
+export type { DocumentItem };
 
 const defaultFolders: FolderItem[] = [
   { id: "f1", name: "Appendix D", countText: "6 of 9", completed: 6, total: 9 },
@@ -307,7 +297,7 @@ const defaultDocuments: DocumentItem[] = [
     status: "uploaded",
     date: "Mar 9, 2028",
   },
-];
+].map((doc) => ({ ...doc, isMockFixture: true } as DocumentItem));
 
 export function DocumentsTab({ caseId }: { caseId?: string }) {
   const [viewMode, setViewMode] = React.useState<"checklist" | "folders">("checklist");
@@ -323,13 +313,18 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
   // File Preview Modal State
   const [previewDoc, setPreviewDoc] = React.useState<DocumentItem | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+  const [previewTabInitial, setPreviewTabInitial] = React.useState<"details" | "ai" | "history">("details");
 
   // Replace File Modal State
   const [replaceDoc, setReplaceDoc] = React.useState<DocumentItem | null>(null);
   const [isReplaceOpen, setIsReplaceOpen] = React.useState(false);
 
-  const handleOpenPreview = (doc: DocumentItem) => {
+  const handleOpenPreview = (
+    doc: DocumentItem,
+    initialTab: "details" | "ai" | "history" = "details"
+  ) => {
     setPreviewDoc(doc);
+    setPreviewTabInitial(initialTab);
     setIsPreviewOpen(true);
   };
 
@@ -353,38 +348,70 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
     });
   }, [folders, documents]);
 
+interface BackendFolderResponse {
+  id?: string | number;
+  name?: string;
+  title?: string;
+  completed?: number;
+  filesCount?: number;
+  total?: number;
+}
+
+interface BackendFileResponse {
+  id?: string | number;
+  originalName?: string;
+  name?: string;
+  filename?: string;
+  size?: number | string;
+  folderId?: string | number;
+  folderName?: string;
+  status?: string;
+  createdAt?: string;
+  fileUrl?: string;
+}
+
   // ─── Real Backend Fetch ──────────────────────────────────────────────────
   const fetchBackendData = React.useCallback(async () => {
     if (!caseId) return;
     try {
       const [foldersRes, filesRes] = await Promise.allSettled([
-        apiClient.get<any[]>(ENDPOINTS.folders.system),
-        apiClient.get<any[]>(`${ENDPOINTS.files.base}/list/cases/${caseId}`),
+        apiClient.get<BackendFolderResponse[]>(ENDPOINTS.folders.system),
+        apiClient.get<BackendFileResponse[]>(`${ENDPOINTS.files.base}/list/cases/${caseId}`),
       ]);
 
-      let rawFolders = foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value) ? foldersRes.value : [];
-      let rawFiles = filesRes.status === "fulfilled" && Array.isArray(filesRes.value) ? filesRes.value : [];
+      const rawFolders: BackendFolderResponse[] =
+        foldersRes.status === "fulfilled" && Array.isArray(foldersRes.value)
+          ? foldersRes.value
+          : [];
+      const rawFiles: BackendFileResponse[] =
+        filesRes.status === "fulfilled" && Array.isArray(filesRes.value)
+          ? filesRes.value
+          : [];
 
       if (rawFolders.length > 0) {
-        const mappedFolders: FolderItem[] = rawFolders.map((f: any, idx: number) => ({
-          id: String(f.id || `f_${idx}`),
-          name: f.name || f.title || `Folder ${idx + 1}`,
-          countText: `${f.completed || f.filesCount || 0} of ${f.total || 6}`,
-          completed: f.completed || f.filesCount || 0,
-          total: f.total || 6,
-        }));
+        const mappedFolders: FolderItem[] = rawFolders.map((f, idx) => {
+          const completed = f.completed ?? f.filesCount ?? 0;
+          const total = f.total ?? completed;
+          return {
+            id: String(f.id || `f_${idx}`),
+            name: f.name || f.title || `Folder ${idx + 1}`,
+            countText: `${completed} of ${total}`,
+            completed,
+            total,
+          };
+        });
         setFolders(mappedFolders);
       }
 
       if (rawFiles.length > 0) {
-        const mappedDocs: DocumentItem[] = rawFiles.map((file: any, idx: number) => ({
+        const mappedDocs: DocumentItem[] = rawFiles.map((file, idx) => ({
           id: String(file.id || `doc_${idx}`),
           name: file.originalName || file.name || file.filename || "Document",
           subtitle: `${file.originalName || file.name || "File"} · ${
             file.size ? (Number(file.size) / (1024 * 1024)).toFixed(1) + " MB" : "PDF"
           }`,
-          folderId: String(file.folderId || "f1"),
-          folderName: file.folderName || "Appendix D",
+          folderId: String(file.folderId || "unfiled"),
+          folderName: file.folderName || "Unfiled",
           status:
             file.status === "REQUIRED_ASAP" || file.status === "required_asap"
               ? "required_asap"
@@ -394,14 +421,15 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
               ? "not_uploaded"
               : "uploaded",
           date: file.createdAt
-            ? new Date(file.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            ? new Date(file.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
             : "Mar 5, 2028",
+          fileUrl: file.fileUrl,
         }));
-        setDocuments((prev) => {
-          const existingIds = new Set(prev.map((d) => d.id));
-          const newFetched = mappedDocs.filter((d) => !existingIds.has(d.id));
-          return [...prev, ...newFetched];
-        });
+        setDocuments(mappedDocs);
       }
     } catch (err) {
       console.error("Backend fetch error in DocumentsTab:", err);
@@ -415,26 +443,26 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
   // ─── Real Backend Upload Handler ──────────────────────────────────────────
   const handleModalUploadSuccess = async (uploadedFiles: File[]) => {
     if (!uploadedFiles || uploadedFiles.length === 0) return;
+
+    if (!caseId || isNaN(Number(caseId))) {
+      toast.error("Invalid case ID for upload");
+      throw new Error("Invalid case ID");
+    }
+
     const toastId = toast.loading(`Uploading ${uploadedFiles.length} file(s)...`);
 
     try {
       const formData = new FormData();
       uploadedFiles.forEach((f) => formData.append("files", f));
-      if (caseId) {
-        formData.append("caseId", String(caseId));
-        formData.append("module", "cases");
-      }
+      formData.append("caseId", String(caseId));
+      formData.append("module", "cases");
 
-      const validCaseId = caseId && !isNaN(Number(caseId)) ? caseId : "1";
-      const uploadUrl = `${ENDPOINTS.files.base}/upload/cases/${validCaseId}`;
+      const uploadUrl = `${ENDPOINTS.files.base}/upload/cases/${caseId}`;
 
       await apiClient.post<any>(uploadUrl, {
         body: formData,
       });
-    } catch (err: any) {
-      console.warn("Backend upload note:", err);
-    } finally {
-      toast.dismiss(toastId);
+
       toast.success(`Successfully uploaded ${uploadedFiles.length} document(s)`);
 
       if (activeDocId) {
@@ -471,6 +499,11 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
         }));
         setDocuments((prev) => [...newDocs, ...prev]);
       }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload document");
+      throw err;
+    } finally {
+      toast.dismiss(toastId);
     }
   };
 
@@ -482,9 +515,10 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
 
   // ─── Real Backend File Delete Handler ──────────────────────────────────────
   const handleDeleteDocument = async (docId: string) => {
+    const targetDoc = documents.find((d) => d.id === docId);
     const toastId = toast.loading("Deleting document...");
     try {
-      if (!docId.startsWith("d")) {
+      if (!targetDoc?.isMockFixture) {
         await apiClient.delete(`${ENDPOINTS.files.base}/to-archive/${docId}`);
       }
       toast.dismiss(toastId);
@@ -534,6 +568,7 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         document={previewDoc}
+        initialTab={previewTabInitial}
         onReplace={() => {
           setIsPreviewOpen(false);
           if (previewDoc) handleOpenReplace(previewDoc);
@@ -599,8 +634,14 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
               <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
                 Folders
               </h2>
-              <span className="text-[12px] text-[#5C5C5C] font-normal">
-                {computedFolders.length > 0 ? `2 of ${computedFolders.length + 1}` : "2 of 6"}
+              <span className="text-[12px] font-normal text-[#5C5C5C]">
+                {(() => {
+                  const total = computedFolders.length;
+                  if (total === 0) return "0 of 0";
+                  const selectedIdx = computedFolders.findIndex((f) => f.id === selectedFolderId);
+                  const currentNum = selectedIdx >= 0 ? selectedIdx + 1 : total;
+                  return `${currentNum} of ${total}`;
+                })()}
               </span>
             </div>
 
@@ -610,9 +651,17 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
                 return (
                   <div
                     key={folder.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() =>
                       setSelectedFolderId(isSelected ? null : folder.id)
                     }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setSelectedFolderId(isSelected ? null : folder.id);
+                      }
+                    }}
                     className={`bg-white border rounded-[16px] p-4 flex flex-col items-center justify-center text-center cursor-pointer transition-all h-[136px] ${
                       isSelected
                         ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 shadow-sm"
@@ -705,10 +754,20 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
                       {groupDocs.map((doc) => (
                         <div
                           key={doc.id}
+                          role="button"
+                          tabIndex={0}
                           className="bg-white border border-[#F5F5F5] rounded-[16px] p-[4px] flex items-center h-[72px] w-full gap-3 hover:border-neutral-200 transition-all cursor-pointer"
                           onClick={() => {
                             if (doc.status === "uploaded" || doc.status === "under_review") {
                               handleOpenPreview(doc);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              if (doc.status === "uploaded" || doc.status === "under_review") {
+                                handleOpenPreview(doc);
+                              }
                             }
                           }}
                         >
@@ -798,14 +857,16 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
                                 <RiDeleteBinLine className="size-4 shrink-0" />
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleOpenPreview(doc)}
-                              className="size-[24px] rounded-[6px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-100 transition-colors cursor-pointer border-0"
-                              title="Preview document"
-                            >
-                              <RiEyeLine className="size-4 shrink-0" />
-                            </button>
+                            {(doc.status === "uploaded" || doc.status === "under_review") && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPreview(doc)}
+                                className="size-[24px] rounded-[6px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-100 transition-colors cursor-pointer border-0"
+                                title="Preview document"
+                              >
+                                <RiEyeLine className="size-4 shrink-0" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -848,10 +909,20 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
                       return (
                         <div
                           key={doc.id}
+                          role="button"
+                          tabIndex={0}
                           className="bg-white rounded-[16px] p-5 flex flex-col items-center justify-between text-center relative h-[336px] shadow-2xs hover:shadow-md transition-all border border-[#F5F5F5] cursor-pointer"
                           onClick={() => {
                             if (doc.status === "uploaded" || doc.status === "under_review") {
                               handleOpenPreview(doc);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              if (doc.status === "uploaded" || doc.status === "under_review") {
+                                handleOpenPreview(doc);
+                              }
                             }
                           }}
                         >
@@ -936,7 +1007,7 @@ export function DocumentsTab({ caseId }: { caseId?: string }) {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenPreview(doc)}
+                                  onClick={() => handleOpenPreview(doc, "history")}
                                   className="size-[32px] rounded-[8px] bg-[#F5F5F5] hover:bg-[#EBEBEB] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0"
                                   title="Version history"
                                 >

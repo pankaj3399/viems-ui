@@ -400,8 +400,9 @@ function mapBackendCaseToDetail(c: any) {
       hoursPerWeek: localEmp?.hoursPerWeek || c.personal?.hoursPerWeek || "",
       mainWorkAddressLine1: localWork?.mainWorkAddressLine1 || localEmp?.mainWorkAddressLine1 || c.personal?.workAddress1 || "",
       mainWorkAddressLine2: localWork?.mainWorkAddressLine2 || localEmp?.mainWorkAddressLine2 || c.personal?.workAddress2 || "",
-      secondWorkAddressLine1: localWork?.secondWorkAddress1 || c.personal?.secondWorkAddress1 || "",
-      secondWorkAddressLine2: localWork?.secondWorkAddress2 || c.personal?.secondWorkAddress2 || "",
+      secondWorkAddressLine1: localWork?.secondWorkAddressLine1 || localWork?.secondWorkAddress1 || c.personal?.secondWorkAddress1 || c.personal?.secondWorkAddressLine1 || "",
+      secondWorkAddressLine2: localWork?.secondWorkAddressLine2 || localWork?.secondWorkAddress2 || c.personal?.secondWorkAddress2 || c.personal?.secondWorkAddressLine2 || "",
+      addressesList: localWork?.addressesList || [],
     },
   };
 }

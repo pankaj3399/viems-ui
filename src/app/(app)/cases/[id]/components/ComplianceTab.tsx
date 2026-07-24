@@ -45,9 +45,67 @@ function ComplianceDonutChart({ percentage = 75 }: { percentage?: number }) {
   );
 }
 
+interface PriorityTaskItem {
+  id: string;
+  title: string;
+  priority: "HIGH" | "MEDIUM" | "LOW";
+  badgeBg: string;
+  badgeText: string;
+  statusText: string;
+  statusColor: string;
+  dueDate: string;
+}
+
+const initialPriorityTasks: PriorityTaskItem[] = [
+  {
+    id: "pt1",
+    title: "Complete right-to-work check",
+    priority: "HIGH",
+    badgeBg: "bg-[#FFEBEC]",
+    badgeText: "text-[#681219]",
+    statusText: "Overdue by 2 days",
+    statusColor: "text-[#FB3748]",
+    dueDate: "Due 16 July 2026",
+  },
+  {
+    id: "pt2",
+    title: "Review address discrepancy",
+    priority: "MEDIUM",
+    badgeBg: "bg-[#FFFAEB]",
+    badgeText: "text-[#624C18]",
+    statusText: "Due in 5 days",
+    statusColor: "text-[#E6A819]",
+    dueDate: "Due 16 July 2026",
+  },
+  {
+    id: "pt3",
+    title: "Verify salary against CoS details",
+    priority: "MEDIUM",
+    badgeBg: "bg-[#FFFAEB]",
+    badgeText: "text-[#624C18]",
+    statusText: "Due in 7 days",
+    statusColor: "text-[#E6A819]",
+    dueDate: "Due 16 July 2026",
+  },
+  {
+    id: "pt4",
+    title: "Request updated passport copy",
+    priority: "LOW",
+    badgeBg: "bg-[#F5F5F5]",
+    badgeText: "text-[#5C5C5C]",
+    statusText: "Due in 14 days",
+    statusColor: "text-[#5C5C5C]",
+    dueDate: "Due 16 July 2026",
+  },
+];
+
 export function ComplianceTab({ id }: { id?: string }) {
   const [priorityFilter, setPriorityFilter] = React.useState<"ALL" | "HIGH" | "MEDIUM" | "LOW">("ALL");
-  const [docFilter, setDocFilter] = React.useState<"ALL" | "MISSING" | "EXPIRING">("ALL");
+
+  const filteredTasks = React.useMemo(() => {
+    if (priorityFilter === "ALL") return initialPriorityTasks;
+    return initialPriorityTasks.filter((t) => t.priority === priorityFilter);
+  }, [priorityFilter]);
 
   return (
     <div className="w-full flex flex-col gap-8 font-sans select-none animate-fade-in text-left max-w-[1104px] mx-auto">
@@ -254,95 +312,37 @@ export function ComplianceTab({ id }: { id?: string }) {
 
             {/* Task Rows */}
             <div className="flex flex-col gap-2">
-              
-              {/* Row 1 */}
-              <div className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="size-6 rounded-[8px] bg-[#FFEBEC] text-[#681219] flex items-center justify-center font-bold text-[12px] shrink-0">
-                    !
+              {filteredTasks.map((task) => (
+                <div
+                  key={task.id}
+                  className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`size-6 rounded-[8px] ${task.badgeBg} ${task.badgeText} flex items-center justify-center font-bold text-[12px] shrink-0`}
+                    >
+                      !
+                    </div>
+                    <span className="text-[14px] font-medium text-[#171717]">
+                      {task.title}
+                    </span>
                   </div>
-                  <span className="text-[14px] font-medium text-[#171717]">
-                    Complete right-to-work check
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-[14px] font-medium text-[#FB3748]">
-                    <RiCalendarLine className="size-4 text-[#FB3748]" />
-                    <span>Overdue by 2 days</span>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex items-center gap-1 text-[14px] font-medium ${task.statusColor}`}>
+                      <RiCalendarLine className={`size-4 ${task.statusColor}`} />
+                      <span>{task.statusText}</span>
+                    </div>
+                    <span className="text-[13px] text-[#5C5C5C]">{task.dueDate}</span>
+                    <button
+                      type="button"
+                      aria-label={`View task details for ${task.title}`}
+                      className="size-6 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] border-0 cursor-pointer"
+                    >
+                      <RiArrowRightSLine className="size-4" />
+                    </button>
                   </div>
-                  <span className="text-[13px] text-[#5C5C5C]">Due 16 July 2026</span>
-                  <button type="button" className="size-6 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] border-0 cursor-pointer">
-                    <RiArrowRightSLine className="size-4" />
-                  </button>
                 </div>
-              </div>
-
-              {/* Row 2 */}
-              <div className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="size-6 rounded-[8px] bg-[#FFFAEB] text-[#624C18] flex items-center justify-center font-bold text-[12px] shrink-0">
-                    !
-                  </div>
-                  <span className="text-[14px] font-medium text-[#171717]">
-                    Review address discrepancy
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-[14px] font-medium text-[#E6A819]">
-                    <RiCalendarLine className="size-4 text-[#E6A819]" />
-                    <span>Due in 5 days</span>
-                  </div>
-                  <span className="text-[13px] text-[#5C5C5C]">Due 16 July 2026</span>
-                  <button type="button" className="size-6 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] border-0 cursor-pointer">
-                    <RiArrowRightSLine className="size-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Row 3 */}
-              <div className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="size-6 rounded-[8px] bg-[#FFFAEB] text-[#624C18] flex items-center justify-center font-bold text-[12px] shrink-0">
-                    !
-                  </div>
-                  <span className="text-[14px] font-medium text-[#171717]">
-                    Verify salary against CoS details
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-[14px] font-medium text-[#E6A819]">
-                    <RiCalendarLine className="size-4 text-[#E6A819]" />
-                    <span>Due in 7 days</span>
-                  </div>
-                  <span className="text-[13px] text-[#5C5C5C]">Due 16 July 2026</span>
-                  <button type="button" className="size-6 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] border-0 cursor-pointer">
-                    <RiArrowRightSLine className="size-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Row 4 */}
-              <div className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="size-6 rounded-[8px] bg-[#F5F5F5] text-[#5C5C5C] flex items-center justify-center font-bold text-[12px] shrink-0">
-                    !
-                  </div>
-                  <span className="text-[14px] font-medium text-[#171717]">
-                    Request updated passport copy
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-[14px] font-medium text-[#5C5C5C]">
-                    <RiCalendarLine className="size-4 text-[#5C5C5C]" />
-                    <span>Due in 14 days</span>
-                  </div>
-                  <span className="text-[13px] text-[#5C5C5C]">Due 16 July 2026</span>
-                  <button type="button" className="size-6 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] border-0 cursor-pointer">
-                    <RiArrowRightSLine className="size-4" />
-                  </button>
-                </div>
-              </div>
-
+              ))}
             </div>
 
           </div>

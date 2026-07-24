@@ -3,13 +3,17 @@
 import * as React from "react";
 import { Upload, Sparkles, X, Loader2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface SmartUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  onUploadSuccess?: (files: File[]) => void;
+  onUploadSuccess?: (files: File[]) => void | Promise<void>;
 }
+
+const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".pdf", ".mp4"];
+const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 
 export function SmartUploadModal({
   isOpen,
@@ -33,6 +37,23 @@ export function SmartUploadModal({
 
   if (!isOpen) return null;
 
+  const validateFiles = (files: File[]): File[] => {
+    const valid: File[] = [];
+    for (const f of files) {
+      const ext = "." + f.name.split(".").pop()?.toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        toast.error(`File "${f.name}" format is not supported.`);
+        continue;
+      }
+      if (f.size > MAX_SIZE_BYTES) {
+        toast.error(`File "${f.name}" exceeds 50 MB limit.`);
+        continue;
+      }
+      valid.push(f);
+    }
+    return valid;
+  };
+
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -47,16 +68,25 @@ export function SmartUploadModal({
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files);
-      setSelectedFiles((prev) => [...prev, ...droppedFiles]);
+      const valid = validateFiles(droppedFiles);
+      if (valid.length > 0) {
+        setSelectedFiles((prev) => [...prev, ...valid]);
+      }
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files && e.target.files.length > 0) {
       const newFiles = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
+      const valid = validateFiles(newFiles);
+      if (valid.length > 0) {
+        setSelectedFiles((prev) => [...prev, ...valid]);
+      }
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -96,6 +126,7 @@ export function SmartUploadModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="size-8 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer border-0"
           >
             <X className="size-4" />
@@ -104,11 +135,19 @@ export function SmartUploadModal({
 
         {/* Dashed Drag & Drop Box */}
         <div
+          role="button"
+          tabIndex={0}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
           className={`border-2 border-dashed rounded-[16px] p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all relative group ${
             dragActive
               ? "border-[#7D52F4] bg-[#F3E8FF]/30"
@@ -147,7 +186,7 @@ export function SmartUploadModal({
           <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1">
             {selectedFiles.map((file, index) => (
               <div
-                key={index}
+                key={`${file.name}-${file.lastModified}-${file.size}`}
                 className="flex items-center justify-between p-2.5 bg-[#F9FAFB] rounded-[10px] border border-[#E5E7EB]"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -161,6 +200,7 @@ export function SmartUploadModal({
                 </div>
                 <button
                   type="button"
+                  aria-label={`Remove ${file.name}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     removeFile(index);

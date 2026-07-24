@@ -38,17 +38,17 @@ export function EditEmploymentDetailsModal({
   initialData,
   onSuccess,
 }: EditEmploymentDetailsModalProps) {
-  const [employer, setEmployer] = React.useState("AX Studios");
-  const [jobTitle, setJobTitle] = React.useState("Singer");
-  const [startDate, setStartDate] = React.useState("15 / 03 / 2026");
-  const [endDate, setEndDate] = React.useState("16 / 03 / 2027");
-  const [contract, setContract] = React.useState("Full-time");
-  const [hoursPerWeek, setHoursPerWeek] = React.useState("40");
-  const [annualSalary, setAnnualSalary] = React.useState("£ 48,000");
-  const [addressLine1, setAddressLine1] = React.useState("Royal Albert Hall");
-  const [addressLine2, setAddressLine2] = React.useState("");
-  const [city, setCity] = React.useState("London");
-  const [postCode, setPostCode] = React.useState("SW7 2AP");
+  const [employer, setEmployer] = React.useState(initialData?.employer || "");
+  const [jobTitle, setJobTitle] = React.useState(initialData?.jobTitle || "");
+  const [startDate, setStartDate] = React.useState(initialData?.startDate || "");
+  const [endDate, setEndDate] = React.useState(initialData?.endDate || "");
+  const [contract, setContract] = React.useState(initialData?.contract || "");
+  const [hoursPerWeek, setHoursPerWeek] = React.useState(initialData?.hoursPerWeek || "");
+  const [annualSalary, setAnnualSalary] = React.useState(initialData?.grossSalary || "");
+  const [addressLine1, setAddressLine1] = React.useState(initialData?.mainWorkAddressLine1 || "");
+  const [addressLine2, setAddressLine2] = React.useState(initialData?.mainWorkAddressLine2 || "");
+  const [city, setCity] = React.useState("");
+  const [postCode, setPostCode] = React.useState("");
 
   const [isSaving, setIsSaving] = React.useState(false);
 

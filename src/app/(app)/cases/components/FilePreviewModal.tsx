@@ -15,25 +15,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-interface DocumentItem {
-  id: string;
-  name: string;
-  subtitle: string;
-  folderId: string;
-  folderName: string;
-  status: "uploaded" | "not_uploaded" | "required_asap" | "under_review";
-  date?: string;
-  dateWarning?: string;
-  isAlert?: boolean;
-  fileUrl?: string;
-}
+import { DocumentItem } from "./types";
 
 interface FilePreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   document?: DocumentItem | null;
   onReplace?: () => void;
+  initialTab?: "details" | "ai" | "history";
 }
 
 export function FilePreviewModal({
@@ -41,8 +30,15 @@ export function FilePreviewModal({
   onClose,
   document,
   onReplace,
+  initialTab = "details",
 }: FilePreviewModalProps) {
-  const [activeTab, setActiveTab] = React.useState<"details" | "ai" | "history">("details");
+  const [activeTab, setActiveTab] = React.useState<"details" | "ai" | "history">(initialTab);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   const [currentPage, setCurrentPage] = React.useState(1);
   const [zoomLevel, setZoomLevel] = React.useState(100);
   const totalPages = 4;
@@ -54,14 +50,25 @@ export function FilePreviewModal({
   const uploadDate = document.date || "Mar 8, 2026";
 
   const handleDownload = () => {
-    // Create a mock download link
     const element = window.document.createElement("a");
-    const file = new Blob([`Mock file content for ${document.name}`], { type: "text/plain" });
-    element.href = URL.createObjectURL(file);
+    let isCreatedUrl = false;
+    let url = document.fileUrl;
+
+    if (!url) {
+      const file = new Blob([`Mock file content for ${document.name}`], { type: "text/plain" });
+      url = URL.createObjectURL(file);
+      isCreatedUrl = true;
+    }
+
+    element.href = url;
     element.download = fileName;
     window.document.body.appendChild(element);
     element.click();
     window.document.body.removeChild(element);
+
+    if (isCreatedUrl) {
+      URL.revokeObjectURL(url);
+    }
   };
 
   return (
@@ -109,6 +116,7 @@ export function FilePreviewModal({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close preview"
               className="size-9 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer border-0 ml-1"
             >
               <X className="size-5" />
@@ -128,6 +136,7 @@ export function FilePreviewModal({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  aria-label="Zoom out"
                   onClick={() => setZoomLevel((z) => Math.max(50, z - 10))}
                   className="size-7 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer"
                 >
@@ -136,6 +145,7 @@ export function FilePreviewModal({
                 <span className="w-12 text-center text-[13px] font-medium">{zoomLevel}%</span>
                 <button
                   type="button"
+                  aria-label="Zoom in"
                   onClick={() => setZoomLevel((z) => Math.min(200, z + 10))}
                   className="size-7 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-[#5C5C5C] border-0 cursor-pointer"
                 >
@@ -155,6 +165,7 @@ export function FilePreviewModal({
               <div className="flex items-center gap-3">
                 <button
                   type="button"
+                  aria-label="Previous page"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
                   className="size-7 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-[#5C5C5C] disabled:opacity-30 border-0 cursor-pointer"
@@ -166,6 +177,7 @@ export function FilePreviewModal({
                 </span>
                 <button
                   type="button"
+                  aria-label="Next page"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   className="size-7 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-[#5C5C5C] disabled:opacity-30 border-0 cursor-pointer"
@@ -218,6 +230,7 @@ export function FilePreviewModal({
                     src={document.fileUrl || `/sample-files/${document.name.toLowerCase().includes("passport") ? "TJ_Passport_Scan.pdf" : document.name.toLowerCase().includes("visa") ? "TJ_eVisa_confirmation.pdf" : document.name.toLowerCase().includes("contract") ? "AX_Studios_Contract_TJ.pdf" : "walkthrough.pdf"}`}
                     className="w-full h-full min-h-[560px] border-0"
                     title={document.name}
+                    sandbox="allow-scripts allow-same-origin"
                   />
                 </div>
               </div>

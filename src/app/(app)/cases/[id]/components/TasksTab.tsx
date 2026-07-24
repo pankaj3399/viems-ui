@@ -153,15 +153,20 @@ export function TasksTab({ caseId }: { caseId?: string }) {
   ];
 
   const handleToggleComplete = (taskId: string) => {
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (!targetTask) return;
+    const nextState = !targetTask.isCompleted;
+    toast.success(
+      nextState
+        ? `"${targetTask.title}" marked as complete`
+        : `"${targetTask.title}" marked as pending`
+    );
     setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === taskId) {
-          const nextState = !t.isCompleted;
-          toast.success(nextState ? `"${t.title}" marked as complete` : `"${t.title}" marked as pending`);
-          return { ...t, isCompleted: nextState, status: nextState ? "completed" : t.status };
-        }
-        return t;
-      })
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, isCompleted: nextState, status: nextState ? "completed" : t.status }
+          : t
+      )
     );
   };
 
