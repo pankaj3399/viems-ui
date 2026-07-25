@@ -28,23 +28,16 @@ import { ChangeCaseStatusModal } from "../../cases/components/ChangeCaseStatusMo
 import { AddNoteModal } from "../../cases/components/AddNoteModal";
 import { toast } from "sonner";
 
-const CasesTabIcon = ({ active, className }: { active?: boolean; className?: string }) =>
-  active ? (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 16.5303C2.57902 16.3897 2.5 16.1989 2.5 16V7C2.5 6.80109 2.57902 6.61032 2.71967 6.46967C2.86032 6.32902 3.05109 6.25 3.25 6.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z" fill="currentColor"/>
-    </svg>
-  ) : (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <g transform="translate(2.5, 3)">
-        <path d="M3 3V0.75C3 0.551088 3.07902 0.360322 3.21967 0.21967C3.36032 0.0790176 3.55109 0 3.75 0H8.5605L10.0605 1.5H14.25C14.4489 1.5 14.6397 1.57902 14.7803 1.71967C14.921 1.86032 15 2.05109 15 2.25V9.75C15 9.94891 14.921 10.1397 14.7803 10.2803C14.6397 10.421 14.4489 10.5 14.25 10.5H12V12.75C12 12.9489 11.921 13.1397 11.7803 13.2803C11.6397 13.421 11.4489 13.5 11.25 13.5H0.75C0.551088 13.5 0.360322 13.421 0.21967 3.21967C0.360322 3.07902 0.551088 3 0.75 3H3ZM3 4.5H1.5V12H10.5V10.5H3V4.5ZM4.5 1.5V9H13.5V3H9.4395L7.9395 1.5H4.5Z" fill="currentColor"/>
-      </g>
-    </svg>
-  );
+const CasesTabIcon = ({ active, className }: { active?: boolean; className?: string }) => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 16.5303C2.57902 16.3897 2.5 16.1989 2.5 16V7C2.5 6.80109 2.57902 6.61032 2.71967 6.46967C2.86032 6.32902 3.05109 6.25 3.25 6.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z" fill="currentColor"/>
+  </svg>
+);
 
 const migrantTabs = [
   { label: "Overview", iconLine: RiLayoutGridLine, iconFill: RiLayoutGridFill },
   { label: "Passport", iconLine: RiFileTextLine, iconFill: RiFileTextFill },
-  { label: "Cases", iconLine: (props: any) => <CasesTabIcon active={false} {...props} />, iconFill: (props: any) => <CasesTabIcon active={true} {...props} /> },
+  { label: "Cases", iconLine: (props: React.SVGProps<SVGSVGElement>) => <CasesTabIcon active={false} {...props} />, iconFill: (props: React.SVGProps<SVGSVGElement>) => <CasesTabIcon active={true} {...props} /> },
   { label: "Travel History", iconLine: RiSuitcase2Line, iconFill: RiSuitcase2Fill },
 ];
 
@@ -414,13 +407,13 @@ export default function MigrantDetailPage() {
                     onClick={() => setActiveTab("Cases")}
                     className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto"
                   >
-                    Edit
+                    View all
                   </button>
                 </div>
                 <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
                   <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full flex items-center justify-between">
                     <span className="text-[13px] text-[#5C5C5C]">Case ID</span>
-                    <span className="text-[14px] font-mono font-medium text-[#171717]">234/1232</span>
+                    <span className="text-[14px] font-mono font-medium text-[#171717]">{migrant.caseId}</span>
                   </div>
                 </div>
               </div>
@@ -451,6 +444,7 @@ export default function MigrantDetailPage() {
         caseId={id}
         onNoteAdded={() => {
           toast.success("Note added to migrant profile");
+          loadMigrantDetail();
         }}
       />
       <EditPersonalDetailsModal

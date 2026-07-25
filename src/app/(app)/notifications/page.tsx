@@ -30,7 +30,7 @@ interface PageNotificationItem {
   description: string;
   time: string;
   caseRef: string;
-  group: "TODAY" | "YESTERDAY" | "21 MAY 2026";
+  group: string;
   isUnread?: boolean;
   category: "mentions" | "tasks" | "cases" | "messages" | "documents";
 }
@@ -213,13 +213,13 @@ export default function NotificationsPage() {
             const category = getCategoryForLog(entityName, log.action);
             return {
               id: String(log.id ?? i),
-              group: group as any,
+              group,
               icon,
               title,
               description,
               time: timeAgo,
               caseRef: idStr || "#430/2026",
-              isUnread: i < 4,
+              isUnread: typeof log.isUnread === "boolean" ? log.isUnread : typeof log.is_read === "boolean" ? !log.is_read : i < 2,
               category,
             };
           });
@@ -255,16 +255,11 @@ export default function NotificationsPage() {
   }, [items, unreadOnly, filterCategory, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
-
-  React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [currentPage, totalPages]);
+  const safeCurrentPage = Math.min(currentPage, totalPages);
 
   const groups = React.useMemo(() => {
     const map = new Map<string, PageNotificationItem[]>();
-    const startIndex = (currentPage - 1) * itemsPerPage;
+    const startIndex = (safeCurrentPage - 1) * itemsPerPage;
     const paginatedItems = filteredItems.slice(startIndex, startIndex + itemsPerPage);
     paginatedItems.forEach((item) => {
       const existing = map.get(item.group) || [];
@@ -272,7 +267,7 @@ export default function NotificationsPage() {
       map.set(item.group, existing);
     });
     return Array.from(map.entries());
-  }, [filteredItems, currentPage, itemsPerPage]);
+  }, [filteredItems, safeCurrentPage, itemsPerPage]);
 
   const filterCategoryLabels: Record<string, string> = {
     all: "All notifications",
@@ -292,7 +287,7 @@ export default function NotificationsPage() {
             Notifications
           </h1>
           <p className="text-[14px] text-[#7B7B7B] tracking-[-0.006em] mt-1 leading-[20px] font-sans">
-            Create, track, and manage visa cases for individual or grouped applicants.
+            Stay updated on mentions, task reminders, case status changes, and documents.
           </p>
         </div>
         <button
@@ -386,10 +381,11 @@ export default function NotificationsPage() {
                 {groupItems.map((item) => {
                   const IconComp = item.icon;
                   return (
-                    <div
+                    <button
                       key={item.id}
+                      type="button"
                       onClick={() => router.push("/cases")}
-                      className="w-full h-auto min-h-[104px] bg-white border border-[#EBEBEB] hover:border-neutral-300 rounded-[12px] p-[16px] flex items-start gap-[16px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
+                      className="w-full text-left h-auto min-h-[104px] bg-white border border-[#EBEBEB] hover:border-neutral-300 rounded-[12px] p-[16px] flex items-start gap-[16px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
                     >
                       {/* Left Icon */}
                       <div className="size-[36px] rounded-full bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center shrink-0">
@@ -423,7 +419,7 @@ export default function NotificationsPage() {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>

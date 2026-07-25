@@ -7,6 +7,7 @@ import {
   RiFile3Fill,
 } from "@remixicon/react";
 import { Flag } from "@/components/ui/flag";
+import { getInitials } from "@/lib/utils";
 
 interface PassportTabProps {
   migrant?: any;
@@ -14,24 +15,46 @@ interface PassportTabProps {
 }
 
 export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
-  const surname = migrant?.personalInfo?.lastName || "Johnson";
-  const givenNames = migrant?.personalInfo?.firstName || "Taylor";
-  const fullName = migrant?.name || `${givenNames} ${surname}`;
-  const nationality = migrant?.personalInfo?.country || migrant?.personalInfo?.nationality || "United States";
-  const nationalityCode = migrant?.personalInfo?.nationalityCode || "US";
-  const dob = migrant?.personalInfo?.dob || "14 Jun 1990";
-  const gender = migrant?.personalInfo?.gender || "Male";
-  const genderShort = gender.charAt(0).toUpperCase();
-  const maritalStatus = migrant?.personalInfo?.maritalStatus || "Married";
-  const placeOfBirth = "Los Angeles, CA";
-  const cityOfBirth = "Los Angeles";
-  const passportNumber = migrant?.passport?.number || "LQ41932345";
-  const issueDate = migrant?.passport?.issueDate || "22 Nov 2022";
-  const expiryDate = migrant?.passport?.expiryDate || "22 Nov 2027";
-  const issuingAuthority = "United States Department of State";
-  const avatar = migrant?.avatar || "/sample-files/avatar.png";
+  const [imgError, setImgError] = React.useState(false);
 
-  const mrzCode = `P<USA${surname.toUpperCase()}<<${givenNames.toUpperCase()}<<<<<<<<<<<<<<<<<< ${passportNumber}USA9006145M2711225<<<<<<<<<<<<<<04`;
+  const surname = migrant?.personalInfo?.lastName || migrant?.passport?.surname || "—";
+  const givenNames = migrant?.personalInfo?.firstName || migrant?.passport?.givenNames || "—";
+  const fullName = migrant?.name || (surname !== "—" || givenNames !== "—" ? `${givenNames} ${surname}`.trim() : "—");
+  const nationality = migrant?.personalInfo?.country || migrant?.personalInfo?.nationality || "—";
+  const nationalityCode = migrant?.personalInfo?.nationalityCode || "US";
+  const dob = migrant?.personalInfo?.dob || "—";
+  const gender = migrant?.personalInfo?.gender || "—";
+  const genderShort = gender !== "—" ? gender.charAt(0).toUpperCase() : "—";
+  const maritalStatus = migrant?.personalInfo?.maritalStatus || "—";
+  const placeOfBirth = migrant?.personalInfo?.placeOfBirth || migrant?.personalInfo?.countryOfBirth || "—";
+  const cityOfBirth = migrant?.personalInfo?.cityOfBirth || "—";
+  const passportNumber = migrant?.passport?.number || "—";
+  const issueDate = migrant?.passport?.issueDate || "—";
+  const expiryDate = migrant?.passport?.expiryDate || "—";
+  const issuingAuthority = migrant?.passport?.issuingAuthority || "—";
+  const avatar = migrant?.avatar;
+
+  const mrzCode = passportNumber !== "—"
+    ? `P<USA${(surname !== "—" ? surname : "DOE").toUpperCase()}<<${(givenNames !== "—" ? givenNames : "JOHN").toUpperCase()}<<<<<<<<<<<<<<<<<< ${passportNumber}USA9006145M2711225<<<<<<<<<<<<<<04`
+    : "—";
+
+  const daysLeft = React.useMemo(() => {
+    if (!expiryDate || expiryDate === "—") return null;
+    const expTime = new Date(expiryDate).getTime();
+    if (isNaN(expTime)) return null;
+    return Math.ceil((expTime - Date.now()) / (1000 * 60 * 60 * 24));
+  }, [expiryDate]);
+
+  const progressPercent = React.useMemo(() => {
+    if (!issueDate || !expiryDate || issueDate === "—" || expiryDate === "—") return 50;
+    const start = new Date(issueDate).getTime();
+    const end = new Date(expiryDate).getTime();
+    if (isNaN(start) || isNaN(end) || end <= start) return 50;
+    const total = end - start;
+    const elapsed = Date.now() - start;
+    const pct = Math.min(100, Math.max(0, ((end - Date.now()) / total) * 100));
+    return Math.round(pct);
+  }, [issueDate, expiryDate]);
 
   return (
     <div className="flex gap-[24px] items-start w-full font-sans select-none max-w-full">
@@ -42,7 +65,7 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           {/* Header text */}
           <div className="flex flex-col gap-[4px]">
             <span className="text-[12px] font-medium uppercase tracking-[0.04em] text-white/50">
-              UNITED STATES OF AMERICA
+              {nationality !== "—" ? nationality.toUpperCase() : "UNITED STATES OF AMERICA"}
             </span>
             <h2 className="font-aeonik-medium text-[20px] leading-[32px] text-white">
               Passport
@@ -52,15 +75,19 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           {/* Photo & Name Section */}
           <div className="flex items-start gap-[24px]">
             {/* Passport Photo */}
-            <div className="w-[126px] h-[148px] rounded-[16px] overflow-hidden bg-neutral-800 shrink-0 border border-white/10">
-              <img
-                src={avatar}
-                alt={fullName}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = "none";
-                }}
-              />
+            <div className="w-[126px] h-[148px] rounded-[16px] overflow-hidden bg-neutral-800 shrink-0 border border-white/10 flex items-center justify-center">
+              {avatar && !imgError ? (
+                <img
+                  src={avatar}
+                  alt={fullName}
+                  className="w-full h-full object-cover"
+                  onError={() => setImgError(true)}
+                />
+              ) : (
+                <span className="text-[24px] font-medium text-white/70">
+                  {getInitials(fullName !== "—" ? fullName : "MA")}
+                </span>
+              )}
             </div>
 
             {/* Names Stack */}
@@ -163,10 +190,10 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
             </div>
             <div className="flex flex-col">
               <span className="text-[14px] font-medium text-[#171717] leading-[20px]">
-                Passport
+                Passport Document
               </span>
               <span className="text-[13px] font-normal text-[#5C5C5C] leading-[20px]">
-                3.4 MB · Uploaded 8 Mar 2026
+                PDF Document · Passport Copy
               </span>
             </div>
           </div>
@@ -174,13 +201,15 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-label="Download passport document"
               className="size-10 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
-              title="Download passport"
+              title="Download passport document"
             >
               <RiDownloadLine className="size-5" />
             </button>
             <button
               type="button"
+              aria-label="Preview passport document"
               className="h-10 px-3.5 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center gap-1.5 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
             >
               <RiEyeLine className="size-5" />
@@ -198,13 +227,15 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
             <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">
               Passport details
             </h2>
-            <button
-              type="button"
-              onClick={onEditPassport}
-              className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
-            >
-              Edit
-            </button>
+            {onEditPassport && (
+              <button
+                type="button"
+                onClick={onEditPassport}
+                className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
+              >
+                Edit
+              </button>
+            )}
           </div>
 
           <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
@@ -273,12 +304,15 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
             <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full flex flex-col gap-[8px]">
               <span className="text-[14px] font-medium text-[#171717]">
-                608d left
+                {daysLeft !== null ? (daysLeft <= 0 ? "Expired" : `${daysLeft}d left`) : "—"}
               </span>
 
               {/* Progress bar */}
               <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden my-1">
-                <div className="w-[65%] h-full bg-[#7D52F4] rounded-full" />
+                <div
+                  className="h-full bg-[#7D52F4] rounded-full transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
               </div>
 
               <div className="flex items-center justify-between text-[13px] text-[#5C5C5C]">

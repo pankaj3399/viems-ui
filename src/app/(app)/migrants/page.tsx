@@ -234,13 +234,37 @@ export default function MigrantsPage() {
         const res = await apiClient.get<any>(ENDPOINTS.cases.base);
         const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
         if (rawArr.length > 0) {
+          const sampleCountries = [
+            { code: "US", name: "United States", half: "USA", flag: "🇺🇸" },
+            { code: "CN", name: "China", half: "Chn", flag: "🇨🇳" },
+            { code: "IN", name: "India", half: "Ind", flag: "🇮🇳" },
+            { code: "FR", name: "France", half: "Fra", flag: "🇫🇷" },
+            { code: "ZA", name: "South Africa", half: "SA", flag: "🇿🇦" },
+          ];
+
           const mapped: MigrantRow[] = rawArr.map((c, i) => {
             const name = formatFullName(c.first_name, c.last_name);
             const initials = getInitials(name);
-            const rawCountry = (c.nationality_value || "US").trim().toUpperCase();
-            const countryCode = rawCountry.length === 2 ? rawCountry : "US";
             const caseId = c.caseIdDisplay || c.caseNumber || `43${9 - i}/2026`;
             
+            const rawVal = c.nationality_value || c.country || c.country_code || c.nationality || c.nationality_code || c.migrant?.user?.personalInfo?.nationalityCode;
+            let countryObj = sampleCountries[i % sampleCountries.length];
+
+            if (rawVal) {
+              const upper = String(rawVal).trim().toUpperCase();
+              if (upper === "US" || upper === "USA" || upper === "UNITED STATES") {
+                countryObj = sampleCountries[0];
+              } else if (upper === "CN" || upper === "CHINA" || upper === "CHINESE") {
+                countryObj = sampleCountries[1];
+              } else if (upper === "IN" || upper === "INDIA" || upper === "INDIAN") {
+                countryObj = sampleCountries[2];
+              } else if (upper === "FR" || upper === "FRANCE" || upper === "FRENCH") {
+                countryObj = sampleCountries[3];
+              } else if (upper === "ZA" || upper === "SOUTH AFRICA") {
+                countryObj = sampleCountries[4];
+              }
+            }
+
             let migration = "ACTIVE COMPLIANCE";
             let migrationColor: MigrantRow["migrationColor"] = "active";
             const mod = i % 6;
@@ -254,10 +278,10 @@ export default function MigrantsPage() {
             return {
               id: c.id ?? i + 1,
               caseId,
-              country: countryCode === "US" ? "United States" : countryCode === "CN" ? "China" : countryCode === "IN" ? "India" : countryCode === "FR" ? "France" : "South Africa",
-              countryCode,
-              countryHalf: countryCode,
-              flag: countryCode === "US" ? "🇺🇸" : countryCode === "CN" ? "🇨🇳" : countryCode === "IN" ? "🇮🇳" : countryCode === "FR" ? "🇫🇷" : "🇿🇦",
+              country: countryObj.name,
+              countryCode: countryObj.code,
+              countryHalf: countryObj.half,
+              flag: countryObj.flag,
               name: name || "Migrant Applicant",
               group: c.group_name || "AX Studios",
               avatarText: initials || "MA",
@@ -279,6 +303,42 @@ export default function MigrantsPage() {
     fetchCasesData();
   }, []);
 
+  const availableCountries = React.useMemo(() => {
+    const map = new Map<string, { code: string; label: string; flag: string; count: number }>();
+    migrants.forEach((m) => {
+      if (!m.countryCode) return;
+      const key = m.countryCode.toUpperCase();
+      const existing = map.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(key, {
+          code: key,
+          label: m.country || key,
+          flag: m.flag || "🌐",
+          count: 1,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [migrants]);
+
+  const availableStatuses = React.useMemo(() => {
+    const map = new Map<string, number>();
+    migrants.forEach((m) => {
+      if (!m.status) return;
+      map.set(m.status, (map.get(m.status) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([label, count]) => ({
+      label,
+      count,
+    }));
+  }, [migrants]);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [countryFilter, statusFilter, needsActionOnly, searchQuery]);
+
   const filteredMigrants = React.useMemo(() => {
     return migrants.filter((m) => {
       if (countryFilter && m.countryCode.toLowerCase() !== countryFilter.toLowerCase()) return false;
@@ -298,6 +358,20 @@ export default function MigrantsPage() {
   }, [migrants, countryFilter, statusFilter, needsActionOnly, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMigrants.length / itemsPerPage));
+
+  const pageNumbers = React.useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let p = start; p <= end; p++) {
+      pages.push(p);
+    }
+    return pages;
+  }, [currentPage, totalPages]);
 
   const currentRows = React.useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -376,6 +450,7 @@ export default function MigrantsPage() {
         {/* Filter Button */}
         <button
           type="button"
+          aria-label="Reset filters"
           onClick={() => {
             setSearchQuery("");
             setCountryFilter(null);
@@ -385,33 +460,21 @@ export default function MigrantsPage() {
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filters"
         >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0" aria-hidden="true">
             <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
           </svg>
         </button>
 
         {/* Country Filter Dropdown */}
         <CountryFilterDropdown
-          countries={[
-            { code: "US", label: "United States", flag: "🇺🇸", count: 2 },
-            { code: "CN", label: "China", flag: "🇨🇳", count: 2 },
-            { code: "IN", label: "India", flag: "🇮🇳", count: 2 },
-            { code: "FR", label: "France", flag: "🇫🇷", count: 3 },
-            { code: "ZA", label: "South Africa", flag: "🇿🇦", count: 1 },
-          ]}
+          countries={availableCountries}
           value={countryFilter}
           onChange={(val: string | null) => setCountryFilter(val)}
         />
 
         {/* Status Filter Dropdown */}
         <StatusFilterDropdown
-          statuses={[
-            { label: "Visa Approved", count: 5 },
-            { label: "Active Compliance", count: 2 },
-            { label: "Pre-Arrival", count: 1 },
-            { label: "Sponsorship Withdrawn", count: 1 },
-            { label: "Archived", count: 1 },
-          ]}
+          statuses={availableStatuses}
           value={statusFilter}
           onChange={(val: string | null) => setStatusFilter(val)}
           statusColors={{
@@ -426,73 +489,152 @@ export default function MigrantsPage() {
         {/* Quick Filter: Needs Action */}
         <button
           type="button"
-          onClick={() => setNeedsActionOnly(!needsActionOnly)}
-          className={`h-[32px] px-[12px] rounded-[8px] text-[14px] font-medium transition-all cursor-pointer border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] ${
+          aria-pressed={needsActionOnly}
+          onClick={() => setNeedsActionOnly((prev) => !prev)}
+          className={`h-8 px-[12px] border rounded-[8px] text-[14px] font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] ${
             needsActionOnly
-              ? "bg-[#171717] text-white"
-              : "bg-white text-[#5C5C5C] hover:text-[#171717]"
+              ? "bg-[#171717] border-[#171717] text-white"
+              : "bg-white border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717]"
           }`}
         >
-          Needs action
+          <span>Needs action</span>
         </button>
       </div>
 
-      {/* Migrants Table Panel */}
-      <div className="w-full bg-white border border-[#EBEBEB] rounded-[16px] p-2 flex flex-col gap-1 shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+      {/* Main Table Container */}
+      <div className="flex flex-col gap-[8px] w-full">
         {/* Table Header */}
-        <div className="h-[36px] bg-[#F7F7F7] rounded-[8px] px-4 flex items-center w-full">
-          <div className="w-[112px] text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            CASE ID #
+        <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-4 flex items-center justify-between w-full">
+          <div className="w-[124px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            <span>CASE ID #</span>
+            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
           </div>
-          <div className="w-[112px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+          <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
             <span>COUNTRY</span>
             <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
           </div>
-          <div className="flex-1 min-w-[200px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>NAME</span>
+          <div className="w-[200px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            <span>MIGRANT</span>
             <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
           </div>
-          <div className="w-[257px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+          <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            <span>ACTION</span>
+            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+          </div>
+          <div className="w-[160px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            <span>VISA STATUS</span>
+            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+          </div>
+          <div className="w-[257px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
             <span>MIGRATION STATUS</span>
             <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
           </div>
-          <div className="w-[48px]" />
+          <div className="w-[48px] shrink-0" />
         </div>
 
         {/* Table Rows */}
-        <div className="flex flex-col gap-1 w-full mt-1">
+        <div className="flex flex-col gap-[4px] w-full">
           {currentRows.map((migrant) => {
             const badgeStyle = getMigrationBadgeStyle(migrant.migrationColor);
+
             return (
               <div
                 key={migrant.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleRowClick(migrant)}
-                className="w-full h-[72px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center justify-between transition-all cursor-pointer group shadow-[0px_1px_2px_rgba(10,13,20,0.02)]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleRowClick(migrant);
+                  }
+                }}
+                className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center justify-between transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
               >
                 {/* Case ID */}
-                <div className="w-[112px] text-[14px] font-mono text-[#5C5C5C]">
-                  {migrant.caseId}
-                </div>
-
-                {/* Country */}
-                <div className="w-[112px] flex items-center gap-2">
-                  <Flag country={migrant.countryCode} className="size-5 rounded-full object-cover shrink-0" />
-                  <span className="text-[14px] font-normal text-[#171717]">
-                    {migrant.countryCode}
+                <div className="w-[124px] flex items-center">
+                  <span className="font-mono text-[14px] font-medium text-[#171717]">
+                    {migrant.caseId}
                   </span>
                 </div>
 
-                {/* Name & Group */}
-                <div className="flex-1 min-w-[200px] flex items-center gap-3">
-                  <div className="size-10 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0 text-[14px] font-medium text-[#171717]">
+                {/* Country */}
+                <div className="w-[180px] flex items-center gap-2">
+                  <Flag country={migrant.countryCode} className="size-4 rounded-full object-cover shrink-0" />
+                  <span className="text-[14px] font-medium text-[#171717]">
+                    {migrant.country}
+                  </span>
+                </div>
+
+                {/* Migrant (Avatar + Name & Group) */}
+                <div className="w-[200px] flex items-center gap-2.5">
+                  <div className="size-8 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 font-sans">
                     {migrant.avatarText}
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[14px] font-medium text-[#171717] leading-[20px]">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[14px] font-medium text-[#171717] truncate leading-[20px]">
                       {migrant.name}
                     </span>
-                    <span className="text-[12px] font-normal text-[#5C5C5C] leading-[16px]">
+                    <span className="text-[13px] font-normal text-[#5C5C5C] truncate leading-[18px]">
                       {migrant.group}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action */}
+                <div className="w-[180px] flex items-center">
+                  {migrant.action === "Check RTW" ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRow(migrant);
+                        setSelectedActionType("check_rtw");
+                        setActionModalOpen(true);
+                      }}
+                      className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
+                    >
+                      Check RTW
+                    </button>
+                  ) : migrant.action === "Schedule RTW check" ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRow(migrant);
+                        setSelectedActionType("schedule_rtw");
+                        setActionModalOpen(true);
+                      }}
+                      className="px-[8px] py-[2px] bg-[#FFFAEB] text-[#855B00] hover:bg-[#FFEFC2] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
+                    >
+                      Schedule RTW check
+                    </button>
+                  ) : migrant.action === "Review and report" ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRow(migrant);
+                        setSelectedActionType("review_report");
+                        setActionModalOpen(true);
+                      }}
+                      className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
+                    >
+                      Review and report
+                    </button>
+                  ) : (
+                    <span className="text-[14px] font-normal text-[#5C5C5C]">
+                      No action required
+                    </span>
+                  )}
+                </div>
+
+                {/* Visa Status */}
+                <div className="w-[160px] flex items-center">
+                  <div className="inline-flex items-center gap-1.5 px-[8px] py-[2px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[12px] font-medium">
+                    <span className="size-1.5 rounded-full bg-[#1FC16B]" />
+                    <span className="truncate">
+                      {migrant.status}
                     </span>
                   </div>
                 </div>
@@ -547,39 +689,20 @@ export default function MigrantsPage() {
             <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
           </button>
 
-          {Array.from({ length: totalPages }).slice(0, 5).map((_, i) => {
-            const pNum = i + 1;
-            return (
-              <button
-                key={pNum}
-                type="button"
-                onClick={() => setCurrentPage(pNum)}
-                className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
-                  currentPage === pNum
-                    ? "bg-[#171717] text-white"
-                    : "bg-white border border-[#EBEBEB] text-[#171717] hover:bg-neutral-100"
-                }`}
-              >
-                {pNum}
-              </button>
-            );
-          })}
-
-          {totalPages > 5 && <span className="text-[14px] text-[#A4A4A4] px-1">...</span>}
-
-          {totalPages > 5 && (
+          {pageNumbers.map((pNum) => (
             <button
+              key={pNum}
               type="button"
-              onClick={() => setCurrentPage(totalPages)}
+              onClick={() => setCurrentPage(pNum)}
               className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
-                currentPage === totalPages
+                currentPage === pNum
                   ? "bg-[#171717] text-white"
                   : "bg-transparent text-[#5C5C5C] hover:bg-neutral-200"
               }`}
             >
-              {totalPages}
+              {pNum}
             </button>
-          )}
+          ))}
 
           <button
             type="button"

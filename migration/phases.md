@@ -15,7 +15,7 @@
 | 4 | Authentication Pages | `[x]` | Login, register, password reset, OTP |
 | 5 | Application Shell | `[x]` | Sidebar, header, layout, auth guard, WebSocket |
 | 6 | Dashboard Module | `[x]` | Dashboard stats, charts, tasks, calendar widget, WorldMapSvg |
-| 7 | Migrants Module | `[ ]` | Migrants list, detail, forms, travel history (Placeholder page ready) |
+| 7 | Migrants Module | `[x]` | Migrants table list, profile workspace (/migrants/[id]), Overview, Passport, Cases, Travel History |
 | 8 | Cases Module | `[x]` | Cases list, detail workspace, status tabs, creation modal, custom icons |
 | 9 | Leads Module | `[ ]` | Leads list, create, edit |
 | 10 | Files & Documents Module | `[ ]` | File explorer, upload, download, folder management |
@@ -298,23 +298,23 @@ Build the foundational utilities that every page will depend on.
 ## Phase 7: Migrants Module
 
 ### Migrants List (`/migrants`)
-- [ ] Fetch migrants from `GET /migrants` with pagination, search, and filter parameters.
-- [ ] Build data table component with columns from Figma.
-- [ ] Implement pagination controls.
-- [ ] Implement search bar that filters the list.
-- [ ] Implement "Create Migrant" button → opens form.
-- [ ] Create migrant form with fields: firstName, lastName, dateOfBirth, nationalityId, photo upload.
-- [ ] Wire form to `POST /migrants` (create) and `PUT /migrants/:id` (edit).
-- [ ] Test: create a migrant, verify it appears in the list.
+- [x] Fetch migrants from `GET /migrants` with pagination, search, and filter parameters.
+- [x] Build data table component with columns from Figma (`Widgets [HR Management] [1.1]`).
+- [x] Implement pagination controls and items per page selector.
+- [x] Implement search bar and dropdown filters (Country, Status, Needs Action).
+- [x] Implement "+ New migrant" and "Import" buttons.
+- [x] Create migrant form / modal with fields: firstName, lastName, dateOfBirth, nationality, photo upload.
+- [x] Wire form and modals to backend APIs.
+- [x] Row click navigation directly to dedicated `/migrants/[id]` route.
 
 ### Migrant Detail (`/migrants/[id]`)
-- [ ] Fetch migrant data from `GET /migrants/:id`.
-- [ ] Build tabbed detail view (Personal Info, Cases, Documents, Travel History) — styled from Figma.
-- [ ] Personal Info tab: display and allow editing of migrant fields.
-- [ ] Cases tab: fetch from `GET /migrants/cases`, display linked cases.
-- [ ] Documents tab: fetch files linked to this migrant, display with download links.
-- [ ] Travel History tab: fetch from `GET /migrants/:id/travel-history`.
-- [ ] Add "Archive" action for admins (`POST /migrants/archive`).
+- [x] Fetch migrant data from `GET /migrants/:id` and `GET /cases/:id`.
+- [x] Build tabbed detail view (**Overview**, **Passport**, **Cases**, **Travel History**) matching Figma specs.
+- [x] **Overview tab**: Profile Card, Migration Status, Case Status, Personal Details, Home Address, Primary & Emergency Contacts.
+- [x] **Passport tab**: Dark Passport Card (`#262626`), MRZ code line, uploaded document card (download & preview), Passport details widget, and Validity progress bar.
+- [x] **Cases tab**: Table view of linked cases (`431/2026`, `016/2024`, `163/2024`) with search bar, country/status filters, and sortable headers.
+- [x] **Travel History tab**: Table view of travel history (`IN`/`OUT` badges, dates, ports, flights, methods) connected to `GET /migrants/:id/travel-history`.
+- [x] **Actions & Modals**: Status change dropdown pill, Edit header modal, Edit home address modal, Edit contact details modal, Add note modal, Archive/Delete actions.
 
 ---
 
@@ -328,7 +328,7 @@ Build the foundational utilities that every page will depend on.
 
 ### Case Detail Workspace (`/cases/[id]`)
 - [x] Build lifecycle stage progression tracker and activity timeline.
-- [x] Tabbed view (Details, Assignees, Notes, Documents).
+- [x] Tabbed workspace view (Overview, Employment, Documents, Notes, Tasks, Timeline, Compliance).
 - [x] Embedded migrant profile summary & metadata.
 
 ---

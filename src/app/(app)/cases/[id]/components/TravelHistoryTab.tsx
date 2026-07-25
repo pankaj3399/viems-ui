@@ -71,12 +71,13 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
+    let active = true;
     async function fetchTravelHistory() {
       if (!migrant?.id) return;
       try {
         setLoading(true);
         const res = await apiClient.get<any>(ENDPOINTS.migrants.travelHistory(migrant.id));
-        if (Array.isArray(res) && res.length > 0) {
+        if (active && Array.isArray(res) && res.length > 0) {
           const mapped: TravelHistoryRow[] = res.map((r: any, idx: number) => ({
             id: r.id || idx + 1,
             direction: (r.direction || r.type || "IN").toUpperCase() === "OUT" ? "OUT" : "IN",
@@ -88,12 +89,15 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
           setRecords(mapped);
         }
       } catch (err) {
-        console.error("Failed to load travel history:", err);
+        if (active) console.error("Failed to load travel history:", err);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
     fetchTravelHistory();
+    return () => {
+      active = false;
+    };
   }, [migrant?.id]);
 
   const filteredRecords = React.useMemo(() => {
@@ -132,12 +136,11 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
         <button
           type="button"
           onClick={() => setSearchQuery("")}
+          aria-label="Reset filter"
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filter"
         >
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-            <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
-          </svg>
+          <RiFilterLine className="size-4 shrink-0" aria-hidden="true" />
         </button>
       </div>
 
