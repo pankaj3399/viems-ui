@@ -18,56 +18,13 @@ interface TravelHistoryRow {
   method: string;
 }
 
-const DEFAULT_TRAVEL_HISTORY: TravelHistoryRow[] = [
-  {
-    id: 1,
-    direction: "IN",
-    date: "14 Mar 2026",
-    port: "London Heathrow (T5)",
-    routeFlight: "BA268 Los Angeles (LAX)",
-    method: "Air",
-  },
-  {
-    id: 2,
-    direction: "OUT",
-    date: "25 Dec 2024",
-    port: "London Gatwick (S)",
-    routeFlight: "VS24 Los Angeles (LAX)",
-    method: "Air",
-  },
-  {
-    id: 3,
-    direction: "IN",
-    date: "10 Jun 2024",
-    port: "London St Pancras",
-    routeFlight: "—",
-    method: "Air",
-  },
-  {
-    id: 4,
-    direction: "OUT",
-    date: "12 Sep 2023",
-    port: "London Heathrow (T3)",
-    routeFlight: "BA269 Los Angeles (LAX)...",
-    method: "Rail (Eurostar)",
-  },
-  {
-    id: 5,
-    direction: "IN",
-    date: "15 Mar 2023",
-    port: "London Heathrow (T5)",
-    routeFlight: "BA268 Los Angeles (LAX)...",
-    method: "Air",
-  },
-];
-
 interface TravelHistoryTabProps {
   migrant?: any;
 }
 
 export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [records, setRecords] = React.useState<TravelHistoryRow[]>(DEFAULT_TRAVEL_HISTORY);
+  const [records, setRecords] = React.useState<TravelHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
@@ -77,14 +34,14 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
       try {
         setLoading(true);
         const res = await apiClient.get<any>(ENDPOINTS.migrants.travelHistory(migrant.id));
-        if (active && Array.isArray(res) && res.length > 0) {
+        if (active && Array.isArray(res)) {
           const mapped: TravelHistoryRow[] = res.map((r: any, idx: number) => ({
             id: r.id || idx + 1,
             direction: (r.direction || r.type || "IN").toUpperCase() === "OUT" ? "OUT" : "IN",
-            date: r.date || r.travelDate || "14 Mar 2026",
-            port: r.port || r.location || "London Heathrow (T5)",
-            routeFlight: r.routeFlight || r.flightNumber || "BA268 Los Angeles (LAX)",
-            method: r.method || r.transport || "Air",
+            date: r.date || r.travelDate || "—",
+            port: r.port || r.location || "—",
+            routeFlight: r.routeFlight || r.flightNumber || "—",
+            method: r.method || r.transport || "—",
           }));
           setRecords(mapped);
         }

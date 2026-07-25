@@ -21,7 +21,7 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
   const givenNames = migrant?.personalInfo?.firstName || migrant?.passport?.givenNames || "—";
   const fullName = migrant?.name || (surname !== "—" || givenNames !== "—" ? `${givenNames} ${surname}`.trim() : "—");
   const nationality = migrant?.personalInfo?.country || migrant?.personalInfo?.nationality || "—";
-  const nationalityCode = migrant?.personalInfo?.nationalityCode || "US";
+  const nationalityCode = migrant?.personalInfo?.nationalityCode || "";
   const dob = migrant?.personalInfo?.dob || "—";
   const gender = migrant?.personalInfo?.gender || "—";
   const genderShort = gender !== "—" ? gender.charAt(0).toUpperCase() : "—";
@@ -85,7 +85,7 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
                 />
               ) : (
                 <span className="text-[24px] font-medium text-white/70">
-                  {getInitials(fullName !== "—" ? fullName : "MA")}
+                  {getInitials(fullName !== "—" ? fullName : "")}
                 </span>
               )}
             </div>

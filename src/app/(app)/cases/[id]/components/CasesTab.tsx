@@ -4,7 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   RiSearchLine,
-  RiFilterLine,
   RiArrowDownSLine,
   RiExpandUpDownFill,
 } from "@remixicon/react";
@@ -12,6 +11,7 @@ import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 
 interface CaseHistoryRow {
+  id: string;
   caseId: string;
   date: string;
   visaType: string;
@@ -22,39 +22,6 @@ interface CaseHistoryRow {
   immigrationType: "in_uk" | "left_uk" | "outside";
 }
 
-const DEFAULT_CASES_HISTORY: CaseHistoryRow[] = [
-  {
-    caseId: "431/2026",
-    date: "14 Mar 2026",
-    visaType: "Creative Worker",
-    group: "AX Studios",
-    status: "VISA APPROVED",
-    statusType: "approved",
-    immigrationStatus: "IN UK",
-    immigrationType: "in_uk",
-  },
-  {
-    caseId: "016/2024",
-    date: "25 Dec 2024",
-    visaType: "Creative Worker",
-    group: "AX Studios",
-    status: "CASE CLOSED",
-    statusType: "closed",
-    immigrationStatus: "LEFT UK",
-    immigrationType: "left_uk",
-  },
-  {
-    caseId: "163/2024",
-    date: "10 Jun 2024",
-    visaType: "Creative Worker",
-    group: "Live Nation UK",
-    status: "CASE CLOSED",
-    statusType: "closed",
-    immigrationStatus: "LEFT UK",
-    immigrationType: "left_uk",
-  },
-];
-
 interface CasesTabProps {
   migrant?: any;
 }
@@ -64,7 +31,7 @@ export function CasesTab({ migrant }: CasesTabProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
-  const [casesList, setCasesList] = React.useState<CaseHistoryRow[]>(DEFAULT_CASES_HISTORY);
+  const [casesList, setCasesList] = React.useState<CaseHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
@@ -75,23 +42,28 @@ export function CasesTab({ migrant }: CasesTabProps) {
         const casesData = Array.isArray(res) ? res : res?.data || res?.cases;
         if (Array.isArray(casesData) && casesData.length > 0) {
           const mapped: CaseHistoryRow[] = casesData.map((c: any) => {
-            const rawStatus = c.case_status || c.status || "VISA APPROVED";
+            const rawStatus = c.case_status || c.status || "PENDING";
             const isAppr = rawStatus.toUpperCase().includes("APPROVED");
+            const isEntered = Boolean(c.flightEntered?.isEntered);
             return {
-              caseId: c.caseIdDisplay || c.caseNumber || `${c.id}/2026`,
-              date: c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "14 Mar 2026",
-              visaType: c.job_title || c.visaType || "Creative Worker",
-              group: c.group_name || "AX Studios",
+              id: String(c.id || ""),
+              caseId: c.caseIdDisplay || c.caseNumber || (c.id ? `#${c.id}` : "—"),
+              date: c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              visaType: c.job_title || c.visaType || c.personal?.jobTitle || "—",
+              group: c.group_name || c.personal?.groupName || "—",
               status: rawStatus.toUpperCase(),
               statusType: isAppr ? "approved" : "closed",
-              immigrationStatus: c.migration || (isAppr ? "IN UK" : "LEFT UK"),
-              immigrationType: isAppr ? "in_uk" : "left_uk",
+              immigrationStatus: c.migration || (isEntered ? "IN UK" : "OUTSIDE UK"),
+              immigrationType: isEntered ? "in_uk" : "outside",
             };
           });
           setCasesList(mapped);
+        } else {
+          setCasesList([]);
         }
       } catch (err) {
         console.error("Failed to fetch cases for tab:", err);
+        setCasesList([]);
       } finally {
         setLoading(false);
       }
@@ -194,8 +166,16 @@ export function CasesTab({ migrant }: CasesTabProps) {
         <div className="flex flex-col gap-[4px] w-full">
           {filteredCases.map((row) => (
             <div
-              key={row.caseId}
-              onClick={() => router.push(`/cases/${row.caseId.replace('/', '')}`)}
+              key={row.id || row.caseId}
+              role="button"
+              tabIndex={0}
+              onClick={() => router.push(`/cases/${row.id}`)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(`/cases/${row.id}`);
+                }
+              }}
               className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center gap-[24px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
             >
               {/* Case ID */}

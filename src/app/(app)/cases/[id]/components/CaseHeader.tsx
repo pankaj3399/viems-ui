@@ -61,9 +61,9 @@ export function CaseHeader({
   const [imgError, setImgError] = React.useState(false);
 
   const initials = getInitials(name || "");
-  const formattedCaseId = caseId ? `#${caseId.replace(/^#/, '')}` : "#430/2026";
-  const formattedCosRef = cosRef ? `COS ${cosRef.replace(/^COS\s*/i, '')}` : "COS 2026-00430";
-  const activeSoc = socCode || (showSocCode ? "3416 — Arts / Entertainment" : null);
+  const formattedCaseId = caseId ? `#${caseId.replace(/^#/, '')}` : "—";
+  const formattedCosRef = cosRef ? `COS ${cosRef.replace(/^COS\s*/i, '')}` : "No CoS assigned";
+  const activeSoc = socCode || null;
 
   return (
     <div className="px-[64px] pt-[32px] pb-[24px] flex items-center justify-between font-sans select-none">

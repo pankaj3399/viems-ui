@@ -211,6 +211,7 @@ export function NotificationsPopover() {
             </button>
             <button
               type="button"
+              onClick={() => router.push("/notifications")}
               className="size-6 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-[#A4A4A4] transition-colors cursor-pointer border-0 bg-transparent"
               title="Notification settings"
             >
@@ -261,6 +262,7 @@ export function NotificationsPopover() {
                       {item.hasMenu && (
                         <button
                           type="button"
+                          onClick={() => router.push("/notifications")}
                           className="absolute right-0 top-0 size-5 text-[#A4A4A4] hover:text-[#171717] flex items-center justify-center cursor-pointer border-0 bg-transparent"
                           title="Options"
                         >

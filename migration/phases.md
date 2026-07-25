@@ -15,11 +15,11 @@
 | 4 | Authentication Pages | `[x]` | Login, register, password reset, OTP |
 | 5 | Application Shell | `[x]` | Sidebar, header, layout, auth guard, WebSocket |
 | 6 | Dashboard Module | `[x]` | Dashboard stats, charts, tasks, calendar widget, WorldMapSvg |
-| 7 | Migrants Module | `[x]` | Migrants table list, profile workspace (/migrants/[id]), Overview, Passport, Cases, Travel History |
-| 8 | Cases Module | `[x]` | Cases list, detail workspace, status tabs, creation modal, custom icons |
+| 7 | Migrants Module | `[ ]` | Migrants table list, profile workspace (/migrants/[id]), Overview, Passport, Cases, Travel History |
+| 8 | Cases Module | `[ ]` | Cases list, detail workspace, status tabs, creation modal, custom icons |
 | 9 | Leads Module | `[ ]` | Leads list, create, edit |
 | 10 | Files & Documents Module | `[ ]` | File explorer, upload, download, folder management |
-| 11 | Supporting Pages & Analytics | `[x]` | Insights data visualizer, 63+ UI component library showcase |
+| 11 | Supporting Pages & Analytics | `[ ]` | Insights data visualizer, 63+ UI component library showcase |
 | 12 | Admin Module | `[ ]` | Employees, assignments, archive, logs (Placeholder page ready) |
 | 13 | Polish & Edge Cases | `[ ]` | Skeletons, errors, empty states, accessibility |
 | 14 | Testing & QA | `[ ]` | Cross-browser, responsive, API verification |
@@ -269,7 +269,7 @@ Build the foundational utilities that every page will depend on.
 
 ### WebSocket Connection
 - [ ] Establish Socket.IO connection in `(app)/layout.tsx` after auth check.
-- [ ] Pass JWT token as query parameter in the handshake.
+- [ ] Pass JWT token in Socket.IO's authenticated handshake payload (`auth: { token }`).
 - [ ] Listen for `caseNotifications`, `leadNotifications`, `requestNotifications`, `archivingManagementNotifications`.
 - [ ] On receiving a notification, show a toast (Sonner) and optionally trigger data refetch.
 - [ ] Disconnect the socket on logout or when leaving the app shell.
@@ -348,9 +348,10 @@ Build the foundational utilities that every page will depend on.
 - [ ] Fetch custom folders from `GET /folders/custom`.
 - [ ] Build folder tree navigation (sidebar or collapsible tree) — styled from Figma.
 - [ ] Build document grid/list view for the selected folder.
-- [ ] Implement file download with token-authenticated URLs:
-  ```
-  /api/files/view/{id}?Authorization=Bearer {token}
+- [ ] Implement file download with Authorization header via fetch/XHR or a short-lived server-issued URL:
+  ```http
+  GET /api/files/view/{id}
+  Authorization: Bearer {token}
   ```
 - [ ] Implement file upload (drag-and-drop zone) wired to `POST /files/upload`.
 - [ ] Support different upload endpoints based on document type:

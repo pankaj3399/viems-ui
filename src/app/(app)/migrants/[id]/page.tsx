@@ -7,14 +7,13 @@ import {
   RiLayoutGridFill,
   RiFileTextLine,
   RiFileTextFill,
-  RiFolderShieldLine,
-  RiFolderShieldFill,
   RiSuitcase2Line,
   RiSuitcase2Fill,
+  RiMapPinLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName } from "@/lib/utils";
+import { formatFullName, getInitials } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { CaseHeader } from "../../cases/[id]/components/CaseHeader";
 import { ProfileCard, MigrationStatusCard, PersonalDetailsCard } from "../../cases/[id]/components/OverviewCards";
@@ -27,6 +26,7 @@ import { EditContactDetailsModal } from "../../cases/components/EditContactDetai
 import { ChangeCaseStatusModal } from "../../cases/components/ChangeCaseStatusModal";
 import { AddNoteModal } from "../../cases/components/AddNoteModal";
 import { toast } from "sonner";
+import { Flag } from "@/components/ui/flag";
 
 const CasesTabIcon = ({ active, className }: { active?: boolean; className?: string }) => (
   <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -208,6 +208,7 @@ export default function MigrantDetailPage() {
           location={migrant.location}
           caseId={migrant.caseId}
           cosRef={migrant.cosRef}
+          socCode={migrant.cos?.socCode}
           approvalStatus={migrant.approvalStatus}
           onBack={() => router.push("/migrants")}
           onChangeStatus={() => setIsChangeStatusOpen(true)}
@@ -246,7 +247,7 @@ export default function MigrantDetailPage() {
             <div className="w-[303px] shrink-0 flex flex-col gap-[24px]">
               <ProfileCard
                 name={migrant.name}
-                initials={migrant.name ? migrant.name.split(" ").filter(Boolean).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "TJ"}
+                initials={getInitials(migrant.name || "") || "TJ"}
                 avatar={migrant.avatar}
                 employer={migrant.employer}
                 status={migrant.approvalStatus}
@@ -321,15 +322,21 @@ export default function MigrantDetailPage() {
                     </div>
                     <div className="flex items-center justify-between py-1">
                       <span className="text-[13px] font-normal text-[#5C5C5C]">Nationality</span>
-                      <span className="text-[14px] font-medium text-[#171717]">🇺🇸 {migrant.personalInfo.nationalityCode}</span>
+                      <div className="flex items-center gap-1.5 font-medium text-[#171717]">
+                        <Flag country={migrant.personalInfo.nationalityCode} className="size-4 rounded-full object-cover shrink-0" />
+                        <span>{migrant.personalInfo.nationalityCode}</span>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between py-1">
                       <span className="text-[13px] font-normal text-[#5C5C5C]">Country of Birth</span>
-                      <span className="text-[14px] font-medium text-[#171717]">🇺🇸 {migrant.personalInfo.nationalityCode}</span>
+                      <div className="flex items-center gap-1.5 font-medium text-[#171717]">
+                        <Flag country={migrant.personalInfo.countryOfBirthCode || migrant.personalInfo.nationalityCode} className="size-4 rounded-full object-cover shrink-0" />
+                        <span>{migrant.personalInfo.countryOfBirthCode || migrant.personalInfo.nationalityCode}</span>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between py-1">
                       <span className="text-[13px] font-normal text-[#5C5C5C]">City of Birth</span>
-                      <span className="text-[14px] font-medium text-[#171717]">Los Angeles</span>
+                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.cityOfBirth || "—"}</span>
                     </div>
                     <div className="flex items-center justify-between py-1">
                       <span className="text-[13px] font-normal text-[#5C5C5C]">Passport Number</span>
@@ -361,7 +368,10 @@ export default function MigrantDetailPage() {
                 </div>
                 <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
                   <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full">
-                    <span className="text-[14px] font-medium text-[#171717]">📍 742 Evergreen Terrace, Los Angeles, CA 90026</span>
+                    <span className="flex items-center gap-2 text-[14px] font-medium text-[#171717]">
+                      <RiMapPinLine className="size-4 text-[#5C5C5C] shrink-0" />
+                      {migrant.contact?.homeAddress || "No home address on file"}
+                    </span>
                   </div>
                 </div>
               </div>

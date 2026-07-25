@@ -156,8 +156,9 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
           isOpen ? "px-6 justify-between" : "justify-center"
         }`}
       >
-        <div
-          className={`flex items-center gap-3 ${!isOpen && onToggle ? "cursor-pointer" : ""}`}
+        <button
+          type="button"
+          className={`flex items-center gap-3 bg-transparent border-0 text-left p-0 ${!isOpen && onToggle ? "cursor-pointer" : ""}`}
           onClick={!isOpen ? onToggle : undefined}
           title={!isOpen ? "Expand Sidebar" : undefined}
         >
@@ -172,7 +173,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
           >
             Viems
           </span>
-        </div>
+        </button>
 
         {isOpen && onToggle && (
           <button
