@@ -156,7 +156,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
           isOpen ? "px-6 justify-between" : "justify-center"
         }`}
       >
-        <div className="flex items-center gap-3">
+        <div
+          className={`flex items-center gap-3 ${!isOpen && onToggle ? "cursor-pointer" : ""}`}
+          onClick={!isOpen ? onToggle : undefined}
+          title={!isOpen ? "Expand Sidebar" : undefined}
+        >
           {/* Header Card [Sidebar] [1.0] */}
           <div className="size-10 rounded-full bg-[#262626] shrink-0" />
           <span
@@ -178,17 +182,18 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
             title="Collapse Sidebar"
           >
             <svg
-              width="15"
-              height="14"
-              viewBox="0 0 15 14"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="text-[#A4A4A4]"
+              stroke="#A4A4A4"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0"
             >
-              <path
-                d="M14.25 0C14.4489 0 14.6397 0.0790176 14.7803 0.21967C14.921 0.360322 15 0.551088 15 0.75L15 12.75C15 12.9489 14.921 13.1397 14.7803 13.2803C14.6397 13.421 14.4489 13.5 14.25 13.5L0.75 13.5C0.551088 13.5 0.360322 13.421 0.21967 13.2803C0.0790176 13.1397 0 12.9489 0 12.75L0 0.75C0 0.551088 0.0790176 0.360322 0.21967 0.21967C0.360322 0.0790176 0.551088 0L14.25 0ZM9.75 1.5L1.5 1.5L1.5 12L9.75 12L9.75 1.5ZM13.5 1.5L11.25 1.5L11.25 12H13.5L13.5 1.5Z"
-                fill="currentColor"
-              />
+              <rect width="18" height="18" x="3" y="3" rx="3" />
+              <path d="M9 3v18" />
             </svg>
           </button>
         )}

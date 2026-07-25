@@ -48,6 +48,7 @@ import { AddNoteModal } from "../components/AddNoteModal";
 import { CaseHeader } from "./components/CaseHeader";
 import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard, ProfileCard } from "./components/OverviewCards";
 import { ComplianceCard } from "./components/ComplianceCard";
+import { PassportTab } from "./components/PassportTab";
 import { DocumentsTab } from "./components/DocumentsTab";
 import { NotesTab } from "./components/NotesTab";
 import { TasksTab } from "./components/TasksTab";
@@ -907,6 +908,8 @@ export default function MigrantOverviewPage() {
               </div>
             </div>
           </div>
+        ) : activeTab === "Passport" ? (
+          <PassportTab migrant={migrant} onEditPassport={() => setIsPersonalModalOpen(true)} />
         ) : activeTab === "Documents" ? (
           <DocumentsTab caseId={id} />
         ) : activeTab === "Tasks" ? (

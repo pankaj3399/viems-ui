@@ -281,8 +281,13 @@ export default function DashboardPage() {
         if (natData.status === "fulfilled") setNationalities(natData.value ?? []);
         else console.error("Nationalities load failed:", natData.reason);
 
-        if (logsData.status === "fulfilled") setLogs(logsData.value?.logs ?? []);
-        else console.error("Logs load failed:", logsData.reason);
+        if (logsData.status === "fulfilled") {
+          const raw = logsData.value as any;
+          const arr = Array.isArray(raw) ? raw : (raw?.logs ?? raw?.data ?? []);
+          setLogs(arr);
+        } else {
+          console.error("Logs load failed:", logsData.reason);
+        }
 
         if (schedulerData.status === "fulfilled") setSchedulerEvents(schedulerData.value ?? []);
         else console.error("Scheduler load failed:", schedulerData.reason);
@@ -359,16 +364,21 @@ export default function DashboardPage() {
   const activityRows = React.useMemo(() => {
     if (!logs.length) return null; // show static fallback
     return logs.slice(0, 6).map((log, i) => {
-      const nameParts = (log.userName ?? "System").split(" ");
+      const userName = log.userName ?? "System";
+      const nameParts = userName.split(" ");
       const initials = nameParts.length >= 2
         ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
-        : nameParts[0].slice(0, 2).toUpperCase();
+        : userName.slice(0, 2).toUpperCase();
       const avatarBg = AVATAR_BG_POOL[i % AVATAR_BG_POOL.length];
-      const timeLabel = new Date(log.creationDate).toLocaleString("en-GB", {
-        day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-      });
-      const title = `${log.action} — ${log.entityName} #${log.entityIdentifier}`;
-      return { initials, avatarBg, title, owner: log.userName ?? "System", time: timeLabel };
+      const d = log.creationDate ? new Date(log.creationDate) : null;
+      const timeLabel = d && !isNaN(d.getTime())
+        ? d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+        : "Recently";
+      const actionText = log.action ? log.action.charAt(0).toUpperCase() + log.action.slice(1) : "Activity updated";
+      const entityStr = log.entityName ? ` — ${log.entityName}` : "";
+      const idStr = log.entityIdentifier ? ` #${log.entityIdentifier}` : "";
+      const title = `${actionText}${entityStr}${idStr}`;
+      return { initials, avatarBg, title, owner: userName, time: timeLabel };
     });
   }, [logs]);
 
