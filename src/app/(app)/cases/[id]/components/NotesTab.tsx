@@ -61,8 +61,8 @@ export function NotesTab({ id }: { id?: string }) {
 
   const loadedKeyRef = React.useRef<string | null>(null);
 
-  // Load notes from localStorage when storageKey changes
-  React.useEffect(() => {
+  // Load notes from localStorage on mount & focus
+  const loadSavedNotes = React.useCallback(() => {
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -81,6 +81,16 @@ export function NotesTab({ id }: { id?: string }) {
       loadedKeyRef.current = storageKey;
     }
   }, [storageKey]);
+
+  React.useEffect(() => {
+    loadSavedNotes();
+    window.addEventListener("focus", loadSavedNotes);
+    window.addEventListener("storage", loadSavedNotes);
+    return () => {
+      window.removeEventListener("focus", loadSavedNotes);
+      window.removeEventListener("storage", loadSavedNotes);
+    };
+  }, [loadSavedNotes]);
 
   // Save notes to localStorage on state change (skipping initial save per storageKey)
   React.useEffect(() => {

@@ -21,6 +21,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { getInitials } from "@/lib/utils";
+
 interface CaseHeaderProps {
   name: string;
   avatar: string;
@@ -31,6 +33,7 @@ interface CaseHeaderProps {
   approvalStatus: string;
   onBack: () => void;
   onChangeStatus?: () => void;
+  onAddNote?: () => void;
 }
 
 export function CaseHeader({
@@ -43,8 +46,12 @@ export function CaseHeader({
   approvalStatus,
   onBack,
   onChangeStatus,
+  onAddNote,
 }: CaseHeaderProps) {
   const [open, setOpen] = React.useState(false);
+  const [imgError, setImgError] = React.useState(false);
+
+  const initials = getInitials(name || "");
 
   return (
     <div className="px-[64px] pt-[32px] pb-2xl flex items-center justify-between">
@@ -59,15 +66,16 @@ export function CaseHeader({
         </button>
 
         {/* Avatar */}
-        {avatar ? (
+        {avatar && !imgError ? (
           <img
             src={avatar}
             alt={name}
+            onError={() => setImgError(true)}
             className="size-14 rounded-full object-cover shrink-0"
           />
         ) : (
-          <div className="size-14 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[20px] tracking-[-0.015em] shrink-0 font-sans overflow-hidden">
-            {name ? name.split(" ").filter(Boolean).map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "—"}
+          <div className="size-14 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[20px] tracking-[-0.015em] shrink-0 font-sans overflow-hidden select-none">
+            {initials}
           </div>
         )}
 
@@ -171,7 +179,10 @@ export function CaseHeader({
             className="w-[251px] bg-white border border-[#EBEBEB] rounded-[16px] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] p-2 gap-[4px] flex flex-col"
           >
             <DropdownMenuItem
-              onClick={() => {}}
+              onClick={() => {
+                setOpen(false);
+                if (onAddNote) onAddNote();
+              }}
               className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
             >
               <RiStickyNoteLine className="size-5 text-[#5C5C5C]" />

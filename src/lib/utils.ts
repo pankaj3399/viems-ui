@@ -16,18 +16,35 @@ export function formatFullName(firstName?: string, lastName?: string): string {
   const firstLower = first.toLowerCase();
   const lastLower = last.toLowerCase();
 
-  // If first name equals last name (e.g. "Singh", "Singh")
   if (firstLower === lastLower) {
     return first;
   }
 
-  // If first name already ends with last name (e.g. "Gurjit Singh", "Singh")
-  if (firstLower.endsWith(" " + lastLower)) {
+  const firstWords = firstLower.split(/\s+/);
+  const lastWords = lastLower.split(/\s+/);
+
+  const isContiguousSubsequence = (sub: string[], arr: string[]): boolean => {
+    if (sub.length === 0 || sub.length > arr.length) return false;
+    for (let i = 0; i <= arr.length - sub.length; i++) {
+      let match = true;
+      for (let j = 0; j < sub.length; j++) {
+        if (arr[i + j] !== sub[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) return true;
+    }
+    return false;
+  };
+
+  // If last name is already contained as a contiguous phrase in first name
+  if (isContiguousSubsequence(lastWords, firstWords)) {
     return first;
   }
 
-  // If last name already starts with first name (e.g. "Taylor", "Taylor Johnson")
-  if (lastLower.startsWith(firstLower + " ")) {
+  // If first name is already contained as a contiguous phrase in last name
+  if (isContiguousSubsequence(firstWords, lastWords)) {
     return last;
   }
 

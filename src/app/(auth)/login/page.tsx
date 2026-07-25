@@ -200,7 +200,7 @@ export default function LoginPage() {
       {/* ─── STATE 1: Standard Login Card ────────────────────────────────────── */}
       {viewState === "login" && (
         <div className="flex-1 flex flex-col justify-center pb-30">
-          <Card className="border-border bg-white text-card-foreground shadow-card-large p-xl rounded-card border border-neutral-200">
+          <Card className="bg-transparent text-card-foreground p-xl rounded-card border-none shadow-none ring-0">
             <CardHeader className="text-center pb-md">
               <CardTitle className="text-h5-title font-bold tracking-tight text-neutral-900">
                 Log in to Viems

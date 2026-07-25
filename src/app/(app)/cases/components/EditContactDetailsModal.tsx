@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
 import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,10 +41,10 @@ export function EditContactDetailsModal({
   const [mobilePhone, setMobilePhone] = React.useState("");
 
   // Emergency Contact states (stored locally as it's a UI-only table for Migrants)
-  const [emergencyName, setEmergencyName] = React.useState("Morgan Johnson");
-  const [emergencyRelationship, setEmergencyRelationship] = React.useState("Spouse");
-  const [emergencyEmail, setEmergencyEmail] = React.useState("morgan.j@email.com");
-  const [emergencyPhone, setEmergencyPhone] = React.useState("+1 (555) 012-3456");
+  const [emergencyName, setEmergencyName] = React.useState("");
+  const [emergencyRelationship, setEmergencyRelationship] = React.useState("");
+  const [emergencyEmail, setEmergencyEmail] = React.useState("");
+  const [emergencyPhone, setEmergencyPhone] = React.useState("");
 
   // Preserved/resolved database states
   const [migrantData, setMigrantData] = React.useState<any>(null);
@@ -115,42 +116,13 @@ export function EditContactDetailsModal({
       );
 
       // Build payload matching MigrantClientDto requirements
-      const payload: any = {
-        first_name: migrantData.user?.personalInfo?.firstName || "",
-        last_name: migrantData.user?.personalInfo?.lastName || "",
-        gender: migrantData.user?.personalInfo?.sex || null,
-        date_of_birth: migrantData.user?.personalInfo?.dateOfBirth || null,
-        nationality: migrantData.user?.personalInfo?.nationality?.id || null,
-        place_of_birth: migrantData.place_of_birth || "",
-        stage_name: migrantData.stage_name,
-        with_stage_name: migrantData.with_stage_name,
+      const payload = buildMigrantPatchPayload(migrantData, {
         contacts: {
-          // Update primary contact emails and phone.
           contact_email: personalEmail || workEmail || migrantData.user?.email || "",
-          address_line_1: migrantData.contacts?.address_line_1 || "",
-          address_line_2: migrantData.contacts?.address_line_2 || null,
-          zip_code: migrantData.contacts?.zip_code || "",
-          contact_number: mobilePhone, // maps to phone_1
+          contact_number: mobilePhone,
           phone_1: mobilePhone,
-          phone_2: migrantData.contacts?.phone_2 || null,
-          phone_3: migrantData.contacts?.phone_3 || null,
-          phone_4: migrantData.contacts?.phone_4 || null,
-          country: migrantData.contacts?.country?.id || null,
-          state: migrantData.contacts?.state?.id || null,
-          city: migrantData.contacts?.city?.id || null,
         },
-      };
-
-      // Handle active passport if any
-      const activePassport = migrantData.passports?.find((p: any) => p.is_actual === true);
-      if (activePassport) {
-        payload.passport = {
-          id: activePassport.id,
-          passport_number: activePassport.passport_number,
-          issue_passport_date: activePassport.issue_passport_date,
-          expired_passport_date: activePassport.expired_passport_date,
-        };
-      }
+      });
 
       await apiClient.patch(ENDPOINTS.migrants.byId(migrantId), payload);
       toast.success("Contact details updated successfully");
