@@ -10,7 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Lock, Mail, KeyRound, AlertCircle, ArrowLeft, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { setToken, isAuthenticated } from "@/lib/auth";
 import { EMAIL_REGEX } from "@/lib/constants";
@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [otp, setOtp] = React.useState("");
+  const otpPasswordRef = React.useRef("");
 
   // Validation messages
   const [emailError, setEmailError] = React.useState("");
@@ -50,6 +51,9 @@ export default function LoginPage() {
     setOtpError("");
     setPassword("");
     setOtp("");
+    if (viewState === "login") {
+      otpPasswordRef.current = "";
+    }
   }, [viewState]);
 
   // Paste handler for OTP input
@@ -91,6 +95,7 @@ export default function LoginPage() {
 
       if (res?.status === 200 && !res?.token) {
         // OTP required — backend sends OTP to email
+        otpPasswordRef.current = password;
         setViewState("otp");
         toast.info("OTP code sent", {
           description: "Please check your email inbox for a temporary access code.",
@@ -102,6 +107,7 @@ export default function LoginPage() {
         });
         router.push("/dashboard");
       } else {
+        otpPasswordRef.current = password;
         setViewState("otp");
       }
     } catch (err: any) {
@@ -165,7 +171,8 @@ export default function LoginPage() {
 
   // Resend OTP Code
   const handleResendOtp = async () => {
-    if (!email || !password) {
+    const activePassword = password || otpPasswordRef.current;
+    if (!email || !activePassword) {
       toast.error("Session expired", {
         description: "Please go back and enter your credentials again.",
       });
@@ -175,14 +182,18 @@ export default function LoginPage() {
     setIsLoading(true);
     try {
       await apiClient.post(ENDPOINTS.auth.login, {
-        body: { email, password },
+        body: { email, password: activePassword },
       });
+      setOtp("");
+      setOtpError("");
       toast.success("New code sent", {
         description: "A fresh 8-digit access code has been sent to your email.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const description =
+        err instanceof Error ? err.message : "Please try logging in again.";
       toast.error("Failed to resend code", {
-        description: err?.message || "Please try logging in again.",
+        description,
       });
     } finally {
       setIsLoading(false);
