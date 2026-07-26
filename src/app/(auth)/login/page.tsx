@@ -10,7 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Lock, Mail, KeyRound, AlertCircle, ArrowLeft, Loader2, Info } from "lucide-react";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { setToken, isAuthenticated } from "@/lib/auth";
 import { EMAIL_REGEX } from "@/lib/constants";
@@ -29,6 +29,7 @@ export default function LoginPage() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [otp, setOtp] = React.useState("");
+  const otpPasswordRef = React.useRef("");
 
   // Validation messages
   const [emailError, setEmailError] = React.useState("");
@@ -50,6 +51,9 @@ export default function LoginPage() {
     setOtpError("");
     setPassword("");
     setOtp("");
+    if (viewState === "login") {
+      otpPasswordRef.current = "";
+    }
   }, [viewState]);
 
   // Paste handler for OTP input
@@ -91,6 +95,7 @@ export default function LoginPage() {
 
       if (res?.status === 200 && !res?.token) {
         // OTP required — backend sends OTP to email
+        otpPasswordRef.current = password;
         setViewState("otp");
         toast.info("OTP code sent", {
           description: "Please check your email inbox for a temporary access code.",
@@ -102,6 +107,7 @@ export default function LoginPage() {
         });
         router.push("/dashboard");
       } else {
+        otpPasswordRef.current = password;
         setViewState("otp");
       }
     } catch (err: any) {
@@ -123,8 +129,8 @@ export default function LoginPage() {
     e.preventDefault();
     setOtpError("");
 
-    if (!otp || otp.length < 4) {
-      setOtpError("Enter the 4-digit access code");
+    if (!otp || otp.length < 8) {
+      setOtpError("Enter the 8-digit access code");
       return;
     }
 
@@ -158,6 +164,37 @@ export default function LoginPage() {
         setViewState("login");
         setOtpAttempts(3);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Resend OTP Code
+  const handleResendOtp = async () => {
+    const activePassword = password || otpPasswordRef.current;
+    if (!email || !activePassword) {
+      toast.error("Session expired", {
+        description: "Please go back and enter your credentials again.",
+      });
+      setViewState("login");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await apiClient.post(ENDPOINTS.auth.login, {
+        body: { email, password: activePassword },
+      });
+      setOtp("");
+      setOtpError("");
+      toast.success("New code sent", {
+        description: "A fresh 8-digit access code has been sent to your email.",
+      });
+    } catch (err: unknown) {
+      const description =
+        err instanceof Error ? err.message : "Please try logging in again.";
+      toast.error("Failed to resend code", {
+        description,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -371,18 +408,22 @@ export default function LoginPage() {
               <form onSubmit={handleOtpSubmit} className="flex flex-col gap-2xl">
                 <div onPaste={handleOtpPaste} className="w-full flex justify-center">
                   <InputOTP
-                    maxLength={4}
+                    maxLength={8}
                     value={otp}
                     onChange={(val) => setOtp(val)}
                     disabled={isLoading}
                     autoFocus
                     containerClassName="w-full justify-center"
                   >
-                    <InputOTPGroup className="w-full max-w-[392px] grid grid-cols-4 gap-[10px] justify-between">
-                      <InputOTPSlot index={0} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
-                      <InputOTPSlot index={1} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
-                      <InputOTPSlot index={2} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
-                      <InputOTPSlot index={3} className="h-16 w-full border border-neutral-200 rounded-input bg-white text-[24px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                    <InputOTPGroup className="w-full max-w-[392px] grid grid-cols-8 gap-1.5 justify-between">
+                      <InputOTPSlot index={0} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={1} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={2} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={3} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={4} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={5} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={6} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
+                      <InputOTPSlot index={7} className="h-12 w-full border border-neutral-200 rounded-input bg-white text-[18px] font-medium text-neutral-900 shadow-x-small first:rounded-input last:rounded-input first:border-l data-[active=true]:border-neutral-900 data-[active=true]:ring-3 data-[active=true]:ring-neutral-900/10 transition-all" />
                     </InputOTPGroup>
                   </InputOTP>
                 </div>
@@ -397,7 +438,7 @@ export default function LoginPage() {
                   type="submit"
                   variant="default"
                   className="w-full h-9 font-semibold bg-[#7D52F4] text-white hover:bg-brand-dark rounded-[8px] shadow-x-small transition-colors justify-center disabled:bg-[#7D52F4] disabled:text-white disabled:opacity-50"
-                  disabled={isLoading || otp.length < 4}
+                  disabled={isLoading || otp.length < 8}
                 >
                   {isLoading ? (
                     <>
@@ -416,6 +457,7 @@ export default function LoginPage() {
                 </span>
                 <button
                   type="button"
+                  onClick={handleResendOtp}
                   className="text-label-sm font-medium text-neutral-900 underline hover:text-neutral-700 transition-colors bg-transparent border-0 cursor-pointer"
                   disabled={isLoading}
                 >
