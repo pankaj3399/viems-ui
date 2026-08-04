@@ -64,6 +64,8 @@ export default function AddMigrantPage() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const passportInputRef = React.useRef<HTMLInputElement | null>(null);
 
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
   // Form State
   const [form, setForm] = React.useState<PersonalDetailsState>({
     firstName: "",
@@ -73,22 +75,37 @@ export default function AddMigrantPage() {
     maritalStatus: "",
     nationality: "",
     countryOfBirth: "",
-    cityOfBirth: "Los Angeles",
+    cityOfBirth: "",
     passportNumber: "",
     passportIssueDate: "",
     passportExpiryDate: "",
-    addressLine1: "742 Evergreen Terrace",
+    addressLine1: "",
     addressLine2: "",
-    city: "Los Angeles",
-    postCode: "90026",
-    country: "United States",
-    personalEmail: "j.taylor@email.com",
-    mobilePhone: "+44 7911 234567",
-    emergencyName: "Morgan Johnson",
-    emergencyRelationship: "Spouse",
-    emergencyEmail: "morgan.j@email.com",
-    emergencyPhone: "+1 (555) 012-3456",
+    city: "",
+    postCode: "",
+    country: "",
+    personalEmail: "",
+    mobilePhone: "",
+    emergencyName: "",
+    emergencyRelationship: "",
+    emergencyEmail: "",
+    emergencyPhone: "",
   });
+
+  // Restore draft on mount
+  React.useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem("viems_add_migrant_draft");
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed && typeof parsed === "object") {
+          setForm((prev) => ({ ...prev, ...parsed }));
+        }
+      }
+    } catch {
+      // Ignore invalid stored draft
+    }
+  }, []);
 
   const handleChange = (field: keyof PersonalDetailsState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -141,45 +158,43 @@ export default function AddMigrantPage() {
   };
 
   const handleInviteMigrant = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       toast.info("Connecting to server and creating migrant record...");
       
       const payload = {
-        first_name: form.firstName || "Jordan",
-        last_name: form.lastName || "Taylor",
+        first_name: form.firstName,
+        last_name: form.lastName,
         gender: form.gender ? form.gender.toUpperCase() : "MALE",
-        date_of_birth: form.dob || "1992-05-14",
-        marital_status: form.maritalStatus || "Single",
-        nationality: form.nationality || "United States",
-        country_of_birth: form.countryOfBirth || "United States",
-        city_of_birth: form.cityOfBirth || "Los Angeles",
-        passport_number: form.passportNumber || "T7030033",
-        passport_issue_date: form.passportIssueDate || "2021-03-15",
-        passport_expiry_date: form.passportExpiryDate || "2031-03-14",
-        address_line_1: form.addressLine1 || "742 Evergreen Terrace",
-        address_line_2: form.addressLine2 || "",
-        city: form.city || "Los Angeles",
-        post_code: form.postCode || "90026",
-        country: form.country || "United States",
-        email: form.personalEmail || "j.taylor@email.com",
-        mobile_phone: form.mobilePhone || "+44 7911 234567",
-        emergency_contact_name: form.emergencyName || "Morgan Johnson",
-        emergency_contact_relationship: form.emergencyRelationship || "Spouse",
-        emergency_contact_email: form.emergencyEmail || "morgan.j@email.com",
-        emergency_contact_phone: form.emergencyPhone || "+1 (555) 012-3456",
+        date_of_birth: form.dob,
+        marital_status: form.maritalStatus,
+        nationality: form.nationality,
+        country_of_birth: form.countryOfBirth,
+        city_of_birth: form.cityOfBirth,
+        passport_number: form.passportNumber,
+        passport_issue_date: form.passportIssueDate,
+        passport_expiry_date: form.passportExpiryDate,
+        address_line_1: form.addressLine1,
+        address_line_2: form.addressLine2,
+        city: form.city,
+        post_code: form.postCode,
+        country: form.country,
+        email: form.personalEmail,
+        mobile_phone: form.mobilePhone,
+        emergency_contact_name: form.emergencyName,
+        emergency_contact_relationship: form.emergencyRelationship,
+        emergency_contact_email: form.emergencyEmail,
+        emergency_contact_phone: form.emergencyPhone,
       };
 
-      try {
-        await apiClient.post(ENDPOINTS.migrants.base, payload);
-        toast.success(`Migrant record created and invite sent to ${form.personalEmail || "migrant"}!`);
-      } catch (backendErr) {
-        console.warn("Backend API note:", backendErr);
-        toast.success(`Migrant record created and invite sent to ${form.personalEmail || "j.taylor@email.com"}!`);
-      }
-
+      await apiClient.post(ENDPOINTS.migrants.base, payload);
+      toast.success(`Migrant record created and invite sent to ${form.personalEmail || "migrant"}!`);
       router.push("/migrants");
-    } catch (err: any) {
+    } catch {
       toast.error("Failed to create migrant record.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -244,22 +259,26 @@ export default function AddMigrantPage() {
       <div className="w-full bg-[#F7F7F7] pt-6 pb-4 border-b border-[#EBEBEB] mb-2 select-none">
         <div className="max-w-[728px] mx-auto flex items-center justify-between">
           {/* Step 1: Get started */}
-          <div
+          <button
+            type="button"
             onClick={() => setActiveStep(1)}
-            className="flex items-center gap-xs cursor-pointer group"
+            aria-current={activeStep === 1 ? "step" : undefined}
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
           >
             <div className="size-5 rounded-full bg-[#7D52F4] text-white flex items-center justify-center shrink-0">
               <RiCheckLine className="size-3.5 text-white" />
             </div>
             <span className="text-[14px] font-medium text-[#171717]">Get started</span>
-          </div>
+          </button>
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
           {/* Step 2: Personal details */}
-          <div
+          <button
+            type="button"
             onClick={() => setActiveStep(2)}
-            className="flex items-center gap-xs cursor-pointer group"
+            aria-current={activeStep === 2 ? "step" : undefined}
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
           >
             <div
               className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
@@ -279,14 +298,16 @@ export default function AddMigrantPage() {
             >
               Personal details
             </span>
-          </div>
+          </button>
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
           {/* Step 3: Employment */}
-          <div
+          <button
+            type="button"
             onClick={() => setActiveStep(3)}
-            className="flex items-center gap-xs cursor-pointer group"
+            aria-current={activeStep === 3 ? "step" : undefined}
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
           >
             <div
               className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
@@ -306,14 +327,16 @@ export default function AddMigrantPage() {
             >
               Employment
             </span>
-          </div>
+          </button>
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
           {/* Step 4: Documents */}
-          <div
+          <button
+            type="button"
             onClick={() => setActiveStep(4)}
-            className="flex items-center gap-xs cursor-pointer group"
+            aria-current={activeStep === 4 ? "step" : undefined}
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
           >
             <div
               className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
@@ -333,14 +356,16 @@ export default function AddMigrantPage() {
             >
               Documents
             </span>
-          </div>
+          </button>
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
           {/* Step 5: Review & Create */}
-          <div
+          <button
+            type="button"
             onClick={() => setActiveStep(5)}
-            className="flex items-center gap-xs cursor-pointer group"
+            aria-current={activeStep === 5 ? "step" : undefined}
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
           >
             <div
               className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
@@ -356,7 +381,7 @@ export default function AddMigrantPage() {
             >
               Review & Create
             </span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -414,7 +439,7 @@ export default function AddMigrantPage() {
                 <div className="flex flex-col gap-1 max-w-[454px]">
                   <span className="text-[14px] font-medium text-[#171717]">Upload photo</span>
                   <p className="text-[13px] font-normal text-[#171717] leading-[20px]">
-                    Photo will be used as the migrant's avatar across the platform and as their official application photo.{" "}
+                    Photo will be used as the migrant&apos;s avatar across the platform and as their official application photo.{" "}
                     <span className="underline cursor-pointer hover:text-[#5C5C5C]">More info</span>
                   </p>
                 </div>
@@ -431,8 +456,9 @@ export default function AddMigrantPage() {
             {/* First Name & Last Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">First Name</label>
+                <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">First Name</label>
                 <input
+                  id="firstName"
                   type="text"
                   value={form.firstName}
                   onChange={(e) => handleChange("firstName", e.target.value)}
@@ -442,8 +468,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Last Name</label>
+                <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">Last Name</label>
                 <input
+                  id="lastName"
                   type="text"
                   value={form.lastName}
                   onChange={(e) => handleChange("lastName", e.target.value)}
@@ -456,10 +483,11 @@ export default function AddMigrantPage() {
             {/* Date of Birth & Gender */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Date of Birth</label>
+                <label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">Date of Birth</label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
+                    id="dob"
                     type="text"
                     value={form.dob}
                     onChange={(e) => handleChange("dob", e.target.value)}
@@ -470,9 +498,10 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Gender</label>
+                <label htmlFor="gender" className="text-[14px] font-medium text-[#171717]">Gender</label>
                 <div className="relative">
                   <select
+                    id="gender"
                     value={form.gender}
                     onChange={(e) => handleChange("gender", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
@@ -491,9 +520,10 @@ export default function AddMigrantPage() {
             {/* Marital Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Marital Status</label>
+                <label htmlFor="maritalStatus" className="text-[14px] font-medium text-[#171717]">Marital Status</label>
                 <div className="relative">
                   <select
+                    id="maritalStatus"
                     value={form.maritalStatus}
                     onChange={(e) => handleChange("maritalStatus", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
@@ -513,9 +543,10 @@ export default function AddMigrantPage() {
             {/* Nationality & Country of Birth */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Nationality</label>
+                <label htmlFor="nationality" className="text-[14px] font-medium text-[#171717]">Nationality</label>
                 <div className="relative">
                   <select
+                    id="nationality"
                     value={form.nationality}
                     onChange={(e) => handleChange("nationality", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
@@ -537,9 +568,10 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Country of Birth</label>
+                <label htmlFor="countryOfBirth" className="text-[14px] font-medium text-[#171717]">Country of Birth</label>
                 <div className="relative">
                   <select
+                    id="countryOfBirth"
                     value={form.countryOfBirth}
                     onChange={(e) => handleChange("countryOfBirth", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
@@ -563,8 +595,9 @@ export default function AddMigrantPage() {
 
             {/* City of Birth */}
             <div className="flex flex-col gap-1">
-              <label className="text-[14px] font-medium text-[#171717]">City of Birth</label>
+              <label htmlFor="cityOfBirth" className="text-[14px] font-medium text-[#171717]">City of Birth</label>
               <input
+                id="cityOfBirth"
                 type="text"
                 value={form.cityOfBirth}
                 onChange={(e) => handleChange("cityOfBirth", e.target.value)}

@@ -278,48 +278,10 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
     }
   }
 
-  const passports = ["T7030033", "AA9997384", "X8880748", "R9202504", "XV1796293", "Y1974080", "V3323738", "B04464469", "B01223144", "B02038664"];
-  const refusalDates = ["14 Mar 2026", "14 Mar 2026", "14 Mar 2026", "13 Mar 2026", "12 Mar 2026", "4 Mar 2026", "25 Feb 2026", "25 Feb 2026", "17 Feb 2026", "15 Feb 2026"];
-  const refusalReasons = [
-    "CoS revoked prior to entry",
-    "Incomplete application package",
-    "Previous visa overstay on record",
-    "Financial requirements not met",
-    "Insufficient evidence of return",
-    "Interview not cleared",
-    "Previous visa overstay on record",
-    "CoS revoked prior to entry",
-    "Financial requirements not met",
-    "Previous visa overstay on record"
-  ];
-
-  const idMod = Math.abs(Number(c.id || 0)) % 10;
-  const passportNumber = c.passport_number || c.passportNumber || passports[idMod];
-  const refusalDate = c.refusal_date || c.refusalDate || refusalDates[idMod];
-  const refusalReason = c.refusal_reason || c.refusalReason || refusalReasons[idMod];
-
-  const groupsList = [
-    "AX Studios",
-    "AX Studios",
-    "Inderbir Sidhu",
-    "Inderbir Sidhu",
-    "Inderbir Sidhu",
-    "Dhira Gill Music Video",
-    "Dhira Gill Music Video",
-    "Anonymous Group",
-    "Anonymous Group",
-    "Anonymous Group",
-    "Bhai Tera Star Hai Film",
-    "Bhai Tera Star Hai Film",
-    "Velvet Pulse Entertainment",
-    "Echo Avenue Entertainment",
-    "Silverlight Productions",
-    "Neon Harbor Studios",
-    "Nova Stage Collective"
-  ];
-  const assignedGroup = (c.group_name && c.group_name !== "No Group" && c.group_name !== "Unassigned")
-    ? c.group_name
-    : groupsList[idMod % groupsList.length];
+  const passportNumber = c.passport_number || c.passportNumber || "—";
+  const refusalDate = c.refusal_date || c.refusalDate || "—";
+  const refusalReason = c.refusal_reason || c.refusalReason || "—";
+  const assignedGroup = c.group_name || "No Group";
 
   return {
     id: c.id,
@@ -627,86 +589,52 @@ export default function CasesPage() {
       groupsMap.get(gName)!.push(c);
     });
 
-    const defaultGroups: Array<{ name: string; range: string; defaultCount: number }> = [
-      { name: "AX Studios", range: "1/2022 - 1/2022", defaultCount: 2 },
-      { name: "Inderbir Sidhu", range: "1/2023 - 3/2023", defaultCount: 3 },
-      { name: "Dhira Gill Music Video", range: "1/2024 - 1/2024", defaultCount: 1 },
-      { name: "Anonymous Group", range: "1/2026 - 1/2026", defaultCount: 4 },
-      { name: "Bhai Tera Star Hai Film", range: "10/2022 - 9/2022", defaultCount: 6 },
-      { name: "Velvet Pulse Entertainment", range: "10/2023 - 10/2023", defaultCount: 2 },
-      { name: "Echo Avenue Entertainment", range: "10/2024 - 10/2024", defaultCount: 1 },
-      { name: "Silverlight Productions", range: "100/2022 - 779/2023", defaultCount: 4 },
-      { name: "Neon Harbor Studios", range: "100/2024 - 779/2024", defaultCount: 8 },
-      { name: "Nova Stage Collective", range: "100/2025 - 779/2025", defaultCount: 3 },
-    ];
-
     const result: Array<{ groupName: string; initial: string; caseIdRange: string; migrantsCount: number; items: CaseRow[] }> = [];
 
-    defaultGroups.forEach((dg) => {
-      const items = groupsMap.get(dg.name) || [];
-      let range = dg.range;
-      if (items.length > 0) {
-        const ids = items.map((i) => i.caseId).filter(Boolean);
-        if (ids.length === 1) {
-          range = `${ids[0]} - ${ids[0]}`;
-        } else if (ids.length > 1) {
-          range = `${ids[0]} - ${ids[ids.length - 1]}`;
-        }
-      }
+    groupsMap.forEach((items, gName) => {
+      const sortedIds = items
+        .map((i) => i.caseId)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+      const range =
+        sortedIds.length > 0
+          ? sortedIds.length === 1
+            ? `${sortedIds[0]} - ${sortedIds[0]}`
+            : `${sortedIds[0]} - ${sortedIds[sortedIds.length - 1]}`
+          : "—";
+
       result.push({
-        groupName: dg.name,
-        initial: dg.name.charAt(0).toUpperCase(),
+        groupName: gName,
+        initial: gName.charAt(0).toUpperCase(),
         caseIdRange: range,
-        migrantsCount: items.length > 0 ? items.length : dg.defaultCount,
+        migrantsCount: items.length,
         items,
       });
-    });
-
-    groupsMap.forEach((items, gName) => {
-      if (!defaultGroups.some((dg) => dg.name === gName)) {
-        const ids = items.map((i) => i.caseId).filter(Boolean);
-        const range =
-          ids.length > 0
-            ? ids.length === 1
-              ? `${ids[0]} - ${ids[0]}`
-              : `${ids[0]} - ${ids[ids.length - 1]}`
-            : "1/2026 - 1/2026";
-        result.push({
-          groupName: gName,
-          initial: gName.charAt(0).toUpperCase(),
-          caseIdRange: range,
-          migrantsCount: items.length,
-          items,
-        });
-      }
     });
 
     if (!searchQuery || !searchQuery.trim()) return result;
     return result.filter((g) =>
       matchesSearchQuery([g.groupName, g.caseIdRange], searchQuery)
     );
-  }, [cases, searchQuery]);
+  }, [filteredCases, searchQuery]);
 
   const [pageSize, setPageSize] = React.useState(10);
 
-  // Reset page when filters or tab change
-  React.useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchQuery, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter, quickFilter, needsActionOnly, pageSize]);
-
-  const isGroupSummaryView = activeTab === "groups" && (!searchQuery || !searchQuery.trim());
+  const isGroupSummaryView = activeTab === "groups";
   const totalCount = isGroupSummaryView ? groupedData.length : filteredCases.length;
-  const totalPages = Math.ceil(totalCount / pageSize) || 1;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.max(1, Math.min(currentPage, totalPages));
 
   const paginatedCases = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
+    const start = (safePage - 1) * pageSize;
     return filteredCases.slice(start, start + pageSize);
-  }, [filteredCases, currentPage, pageSize]);
+  }, [filteredCases, safePage, pageSize]);
 
   const paginatedGroups = React.useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
+    const start = (safePage - 1) * pageSize;
     return groupedData.slice(start, start + pageSize);
-  }, [groupedData, currentPage, pageSize]);
+  }, [groupedData, safePage, pageSize]);
 
   // Helper: show custom styled success toast matching Figma
   const showSuccessToast = (name: string, statusText: string) => {
@@ -1164,7 +1092,7 @@ export default function CasesPage() {
 
           <div className="relative">
             {(() => {
-              const activeFilterCount = (searchQuery ? 1 : 0) + (countryFilter ? 1 : 0) + (statusFilter ? 1 : 0) + (migrationFilter ? 1 : 0) + (severityFilter ? 1 : 0) + (caseIdFilter ? 1 : 0) + (quickFilter ? 1 : 0) + (needsActionOnly ? 1 : 0);
+              const activeFilterCount = (countryFilter ? 1 : 0) + (statusFilter ? 1 : 0) + (migrationFilter ? 1 : 0) + (severityFilter ? 1 : 0) + (caseIdFilter ? 1 : 0) + (quickFilter ? 1 : 0) + (needsActionOnly ? 1 : 0);
               return (
                 <button
                   type="button"
@@ -1352,7 +1280,7 @@ export default function CasesPage() {
                                     value={opt.value}
                                     checked={Boolean(checked)}
                                     onChange={() => setTempCountry(opt.value)}
-                                    className="sr-[#7D52F4]"
+                                    className="sr-only"
                                   />
                                   <div className="flex items-center gap-[8px]">
                                     <div className="relative size-5 shrink-0 flex items-center justify-center">
@@ -1566,32 +1494,36 @@ export default function CasesPage() {
           </Button>
 
           {/* View mode switcher [Frame 2087326895] */}
-          <div className="flex items-center gap-[4px] ml-auto p-[2px] bg-white rounded-[8px] border border-[#EBEBEB]">
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={`size-8 rounded-[6px] flex items-center justify-center border-0 cursor-pointer transition-colors ${
-                viewMode === "table" ? "bg-[#171717] text-white" : "bg-white text-[#5C5C5C] hover:bg-neutral-100"
-              }`}
-              title="Table View"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-                <path d="M3.75 3.75H16.25V5.25H3.75V3.75ZM3.75 7.5H16.25V9H3.75V7.5ZM3.75 11.25H16.25V12.75H3.75V11.25ZM3.75 15H16.25V16.5H3.75V15Z" fill="currentColor" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`size-8 rounded-[6px] flex items-center justify-center border-0 cursor-pointer transition-colors ${
-                viewMode === "grid" ? "bg-[#171717] text-white" : "bg-white text-[#5C5C5C] hover:bg-neutral-100"
-              }`}
-              title="Gallery View"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-                <path d="M3.75 3.75H8.75V8.75H3.75V3.75ZM11.25 3.75H16.25V8.75H11.25V3.75ZM3.75 11.25H8.75V16.25H3.75V11.25ZM11.25 11.25H16.25V16.25H11.25V11.25Z" fill="currentColor" />
-              </svg>
-            </button>
-          </div>
+          {isGroupSummaryView && (
+            <div className="flex items-center gap-[4px] ml-auto p-[2px] bg-white rounded-[8px] border border-[#EBEBEB]">
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                aria-pressed={viewMode === "table"}
+                className={`size-8 rounded-[6px] flex items-center justify-center border-0 cursor-pointer transition-colors ${
+                  viewMode === "table" ? "bg-[#171717] text-white" : "bg-white text-[#5C5C5C] hover:bg-neutral-100"
+                }`}
+                title="Table View"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+                  <path d="M3.75 3.75H16.25V5.25H3.75V3.75ZM3.75 7.5H16.25V9H3.75V7.5ZM3.75 11.25H16.25V12.75H3.75V11.25ZM3.75 15H16.25V16.5H3.75V15Z" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                aria-pressed={viewMode === "grid"}
+                className={`size-8 rounded-[6px] flex items-center justify-center border-0 cursor-pointer transition-colors ${
+                  viewMode === "grid" ? "bg-[#171717] text-white" : "bg-white text-[#5C5C5C] hover:bg-neutral-100"
+                }`}
+                title="Gallery View"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+                  <path d="M3.75 3.75H8.75V8.75H3.75V3.75ZM11.25 3.75H16.25V8.75H11.25V3.75ZM3.75 11.25H8.75V16.25H3.75V11.25ZM11.25 11.25H16.25V16.25H11.25V11.25Z" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
         {filteredCases.length === 0 && !isGroupSummaryView ? (
@@ -1625,6 +1557,7 @@ export default function CasesPage() {
             {/* Button: [1.1] style */}
             <button
               type="button"
+              onClick={() => router.push("/migrants/create")}
               className="w-[133px] h-[36px] bg-[#262626] hover:bg-[#333333] text-white text-[14px] font-medium leading-[20px] tracking-[-0.006em] rounded-[8px] flex items-center justify-center gap-[4px] p-[8px] cursor-pointer border-0 transition-colors font-sans"
             >
               <RiAddLine className="size-5 text-white shrink-0" />
@@ -1729,7 +1662,15 @@ export default function CasesPage() {
                     {paginatedCases.map((row) => (
                       <div
                         key={row.caseId}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => router.push(`/cases/${row.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(`/cases/${row.id}`);
+                          }
+                        }}
                         className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
                       >
                         <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
@@ -1805,9 +1746,18 @@ export default function CasesPage() {
                       {paginatedGroups.map((group, idx) => (
                         <div
                           key={group.groupName + "-" + idx}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSearchQuery(group.groupName);
                             setActiveTab("cases");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSearchQuery(group.groupName);
+                              setActiveTab("cases");
+                            }
                           }}
                           className="bg-white rounded-[16px] h-[160px] p-4 flex flex-col justify-between shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
                         >
@@ -1821,12 +1771,6 @@ export default function CasesPage() {
                                 onViewGroup={() => {
                                   setSearchQuery(group.groupName);
                                   setActiveTab("cases");
-                                }}
-                                onArchiveGroup={() => {
-                                  toast.success(`Group "${group.groupName}" archived`);
-                                }}
-                                onDeleteGroup={() => {
-                                  toast.success(`Group "${group.groupName}" deleted`);
                                 }}
                               />
                             </div>
@@ -1856,9 +1800,18 @@ export default function CasesPage() {
                       {paginatedGroups.map((group) => (
                         <div
                           key={group.groupName}
+                          role="button"
+                          tabIndex={0}
                           onClick={() => {
                             setSearchQuery(group.groupName);
                             setActiveTab("cases");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSearchQuery(group.groupName);
+                              setActiveTab("cases");
+                            }
                           }}
                           className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
                         >
@@ -1885,12 +1838,6 @@ export default function CasesPage() {
                                 setSearchQuery(group.groupName);
                                 setActiveTab("cases");
                               }}
-                              onArchiveGroup={() => {
-                                toast.success(`Group "${group.groupName}" archived`);
-                              }}
-                              onDeleteGroup={() => {
-                                toast.success(`Group "${group.groupName}" deleted`);
-                              }}
                             />
                           </div>
                         </div>
@@ -1902,7 +1849,15 @@ export default function CasesPage() {
                     {paginatedCases.map((row) => (
                       <div
                         key={row.caseId}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => router.push(`/cases/${row.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(`/cases/${row.id}`);
+                          }
+                        }}
                         className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
                       >
                         <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
@@ -2101,6 +2056,7 @@ export default function CasesPage() {
               <div className="w-[150px] shrink-0 flex justify-end">
                 <select
                   value={pageSize}
+                  aria-label="Rows per page"
                   onChange={(e) => {
                     setPageSize(Number(e.target.value));
                     setCurrentPage(1);

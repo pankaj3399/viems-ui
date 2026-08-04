@@ -38,7 +38,6 @@ export function GroupRowMenu({
             variant="ghost"
             size="icon-xs"
             className="size-6 text-[#5C5C5C] hover:bg-neutral-100 hover:text-neutral-900 rounded-[6px] p-0 flex items-center justify-center border-0 bg-transparent cursor-pointer"
-            onClick={(e) => e.stopPropagation()}
           >
             <RiMore2Line className="size-5" />
           </Button>
