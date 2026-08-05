@@ -14,19 +14,24 @@ export function InviteMigrantModal({
   isOpen,
   onClose,
   onSendInvite,
-  defaultEmail = "j.taylor@email.com",
+  defaultEmail = "",
 }: InviteMigrantModalProps) {
-  const [email, setEmail] = React.useState(defaultEmail);
+  const [email, setEmail] = React.useState(defaultEmail || "");
+  const [isSending, setIsSending] = React.useState(false);
 
+  // Close on Escape key
   React.useEffect(() => {
-    if (isOpen) {
-      setEmail(defaultEmail || "j.taylor@email.com");
-    }
-  }, [isOpen, defaultEmail]);
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
-
-  const [isSending, setIsSending] = React.useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +39,7 @@ export function InviteMigrantModal({
 
     setIsSending(true);
     try {
-      onSendInvite(email.trim());
+      await onSendInvite(email.trim());
       onClose();
     } finally {
       setIsSending(false);
@@ -43,11 +48,21 @@ export function InviteMigrantModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      {/* Backdrop click to close */}
-      <div className="absolute inset-0" onClick={onClose} />
+      {/* Backdrop button to close */}
+      <button
+        type="button"
+        aria-label="Close backdrop"
+        className="absolute inset-0 bg-transparent border-0 cursor-default"
+        onClick={onClose}
+      />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-[440px] bg-white border border-[#EBEBEB] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] rounded-[20px] overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="inviteMigrantModalTitle"
+        className="relative w-full max-w-[440px] bg-white border border-[#EBEBEB] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] rounded-[20px] overflow-hidden z-10 flex flex-col animate-in zoom-in-95 duration-200"
+      >
         {/* Top Right Close Button */}
         <button
           type="button"
@@ -63,7 +78,10 @@ export function InviteMigrantModal({
           <div className="p-[20px] flex flex-col gap-[16px]">
             {/* Header Title & Subtitles */}
             <div className="flex flex-col gap-[6px]">
-              <h3 className="text-[16px] font-medium text-[#171717] tracking-[-0.011em] leading-[24px] font-sans">
+              <h3
+                id="inviteMigrantModalTitle"
+                className="text-[16px] font-medium text-[#171717] tracking-[-0.011em] leading-[24px] font-sans"
+              >
                 Invite migrant
               </h3>
               <p className="text-[13px] font-normal text-[#171717] leading-[20px] tracking-[-0.006em]">

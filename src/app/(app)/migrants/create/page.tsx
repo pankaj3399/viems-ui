@@ -76,6 +76,7 @@ interface PersonalDetailsState {
   workAddressLine2: string;
   workCity: string;
   workPostCode: string;
+  socCode: string;
 
   // Photo / Passport AI
   photoUrl?: string;
@@ -90,86 +91,160 @@ interface ChecklistItem {
 }
 
 const defaultChecklist: ChecklistItem[] = [
-  { id: "passport", title: "Passport", status: "uploaded", fileName: "Passport_JordanTaylor.pdf" },
-  { id: "passport_photo", title: "Passport Photo", status: "uploaded", fileName: "Avatar_Jordan.png" },
+  { id: "passport", title: "Passport", status: "missing" },
+  { id: "passport_photo", title: "Passport Photo", status: "missing" },
   { id: "cv", title: "CV / Profile documents", status: "missing" },
   { id: "signed_docs", title: "Migrant signed docs", status: "missing" },
   { id: "employment_contract", title: "Employment contract", status: "missing" },
   { id: "sponsorship_agreement", title: "Sponsorship agreement", status: "missing" },
-  { id: "flight_details", title: "Flight / Travel details", status: "uploaded", fileName: "Flight_Itinerary.pdf" },
+  { id: "flight_details", title: "Flight / Travel details", status: "missing" },
   { id: "accommodation", title: "Hotel / Accommodation", status: "missing" },
   { id: "proof_english", title: "Proof of English", status: "missing" },
-  { id: "bank_statement", title: "Bank Statement", status: "uploaded", fileName: "BankStatement_2026.pdf" },
+  { id: "bank_statement", title: "Bank Statement", status: "missing" },
 ];
+
+function formatToIsoDate(dateStr: string): string | null {
+  if (!dateStr || !dateStr.trim()) return null;
+  const cleaned = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  const parts = cleaned.split(/[\/\-\s]+/);
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    if (d && m && y && y.length === 4) {
+      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    }
+  }
+  return cleaned;
+}
 
 export default function AddMigrantPage() {
   const router = useRouter();
   const [activeStep, setActiveStep] = React.useState<number>(1); // Step 1: Get started / New sponsorship case
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [isAiProcessing, setIsAiProcessing] = React.useState(false);
+  
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const passportInputRef = React.useRef<HTMLInputElement | null>(null);
   const cosInputRef = React.useRef<HTMLInputElement | null>(null);
   const docUploadInputRef = React.useRef<HTMLInputElement | null>(null);
+  const itemFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const activeUploadItemIdRef = React.useRef<string | null>(null);
+  const cosTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const [checklist, setChecklist] = React.useState<ChecklistItem[]>(defaultChecklist);
 
-  const handleDocDropSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      toast.info(`Uploading ${files.length} document(s)...`);
-      try {
-        const formData = new FormData();
-        Array.from(files).forEach((file) => formData.append("file", file));
-        await apiClient.post(ENDPOINTS.files.upload, formData);
-        toast.success("Documents uploaded to backend server!");
-      } catch {
-        toast.info("Documents uploaded & AI categorized!");
+  // Clean up timers on unmount
+  React.useEffect(() => {
+    return () => {
+      if (cosTimerRef.current) clearTimeout(cosTimerRef.current);
+    };
+  }, []);
+
+  const handleDroppedFiles = async (files: FileList | null, targetItemId?: string) => {
+    if (!files || files.length === 0) return;
+
+    const fileArray = Array.from(files);
+    const ALLOWED_TYPES = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+      "video/mp4",
+    ];
+    const ALLOWED_EXTS = [".jpg", ".jpeg", ".png", ".pdf", ".mp4", ".webp"];
+
+    for (const file of fileArray) {
+      const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      const isValidType = ALLOWED_TYPES.includes(file.type) || ALLOWED_EXTS.includes(ext);
+      if (!isValidType) {
+        toast.error(`File "${file.name}" is an unsupported format.`);
+        if (docUploadInputRef.current) docUploadInputRef.current.value = "";
+        if (itemFileInputRef.current) itemFileInputRef.current.value = "";
+        return;
       }
-      setChecklist((prev) =>
-        prev.map((item) => {
-          if (item.status === "missing") {
-            return {
-              ...item,
-              status: "uploaded",
-              fileName: `${item.title.replace(/[\s/]/g, "_")}_Uploaded.pdf`,
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error(`File "${file.name}" exceeds the 50 MB limit.`);
+        if (docUploadInputRef.current) docUploadInputRef.current.value = "";
+        if (itemFileInputRef.current) itemFileInputRef.current.value = "";
+        return;
+      }
+    }
+
+    toast.info(`Uploading ${fileArray.length} file(s)...`);
+    try {
+      const formData = new FormData();
+      fileArray.forEach((file) => formData.append("file", file));
+      await apiClient.post(ENDPOINTS.files.upload, formData);
+      toast.success("File(s) uploaded successfully!");
+    } catch {
+      toast.error("Failed to upload document to server.");
+      if (docUploadInputRef.current) docUploadInputRef.current.value = "";
+      if (itemFileInputRef.current) itemFileInputRef.current.value = "";
+      return;
+    }
+
+    setChecklist((prev) => {
+      let updated = [...prev];
+      if (targetItemId) {
+        updated = updated.map((item) =>
+          item.id === targetItemId
+            ? { ...item, status: "uploaded" as const, fileName: fileArray[0].name }
+            : item
+        );
+      } else {
+        fileArray.forEach((file) => {
+          const firstMissingIndex = updated.findIndex((item) => item.status === "missing");
+          if (firstMissingIndex !== -1) {
+            updated[firstMissingIndex] = {
+              ...updated[firstMissingIndex],
+              status: "uploaded" as const,
+              fileName: file.name,
             };
           }
-          return item;
-        })
-      );
+        });
+      }
+      return updated;
+    });
+
+    if (docUploadInputRef.current) docUploadInputRef.current.value = "";
+    if (itemFileInputRef.current) itemFileInputRef.current.value = "";
+  };
+
+  const handleDocDropSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleDroppedFiles(e.target.files);
+  };
+
+  const handleItemFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const itemId = activeUploadItemIdRef.current;
+    if (itemId && e.target.files) {
+      handleDroppedFiles(e.target.files, itemId);
     }
   };
 
-  const handleItemUpload = async (itemId: string) => {
-    try {
-      toast.info("Uploading document item to server...");
-      setChecklist((prev) =>
-        prev.map((item) => {
-          if (item.id === itemId) {
-            return {
-              ...item,
-              status: "uploaded",
-              fileName: `${item.title.replace(/[\s/]/g, "_")}_Uploaded.pdf`,
-            };
-          }
-          return item;
-        })
-      );
-      toast.success("Document uploaded successfully!");
-    } catch {
-      toast.error("Failed to upload document.");
-    }
+  const handleItemUpload = (itemId: string) => {
+    activeUploadItemIdRef.current = itemId;
+    itemFileInputRef.current?.click();
   };
 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isCosAiProcessing, setIsCosAiProcessing] = React.useState(false);
 
-  // Additional work addresses state
-  const [extraAddresses, setExtraAddresses] = React.useState<Array<{ addressLine1: string; city: string; postCode: string }>>([]);
+  // Additional work addresses state with stable IDs
+  const [extraAddresses, setExtraAddresses] = React.useState<
+    Array<{ id: string; addressLine1: string; city: string; postCode: string }>
+  >([]);
 
   const handleAddAnotherAddress = () => {
-    setExtraAddresses((prev) => [...prev, { addressLine1: "", city: "", postCode: "" }]);
+    setExtraAddresses((prev) => [
+      ...prev,
+      {
+        id: `addr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        addressLine1: "",
+        city: "",
+        postCode: "",
+      },
+    ]);
     toast.info("New work address field added.");
   };
 
@@ -179,16 +254,28 @@ export default function AddMigrantPage() {
   const [toastEmail, setToastEmail] = React.useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
 
-  const handleSendQuickInvite = (e: React.FormEvent) => {
+  // Auto-dismiss invite toast notification
+  React.useEffect(() => {
+    if (!showInviteToast) return;
+    const timer = setTimeout(() => setShowInviteToast(false), 5000);
+    return () => clearTimeout(timer);
+  }, [showInviteToast]);
+
+  const handleSendQuickInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail || !inviteEmail.trim()) {
       toast.error("Please enter a valid email address.");
       return;
     }
     const targetEmail = inviteEmail.trim();
-    setToastEmail(targetEmail);
-    setShowInviteToast(true);
-    toast.success(`Invite sent to ${targetEmail}!`);
+    try {
+      await apiClient.post(ENDPOINTS.employees.sendRegistrationLink, { email: targetEmail });
+      setToastEmail(targetEmail);
+      setShowInviteToast(true);
+      setInviteEmail("");
+    } catch {
+      toast.error("Failed to send invite request.");
+    }
   };
 
   // CoS Upload AI Simulation
@@ -196,24 +283,25 @@ export default function AddMigrantPage() {
     const file = e.target.files?.[0];
     if (file) {
       setIsCosAiProcessing(true);
-      toast.info("Processing CoS reference document with AI...");
-      setTimeout(() => {
+      toast.info("Processing CoS document (demo mode)...");
+      if (cosTimerRef.current) clearTimeout(cosTimerRef.current);
+      cosTimerRef.current = setTimeout(() => {
         setIsCosAiProcessing(false);
         setForm((prev) => ({
           ...prev,
-          cosReference: "COS2026-00430",
-          employerSponsor: "Viems Global Ltd",
-          jobTitle: "Senior Software Engineer",
-          startDate: "15 / 03 / 2026",
-          endDate: "16 / 03 / 2027",
-          contractType: "Full-time",
-          hoursPerWeek: "37.5",
-          annualSalary: "65000",
-          workAddressLine1: "Royal Albert Hall",
-          workCity: "London",
-          workPostCode: "SW7 2AP",
+          cosReference: prev.cosReference || "COS2026-00430",
+          employerSponsor: prev.employerSponsor || "Viems Global Ltd",
+          jobTitle: prev.jobTitle || "Senior Software Engineer",
+          startDate: prev.startDate || "15 / 03 / 2026",
+          endDate: prev.endDate || "16 / 03 / 2027",
+          contractType: prev.contractType || "Full-time",
+          hoursPerWeek: prev.hoursPerWeek || "37.5",
+          annualSalary: prev.annualSalary || "65000",
+          workAddressLine1: prev.workAddressLine1 || "Royal Albert Hall",
+          workCity: prev.workCity || "London",
+          workPostCode: prev.workPostCode || "SW7 2AP",
         }));
-        toast.success("AI extracted details from CoS document and filled the employment fields!");
+        toast.success("Sample CoS details populated!");
       }, 1200);
     }
   };
@@ -245,15 +333,16 @@ export default function AddMigrantPage() {
     cosReference: "",
     employerSponsor: "",
     jobTitle: "",
-    startDate: "15 / 03 / 2026",
-    endDate: "16 / 03 / 2027",
-    contractType: "Full-time",
+    startDate: "",
+    endDate: "",
+    contractType: "",
     hoursPerWeek: "",
     annualSalary: "",
-    workAddressLine1: "Royal Albert Hall",
+    workAddressLine1: "",
     workAddressLine2: "",
-    workCity: "London",
-    workPostCode: "SW7 2AP",
+    workCity: "",
+    workPostCode: "",
+    socCode: "3416",
   });
 
   // Restore draft on mount
@@ -270,6 +359,15 @@ export default function AddMigrantPage() {
       // Ignore invalid stored draft
     }
   }, []);
+
+  // Autosave form to draft whenever form changes
+  React.useEffect(() => {
+    try {
+      localStorage.setItem("viems_add_migrant_draft", JSON.stringify(form));
+    } catch {
+      // Ignore localStorage write errors
+    }
+  }, [form]);
 
   const handleChange = (field: keyof PersonalDetailsState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -323,58 +421,66 @@ export default function AddMigrantPage() {
 
   const handleInviteMigrant = async () => {
     if (isSubmitting) return;
+
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.passportNumber.trim()) {
+      toast.error("Please complete required personal identity details (First Name, Last Name, Passport Number) before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      toast.info("Connecting to server and creating migrant record...");
-      
+      toast.info("Creating migrant record...");
+
       const payload = {
-        first_name: form.firstName || "Taylor",
-        last_name: form.lastName || "Johnson",
-        gender: form.gender ? form.gender.toUpperCase() : "MALE",
-        date_of_birth: form.dob || "1990-06-14",
-        marital_status: form.maritalStatus || "Married",
-        nationality: form.nationality || "US",
-        place_of_birth: form.cityOfBirth ? `${form.cityOfBirth}, ${form.countryOfBirth || "US"}` : "United States",
+        first_name: form.firstName.trim() || null,
+        last_name: form.lastName.trim() || null,
+        gender: form.gender ? form.gender.toUpperCase() : null,
+        date_of_birth: formatToIsoDate(form.dob),
+        marital_status: form.maritalStatus || null,
+        nationality: form.nationality || null,
+        country_of_birth: form.countryOfBirth || null,
+        city_of_birth: form.cityOfBirth || null,
         contacts: {
-          email: form.personalEmail || "taylor.j@email.com",
-          mobile_phone: form.mobilePhone || "+44 7700 123456",
-          address_line_1: form.addressLine1 || "Royal Albert Hall",
-          address_line_2: form.addressLine2 || "",
-          city: form.city || "London",
-          post_code: form.postCode || "SW7 2AP",
-          country: form.country || "United Kingdom",
-          emergency_contact_name: form.emergencyName || "",
-          emergency_contact_relationship: form.emergencyRelationship || "",
-          emergency_contact_phone: form.emergencyPhone || "",
+          email: form.personalEmail || null,
+          mobile_phone: form.mobilePhone || null,
+          address_line_1: form.addressLine1 || null,
+          address_line_2: form.addressLine2 || null,
+          city: form.city || null,
+          post_code: form.postCode || null,
+          country: form.country || null,
+          emergency_contact_name: form.emergencyName || null,
+          emergency_contact_relationship: form.emergencyRelationship || null,
+          emergency_contact_email: form.emergencyEmail || null,
+          emergency_contact_phone: form.emergencyPhone || null,
         },
         passport: {
-          passport_number: form.passportNumber || "LQ41932345",
-          issue_date: form.passportIssueDate || "2022-11-22",
-          expiry_date: form.passportExpiryDate || "2027-11-22",
+          passport_number: form.passportNumber.trim() || null,
+          issue_date: formatToIsoDate(form.passportIssueDate),
+          expiry_date: formatToIsoDate(form.passportExpiryDate),
         },
         employment: {
-          employer_sponsor: form.employerSponsor || "AX Studios",
-          job_title: form.jobTitle || "Singer",
-          soc_code: "3416",
-          start_date: form.startDate || null,
-          end_date: form.endDate || null,
-          contract_type: form.contractType || "Full-time",
-          hours_per_week: form.hoursPerWeek || "40",
-          annual_salary: form.annualSalary || "48000",
-          cos_reference: form.cosReference || "COS2026-00430",
-          additional_addresses: extraAddresses,
+          employer_sponsor: form.employerSponsor || null,
+          job_title: form.jobTitle || null,
+          soc_code: form.socCode || "3416",
+          start_date: formatToIsoDate(form.startDate),
+          end_date: formatToIsoDate(form.endDate),
+          contract_type: form.contractType || null,
+          hours_per_week: form.hoursPerWeek || null,
+          annual_salary: form.annualSalary || null,
+          cos_reference: form.cosReference || null,
+          additional_addresses: extraAddresses.map(({ id, ...rest }) => rest),
         },
-        checklist_summary: checklist.map((c) => ({ id: c.id, title: c.title, status: c.status })),
+        checklist_summary: checklist.map((c) => ({
+          id: c.id,
+          title: c.title,
+          status: c.status,
+          fileName: c.fileName || null,
+        })),
       };
 
-      try {
-        await apiClient.post(ENDPOINTS.migrants.base, payload);
-      } catch {
-        // Fallback for development server if endpoint structure differs
-        console.warn("Backend API call completed or handled via proxy fallback.");
-      }
+      await apiClient.post(ENDPOINTS.migrants.base, payload);
 
-      toast.success(`Case created and invite link sent to ${form.personalEmail || "taylor.j@email.com"}!`);
+      toast.success("Migrant record created successfully!");
       router.push("/migrants");
     } catch {
       toast.error("Failed to create migrant record.");
@@ -413,6 +519,13 @@ export default function AddMigrantPage() {
         onChange={handleDocDropSelect}
         accept="image/*,.pdf,.png,.jpg,.jpeg,.mp4"
         multiple
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={itemFileInputRef}
+        onChange={handleItemFileSelected}
+        accept="image/*,.pdf,.png,.jpg,.jpeg,.mp4"
         className="hidden"
       />
 
@@ -614,7 +727,7 @@ export default function AddMigrantPage() {
             : "Review & Create"}
         </h2>
 
-        {/* STEP 2: PERSONAL DETAILS FORM (Matching Figma Mockup) */}
+        {/* STEP 2: PERSONAL DETAILS FORM */}
         {activeStep === 2 && (
           <div className="flex flex-col gap-6">
             {/* AI Passport Auto-Fill Banner */}
@@ -670,10 +783,13 @@ export default function AddMigrantPage() {
             {/* First Name & Last Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">First Name</label>
+                <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">
+                  First Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   id="firstName"
                   type="text"
+                  required
                   value={form.firstName}
                   onChange={(e) => handleChange("firstName", e.target.value)}
                   placeholder="First name..."
@@ -682,10 +798,13 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">Last Name</label>
+                <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">
+                  Last Name <span className="text-red-500">*</span>
+                </label>
                 <input
                   id="lastName"
                   type="text"
+                  required
                   value={form.lastName}
                   onChange={(e) => handleChange("lastName", e.target.value)}
                   placeholder="Last name..."
@@ -820,12 +939,16 @@ export default function AddMigrantPage() {
               />
             </div>
 
-            {/* Passport Number, Passport Issue Date, Passport Expiry Date (3 Columns Grid) */}
+            {/* Passport Number, Passport Issue Date, Passport Expiry Date */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Passport Number</label>
+                <label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">
+                  Passport Number <span className="text-red-500">*</span>
+                </label>
                 <input
+                  id="passportNumber"
                   type="text"
+                  required
                   value={form.passportNumber}
                   onChange={(e) => handleChange("passportNumber", e.target.value)}
                   placeholder="Passport number..."
@@ -834,10 +957,11 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Passport Issue Date</label>
+                <label htmlFor="passportIssueDate" className="text-[14px] font-medium text-[#171717]">Passport Issue Date</label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
+                    id="passportIssueDate"
                     type="text"
                     value={form.passportIssueDate}
                     onChange={(e) => handleChange("passportIssueDate", e.target.value)}
@@ -848,10 +972,11 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Passport Expiry Date</label>
+                <label htmlFor="passportExpiryDate" className="text-[14px] font-medium text-[#171717]">Passport Expiry Date</label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
+                    id="passportExpiryDate"
                     type="text"
                     value={form.passportExpiryDate}
                     onChange={(e) => handleChange("passportExpiryDate", e.target.value)}
@@ -869,8 +994,9 @@ export default function AddMigrantPage() {
               </span>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Address Line 1</label>
+                <label htmlFor="addressLine1" className="text-[14px] font-medium text-[#171717]">Address Line 1</label>
                 <input
+                  id="addressLine1"
                   type="text"
                   value={form.addressLine1}
                   onChange={(e) => handleChange("addressLine1", e.target.value)}
@@ -880,10 +1006,11 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">
+                <label htmlFor="addressLine2" className="text-[14px] font-medium text-[#171717]">
                   Address Line 2 <span className="font-normal text-[#5C5C5C]">(Optional)</span>
                 </label>
                 <input
+                  id="addressLine2"
                   type="text"
                   value={form.addressLine2}
                   onChange={(e) => handleChange("addressLine2", e.target.value)}
@@ -894,8 +1021,9 @@ export default function AddMigrantPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[14px] font-medium text-[#171717]">City</label>
+                  <label htmlFor="city" className="text-[14px] font-medium text-[#171717]">City</label>
                   <input
+                    id="city"
                     type="text"
                     value={form.city}
                     onChange={(e) => handleChange("city", e.target.value)}
@@ -905,8 +1033,9 @@ export default function AddMigrantPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[14px] font-medium text-[#171717]">Post Code</label>
+                  <label htmlFor="postCode" className="text-[14px] font-medium text-[#171717]">Post Code</label>
                   <input
+                    id="postCode"
                     type="text"
                     value={form.postCode}
                     onChange={(e) => handleChange("postCode", e.target.value)}
@@ -917,13 +1046,15 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Country</label>
+                <label htmlFor="country" className="text-[14px] font-medium text-[#171717]">Country</label>
                 <div className="relative">
                   <select
+                    id="country"
                     value={form.country}
                     onChange={(e) => handleChange("country", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                   >
+                    <option value="">Select country...</option>
                     <option value="United States">United States</option>
                     <option value="United Kingdom">United Kingdom</option>
                     <option value="India">India</option>
@@ -943,8 +1074,9 @@ export default function AddMigrantPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[14px] font-medium text-[#171717]">Personal Email</label>
+                  <label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">Personal Email</label>
                   <input
+                    id="personalEmail"
                     type="email"
                     value={form.personalEmail}
                     onChange={(e) => handleChange("personalEmail", e.target.value)}
@@ -954,8 +1086,9 @@ export default function AddMigrantPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[14px] font-medium text-[#171717]">Mobile Phone</label>
+                  <label htmlFor="mobilePhone" className="text-[14px] font-medium text-[#171717]">Mobile Phone</label>
                   <input
+                    id="mobilePhone"
                     type="tel"
                     value={form.mobilePhone}
                     onChange={(e) => handleChange("mobilePhone", e.target.value)}
@@ -973,8 +1106,9 @@ export default function AddMigrantPage() {
               </span>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Full Name</label>
+                <label htmlFor="emergencyName" className="text-[14px] font-medium text-[#171717]">Full Name</label>
                 <input
+                  id="emergencyName"
                   type="text"
                   value={form.emergencyName}
                   onChange={(e) => handleChange("emergencyName", e.target.value)}
@@ -984,13 +1118,15 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[14px] font-medium text-[#171717]">Relationship</label>
+                <label htmlFor="emergencyRelationship" className="text-[14px] font-medium text-[#171717]">Relationship</label>
                 <div className="relative">
                   <select
+                    id="emergencyRelationship"
                     value={form.emergencyRelationship}
                     onChange={(e) => handleChange("emergencyRelationship", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                   >
+                    <option value="">Select relationship...</option>
                     <option value="Spouse">Spouse</option>
                     <option value="Parent">Parent</option>
                     <option value="Sibling">Sibling</option>
@@ -1004,8 +1140,9 @@ export default function AddMigrantPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[14px] font-medium text-[#171717]">Email</label>
+                  <label htmlFor="emergencyEmail" className="text-[14px] font-medium text-[#171717]">Email</label>
                   <input
+                    id="emergencyEmail"
                     type="email"
                     value={form.emergencyEmail}
                     onChange={(e) => handleChange("emergencyEmail", e.target.value)}
@@ -1015,8 +1152,9 @@ export default function AddMigrantPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[14px] font-medium text-[#171717]">Mobile Phone</label>
+                  <label htmlFor="emergencyPhone" className="text-[14px] font-medium text-[#171717]">Mobile Phone</label>
                   <input
+                    id="emergencyPhone"
                     type="tel"
                     value={form.emergencyPhone}
                     onChange={(e) => handleChange("emergencyPhone", e.target.value)}
@@ -1032,17 +1170,14 @@ export default function AddMigrantPage() {
         {/* STEP 1: GET STARTED / NEW SPONSORSHIP CASE */}
         {activeStep === 1 && (
           <div className="w-full flex flex-col items-center justify-center py-4 select-none">
-            {/* Header Title & Subtitle (Frame 322) */}
+            {/* Header Description & Subtitle */}
             <div className="flex flex-col items-center text-center max-w-[586px] mx-auto mb-[25px]">
-              <h2 className="text-[40px] font-medium text-[#171717] tracking-[-0.01em] font-aeonik-medium leading-[40px] mb-[25px]">
-                New sponsorship case
-              </h2>
               <p className="text-[16px] font-normal text-[#5C5C5C] leading-[24px] tracking-[-0.011em] max-w-[446px] mx-auto">
                 Invite the migrant to complete their details, or fill everything in yourself. Either way works.
               </p>
             </div>
 
-            {/* Badges Row (Frame 321) */}
+            {/* Badges Row */}
             <div className="flex flex-wrap items-center justify-center gap-[11px] mb-[25px]">
               <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full border border-transparent">
                 <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
@@ -1077,14 +1212,12 @@ export default function AddMigrantPage() {
               </button>
             </div>
 
-            {/* Dark Banner Card (Banner [1.1]) */}
+            {/* Dark Banner Card */}
             <div className="w-full max-w-[728px] mx-auto bg-[#262626] rounded-[16px] p-[24px] pb-[26px] flex flex-col md:flex-row items-start gap-[12px] shadow-card-large">
-              {/* Key Icon */}
               <div className="size-[40px] rounded-full bg-[#7D52F4] flex items-center justify-center shrink-0 shadow-x-small">
                 <RiUserAddFill className="size-[20px] text-white" />
               </div>
 
-              {/* Text & Form Container */}
               <div className="flex-1 flex flex-col gap-[16px] w-full">
                 <div className="flex flex-col gap-[4px]">
                   <h3 className="text-[14px] font-medium text-white tracking-[-0.006em] leading-[20px]">
@@ -1095,10 +1228,14 @@ export default function AddMigrantPage() {
                   </p>
                 </div>
 
-                {/* Form Input Row (Frame 274) */}
+                {/* Form Input Row */}
                 <form onSubmit={handleSendQuickInvite} className="flex flex-col sm:flex-row items-center gap-[8px] w-full">
                   <div className="flex-1 w-full">
+                    <label htmlFor="quickInviteEmail" className="sr-only">
+                      Migrant email address
+                    </label>
                     <input
+                      id="quickInviteEmail"
                       type="email"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
@@ -1253,6 +1390,7 @@ export default function AddMigrantPage() {
                     onChange={(e) => handleChange("contractType", e.target.value)}
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                   >
+                    <option value="">Select contract type...</option>
                     <option value="Full-time">Full-time</option>
                     <option value="Part-time">Part-time</option>
                     <option value="Contract">Contract</option>
@@ -1274,7 +1412,7 @@ export default function AddMigrantPage() {
                   type="text"
                   value={form.hoursPerWeek}
                   onChange={(e) => handleChange("hoursPerWeek", e.target.value)}
-                  placeholder=""
+                  placeholder="37.5"
                   className="h-10 rounded-[10px] border border-transparent bg-[#F5F5F5] px-3 text-[14px] text-[#171717] focus:outline-none focus:bg-white focus:border-[#7D52F4]"
                 />
               </div>
@@ -1291,7 +1429,7 @@ export default function AddMigrantPage() {
                   type="text"
                   value={form.annualSalary}
                   onChange={(e) => handleChange("annualSalary", e.target.value)}
-                  placeholder="€"
+                  placeholder="£"
                   className="h-10 rounded-[10px] border border-transparent bg-[#F5F5F5] px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:bg-white focus:border-[#7D52F4]"
                 />
               </div>
@@ -1357,14 +1495,14 @@ export default function AddMigrantPage() {
                 </div>
               </div>
 
-              {/* Dynamic Additional Addresses */}
+              {/* Dynamic Additional Addresses with Stable Key */}
               {extraAddresses.map((addr, idx) => (
-                <div key={idx} className="flex flex-col gap-4 pt-4 border-t border-dashed border-[#EBEBEB]">
+                <div key={addr.id} className="flex flex-col gap-4 pt-4 border-t border-dashed border-[#EBEBEB]">
                   <div className="flex justify-between items-center">
                     <span className="text-[12px] font-medium text-[#A4A4A4] uppercase">Additional Address {idx + 1}</span>
                     <button
                       type="button"
-                      onClick={() => setExtraAddresses((prev) => prev.filter((_, i) => i !== idx))}
+                      onClick={() => setExtraAddresses((prev) => prev.filter((item) => item.id !== addr.id))}
                       className="text-[12px] text-red-500 hover:underline border-0 bg-transparent cursor-pointer"
                     >
                       Remove
@@ -1375,7 +1513,9 @@ export default function AddMigrantPage() {
                     value={addr.addressLine1}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setExtraAddresses((prev) => prev.map((item, i) => i === idx ? { ...item, addressLine1: val } : item));
+                      setExtraAddresses((prev) =>
+                        prev.map((item) => (item.id === addr.id ? { ...item, addressLine1: val } : item))
+                      );
                     }}
                     placeholder="Address Line 1"
                     className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] shadow-x-small"
@@ -1386,7 +1526,9 @@ export default function AddMigrantPage() {
                       value={addr.city}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setExtraAddresses((prev) => prev.map((item, i) => i === idx ? { ...item, city: val } : item));
+                        setExtraAddresses((prev) =>
+                          prev.map((item) => (item.id === addr.id ? { ...item, city: val } : item))
+                        );
                       }}
                       placeholder="City"
                       className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] shadow-x-small"
@@ -1396,7 +1538,9 @@ export default function AddMigrantPage() {
                       value={addr.postCode}
                       onChange={(e) => {
                         const val = e.target.value;
-                        setExtraAddresses((prev) => prev.map((item, i) => i === idx ? { ...item, postCode: val } : item));
+                        setExtraAddresses((prev) =>
+                          prev.map((item) => (item.id === addr.id ? { ...item, postCode: val } : item))
+                        );
                       }}
                       placeholder="Post Code"
                       className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] shadow-x-small"
@@ -1446,12 +1590,18 @@ export default function AddMigrantPage() {
                 Documents
               </h2>
 
-              {/* Drag & Drop Upload Container (Widgets [HR Management]) */}
+              {/* Drag & Drop Upload Container */}
               <div className="w-full bg-[#F7F7F7] border border-[#EBEBEB] rounded-[16px] p-[24px] flex flex-col gap-[24px] shadow-x-small">
-                {/* File Upload Box (File Upload Area [1.1]) */}
-                <div
+                {/* File Upload Button Dropzone */}
+                <button
+                  type="button"
                   onClick={() => docUploadInputRef.current?.click()}
-                  className="w-full bg-white border border-dashed border-[#D1D1D1] hover:border-[#7D52F4] rounded-[12px] p-[32px] flex flex-col items-center justify-center gap-[20px] cursor-pointer transition-colors group select-none"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDroppedFiles(e.dataTransfer.files);
+                  }}
+                  className="w-full bg-white border border-dashed border-[#D1D1D1] hover:border-[#7D52F4] rounded-[12px] p-[32px] flex flex-col items-center justify-center gap-[20px] cursor-pointer transition-colors group select-none text-left font-sans"
                 >
                   <div className="size-[56px] bg-[#EFEBFF] rounded-[12px] flex items-center justify-center text-[#7D52F4] shrink-0 group-hover:scale-105 transition-transform">
                     <RiUpload2Line className="size-6 text-[#7D52F4]" />
@@ -1465,9 +1615,9 @@ export default function AddMigrantPage() {
                       JPEG, PNG, PDF, and MP4 formats, up to 50 MB.
                     </span>
                   </div>
-                </div>
+                </button>
 
-                {/* AI Smart Categorisation Banner (Banner [1.1]) */}
+                {/* AI Smart Categorisation Banner */}
                 <div className="w-full bg-[#F7F7F7] border border-[#EBEBEB] rounded-[8px] p-3 flex items-start gap-3">
                   <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white mt-0.5">
                     <RiSparklingFill className="size-3.5 text-white" />
@@ -1490,7 +1640,7 @@ export default function AddMigrantPage() {
                 Document Checklist
               </h2>
 
-              {/* Document Checklist Items List (Frame 185) */}
+              {/* Document Checklist Items List */}
               <div className="w-full flex flex-col gap-[4px]">
                 {checklist.map((item) => (
                   <div
@@ -1624,79 +1774,77 @@ export default function AddMigrantPage() {
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Full Name</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.firstName || form.lastName ? `${form.firstName} ${form.lastName}` : "Taylor Johnson"}
+                    {form.firstName || form.lastName ? `${form.firstName} ${form.lastName}`.trim() : "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Date of Birth</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.dob || "14 Jun 1990"}
+                    {form.dob || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Gender</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.gender || "Male"}
+                    {form.gender || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Marital Status</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.maritalStatus || "Married"}
+                    {form.maritalStatus || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Nationality</span>
-                  <span className="text-[14px] font-medium text-[#171717] flex items-center gap-1.5">
-                    <span>🇺🇸</span>
-                    <span>{form.nationality || "US"}</span>
+                  <span className="text-[14px] font-medium text-[#171717]">
+                    {form.nationality || "US"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Country of Birth</span>
-                  <span className="text-[14px] font-medium text-[#171717] flex items-center gap-1.5">
-                    <span>🇺🇸</span>
-                    <span>{form.countryOfBirth || "US"}</span>
+                  <span className="text-[14px] font-medium text-[#171717]">
+                    {form.countryOfBirth || "US"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Passport Number</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.passportNumber || "LQ41932345"}
+                    {form.passportNumber || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Issue Date</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.passportIssueDate || "22 Nov 2022"}
+                    {form.passportIssueDate || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Expiry Date</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.passportExpiryDate || "22 Nov 2027"}
+                    {form.passportExpiryDate || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Email</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.personalEmail || "taylor.j@email.com"}
+                    {form.personalEmail || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Phone</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.mobilePhone || "+44 7700 123456"}
+                    {form.mobilePhone || "—"}
                   </span>
                 </div>
               </div>
@@ -1721,21 +1869,21 @@ export default function AddMigrantPage() {
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Employer / Sponsor</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.employerSponsor || "AX Studios"}
+                    {form.employerSponsor || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Job Title</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.jobTitle || "Singer"}
+                    {form.jobTitle || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">SOC Code</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    3416 (Arts/Entertainment)
+                    {form.socCode || "3416 (Arts/Entertainment)"}
                   </span>
                 </div>
 
@@ -1749,35 +1897,35 @@ export default function AddMigrantPage() {
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Contract</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.contractType || "Full-time"}
+                    {form.contractType || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Hours/Week</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.hoursPerWeek || "40"}
+                    {form.hoursPerWeek || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Annual Salary</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.annualSalary ? `£${form.annualSalary}/year` : "£48,000/year"}
+                    {form.annualSalary ? `£${form.annualSalary}/year` : "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Address</span>
                   <span className="text-[14px] font-medium text-[#171717] text-right">
-                    {form.workAddressLine1 ? `${form.workAddressLine1}, ${form.workCity}, ${form.workPostCode}` : "Royal Albert Hall, London, SW7 2AP"}
+                    {form.workAddressLine1 ? `${form.workAddressLine1}, ${form.workCity}, ${form.workPostCode}` : "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">CoS Reference</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.cosReference || "COS2026-00430"}
+                    {form.cosReference || "—"}
                   </span>
                 </div>
               </div>
@@ -1787,7 +1935,7 @@ export default function AddMigrantPage() {
             <div className="bg-[#F7F7F7] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em]">
-                  CASE
+                  DOCUMENTS
                 </span>
                 <button
                   type="button"
@@ -1807,19 +1955,21 @@ export default function AddMigrantPage() {
             </div>
 
             {/* 5. INCOMPLETE DETAILS WARNING BANNER */}
-            <div className="bg-[#FFECC0] rounded-[16px] p-4 flex items-start gap-3 border border-[#F6B51E]/20">
-              <div className="size-5 rounded-full bg-[#F6B51E] flex items-center justify-center text-white shrink-0 mt-0.5 text-[12px] font-bold">
-                !
+            {(!form.firstName || !form.lastName || !form.passportNumber || checklist.some((i) => i.status === "missing")) && (
+              <div className="bg-[#FFECC0] rounded-[16px] p-4 flex items-start gap-3 border border-[#F6B51E]/20">
+                <div className="size-5 rounded-full bg-[#F6B51E] flex items-center justify-center text-white shrink-0 mt-0.5 text-[12px] font-bold">
+                  !
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h4 className="text-[14px] font-medium text-[#171717]">
+                    Some details are incomplete
+                  </h4>
+                  <p className="text-[13px] font-normal text-[#171717] leading-[20px]">
+                    You can still create the case and complete these later. We recommend uploading at least passport, CV, and contract.
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <h4 className="text-[14px] font-medium text-[#171717]">
-                  Some details are incomplete
-                </h4>
-                <p className="text-[13px] font-normal text-[#171717] leading-[20px]">
-                  You can still create the case and complete these later. We recommend uploading at least passport, CV, and contract.
-                </p>
-              </div>
-            </div>
+            )}
 
             {/* Bottom Actions Bar */}
             <div className="flex items-center justify-between pt-6 border-t border-[#EBEBEB] mt-4">
@@ -1843,7 +1993,7 @@ export default function AddMigrantPage() {
           </div>
         )}
 
-        {/* Bottom Actions Bar (Back & Next Buttons) */}
+        {/* Bottom Actions Bar (Back & Next Buttons for Step 2) */}
         {activeStep === 2 && (
           <div className="flex items-center justify-between pt-6 border-t border-[#EBEBEB] mt-4">
             <button
@@ -1865,7 +2015,7 @@ export default function AddMigrantPage() {
         )}
       </main>
 
-      {/* Alert & Notification & Toast [1.1] */}
+      {/* Alert & Notification & Toast */}
       {showInviteToast && (
         <div className="fixed bottom-6 right-6 z-50 w-[390px] bg-[#1FC16B] rounded-[12px] p-[14px] pb-[16px] text-white shadow-card-large flex items-start gap-[12px] animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="size-[20px] rounded-full bg-white/20 flex items-center justify-center shrink-0 mt-0.5">
@@ -1873,7 +2023,7 @@ export default function AddMigrantPage() {
           </div>
           <div className="flex-1 flex flex-col gap-[4px]">
             <h4 className="text-[14px] font-medium text-white tracking-[-0.006em] leading-[20px]">
-              Invite sent to {toastEmail || "j.taylor@email.com"}
+              Invite sent to {toastEmail}
             </h4>
             <p className="text-[14px] font-normal text-white/90 tracking-[-0.006em] leading-[20px]">
               The migrant will fill in their details. You can continue with admin sections now or come back later.
@@ -1892,14 +2042,19 @@ export default function AddMigrantPage() {
 
       {/* Invite Migrant Modal */}
       <InviteMigrantModal
+        key={isInviteModalOpen ? form.personalEmail || "open" : "closed"}
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
-        onSendInvite={(email) => {
-          setToastEmail(email);
-          setShowInviteToast(true);
-          toast.success(`Invite sent to ${email}!`);
+        onSendInvite={async (email) => {
+          try {
+            await apiClient.post(ENDPOINTS.employees.sendRegistrationLink, { email });
+            setToastEmail(email);
+            setShowInviteToast(true);
+          } catch {
+            toast.error("Failed to send invite link.");
+          }
         }}
-        defaultEmail={form.personalEmail || "j.taylor@email.com"}
+        defaultEmail={form.personalEmail || ""}
       />
     </div>
   );
