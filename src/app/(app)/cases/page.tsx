@@ -25,6 +25,7 @@ import {
   RiUser3Fill,
   RiThumbDownLine,
   RiThumbDownFill,
+  RiCloseLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ import { MarkVisaRefusedModal } from "./components/MarkVisaRefusedModal";
 import { CountryFilterDropdown } from "./components/CountryFilterDropdown";
 import { StatusFilterDropdown } from "./components/StatusFilterDropdown";
 import { CaseRowMenu } from "./components/CaseRowMenu";
+import { GroupRowMenu } from "./components/GroupRowMenu";
 import { ArchiveCaseModal } from "./components/ArchiveCaseModal";
 import { DeleteCaseModal } from "./components/DeleteCaseModal";
 import { CaseActionModal } from "./components/CaseActionModal";
@@ -94,6 +96,9 @@ interface CaseRow {
   migration: string;
   action: string;
   actionColor: "blue" | "red" | "yellow" | "gray";
+  passportNumber?: string;
+  refusalDate?: string;
+  refusalReason?: string;
   outcome?: string | null;       // preserve server outcome on PATCH
   cosStatusValue?: string | null; // preserve server cosStatus on PATCH
 }
@@ -273,6 +278,11 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
     }
   }
 
+  const passportNumber = c.passport_number || c.passportNumber || "—";
+  const refusalDate = c.refusal_date || c.refusalDate || "—";
+  const refusalReason = c.refusal_reason || c.refusalReason || "—";
+  const assignedGroup = c.group_name || "No Group";
+
   return {
     id: c.id,
     roleId: c.role || 1,
@@ -282,7 +292,7 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
     countryHalf,
     flag,
     name,
-    group: c.group_name || "No Group",
+    group: assignedGroup,
     avatarText: initials || "UM",
     avatarUrl: undefined,
     status,
@@ -290,6 +300,9 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
     migration,
     action,
     actionColor,
+    passportNumber,
+    refusalDate,
+    refusalReason,
     outcome: c.outcome ?? null,
     cosStatusValue: c.cosStatus ?? null,
   };
@@ -298,6 +311,7 @@ function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
 export default function CasesPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<"cases" | "groups" | "refusals">("cases");
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
   const [needsActionOnly, setNeedsActionOnly] = React.useState(false);
@@ -489,13 +503,43 @@ export default function CasesPage() {
     return <Flag country={country} />;
   };
 
+  // Helper: normalize and match search strings flexibly (handles trailing spaces & multi-word queries)
+  // Helper: normalize and match search strings flexibly (handles long group titles, trailing spaces & multi-word queries)
+  const matchesSearchQuery = (itemFields: (string | undefined)[], queryStr: string) => {
+    if (!queryStr || !queryStr.trim()) return true;
+    const normQuery = queryStr.toLowerCase().trim();
+    const combinedText = itemFields.map((f) => (f || "").toLowerCase()).join(" ");
+
+    // 1. Direct substring match (e.g. searching "ax" or "AX Studios" or "Vikas")
+    if (combinedText.includes(normQuery)) return true;
+
+    // 2. Inverse substring match (e.g. clicking long group title "Hun Ni Mud'de Yaar Movie Group part 3" vs case group "Hun Ni Mud'de")
+    if (itemFields.some((f) => f && f.length >= 3 && normQuery.includes(f.toLowerCase().trim()))) return true;
+
+    // 3. Forgiving token matching for multi-word search queries
+    const words = normQuery.split(/\s+/).filter(Boolean);
+    if (words.length > 0) {
+      const matchedWords = words.filter((w) => combinedText.includes(w));
+      if (words.length <= 2) {
+        return matchedWords.length === words.length;
+      }
+      return matchedWords.length / words.length >= 0.5;
+    }
+    return false;
+  };
+
   // Filter cases based on search, country, status, and Needs Action filter
   const filteredCases = React.useMemo(() => {
-    return tabCases.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.caseId.includes(searchQuery) ||
-        item.group.toLowerCase().includes(searchQuery.toLowerCase());
+    if (searchQuery && searchQuery.trim()) {
+      const uniqueGroups = [...new Set(tabCases.map((c) => c.group))];
+      console.log("[DEBUG filteredCases] searchQuery:", JSON.stringify(searchQuery), "activeTab:", activeTab);
+      console.log("[DEBUG filteredCases] tabCases.length:", tabCases.length, "unique groups:", uniqueGroups.slice(0, 15));
+    }
+    const result = tabCases.filter((item) => {
+      const matchesSearch = matchesSearchQuery(
+        [item.name, item.caseId, item.group, item.country, item.migration, item.status],
+        searchQuery
+      );
 
       const matchesCountry = !countryFilter || countryFilter === "all" || (
         item.countryCode.toLowerCase() === countryFilter.toLowerCase() ||
@@ -528,7 +572,69 @@ export default function CasesPage() {
       }
       return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick;
     });
+    if (searchQuery && searchQuery.trim()) {
+      console.log("[DEBUG filteredCases] result.length:", result.length, "first 5:", result.slice(0, 5).map(c => ({ name: c.name, group: c.group, caseId: c.caseId })));
+    }
+    return result;
   }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter, quickFilter]);
+
+  const groupedData = React.useMemo(() => {
+    const groupsMap = new Map<string, CaseRow[]>();
+
+    cases.forEach((c) => {
+      const gName = c.group && c.group !== "No Group" ? c.group : "AX Studios";
+      if (!groupsMap.has(gName)) {
+        groupsMap.set(gName, []);
+      }
+      groupsMap.get(gName)!.push(c);
+    });
+
+    const result: Array<{ groupName: string; initial: string; caseIdRange: string; migrantsCount: number; items: CaseRow[] }> = [];
+
+    groupsMap.forEach((items, gName) => {
+      const sortedIds = items
+        .map((i) => i.caseId)
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+      const range =
+        sortedIds.length > 0
+          ? sortedIds.length === 1
+            ? `${sortedIds[0]} - ${sortedIds[0]}`
+            : `${sortedIds[0]} - ${sortedIds[sortedIds.length - 1]}`
+          : "—";
+
+      result.push({
+        groupName: gName,
+        initial: gName.charAt(0).toUpperCase(),
+        caseIdRange: range,
+        migrantsCount: items.length,
+        items,
+      });
+    });
+
+    if (!searchQuery || !searchQuery.trim()) return result;
+    return result.filter((g) =>
+      matchesSearchQuery([g.groupName, g.caseIdRange], searchQuery)
+    );
+  }, [filteredCases, searchQuery]);
+
+  const [pageSize, setPageSize] = React.useState(10);
+
+  const isGroupSummaryView = activeTab === "groups";
+  const totalCount = isGroupSummaryView ? groupedData.length : filteredCases.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.max(1, Math.min(currentPage, totalPages));
+
+  const paginatedCases = React.useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredCases.slice(start, start + pageSize);
+  }, [filteredCases, safePage, pageSize]);
+
+  const paginatedGroups = React.useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return groupedData.slice(start, start + pageSize);
+  }, [groupedData, safePage, pageSize]);
 
   // Helper: show custom styled success toast matching Figma
   const showSuccessToast = (name: string, statusText: string) => {
@@ -892,7 +998,8 @@ export default function CasesPage() {
             <Button
               type="button"
               size="sm"
-              className="h-9 px-xl text-label-sm font-semibold text-white"
+              onClick={() => router.push("/migrants/create")}
+              className="h-9 px-xl text-label-sm font-semibold text-white cursor-pointer"
             >
               <RiAddLine className="size-4" data-icon="inline-start" />
               New migrant
@@ -935,7 +1042,7 @@ export default function CasesPage() {
             )}
             <span>Groups</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {Array.from(new Set(cases.map((c) => c.group))).length}
+              {groupedData.length}
             </div>
           </Button>
           <Button
@@ -969,22 +1076,44 @@ export default function CasesPage() {
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-9 pr-4 bg-white text-paragraph-sm placeholder-[#A4A4A4] shadow-x-small"
+              className="w-full h-8 pl-9 pr-8 bg-white text-paragraph-sm placeholder-[#A4A4A4] shadow-x-small rounded-[8px]"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#A4A4A4] hover:text-[#171717] border-0 bg-transparent p-0 flex items-center justify-center cursor-pointer"
+                title="Clear search"
+              >
+                <RiCloseLine className="size-4" />
+              </button>
+            )}
           </div>
 
           <div className="relative">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-              className={`text-neutral-500 hover:bg-neutral-100 ${filterPanelOpen ? 'bg-neutral-100 border-[#7D52F4]' : ''}`}
-            >
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-                <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
-              </svg>
-            </Button>
+            {(() => {
+              const activeFilterCount = (countryFilter ? 1 : 0) + (statusFilter ? 1 : 0) + (migrationFilter ? 1 : 0) + (severityFilter ? 1 : 0) + (caseIdFilter ? 1 : 0) + (quickFilter ? 1 : 0) + (needsActionOnly ? 1 : 0);
+              return (
+                <button
+                  type="button"
+                  onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+                  className={`h-8 px-2.5 rounded-[8px] flex items-center gap-1.5 text-xs font-medium transition-all border-0 cursor-pointer ${
+                    activeFilterCount > 0
+                      ? "bg-[#171717] text-white shadow-x-small"
+                      : "bg-white text-[#5C5C5C] hover:bg-neutral-100 border border-neutral-200/40 shadow-x-small"
+                  }`}
+                >
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+                    <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
+                  </svg>
+                  {activeFilterCount > 0 && (
+                    <span className="w-4 h-4 rounded-full bg-white text-[#171717] text-[10px] font-bold flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })()}
             
             {filterPanelOpen && (
               <div className="absolute top-[40px] left-0 w-[696px] h-[528px] bg-white border border-[#F5F5F5] rounded-[20px] shadow-card-large z-50 flex font-sans select-none overflow-hidden text-left" style={{ boxShadow: '0px 1px 1px 0.5px rgba(51, 51, 51, 0.04), 0px 3px 3px -1.5px rgba(51, 51, 51, 0.02), 0px 6px 6px -3px rgba(51, 51, 51, 0.04), 0px 12px 12px -6px rgba(51, 51, 51, 0.04), 0px 24px 24px -12px rgba(51, 51, 51, 0.04), 0px 48px 48px -24px rgba(51, 51, 51, 0.04), 0px 0px 0px 1px #F5F5F5, inset 0px -1px 1px -0.5px rgba(51, 51, 51, 0.06)' }}>
@@ -1363,9 +1492,41 @@ export default function CasesPage() {
           >
             Needs action
           </Button>
+
+          {/* View mode switcher [Frame 2087326895] */}
+          {isGroupSummaryView && (
+            <div className="flex items-center gap-[4px] ml-auto p-[2px] bg-white rounded-[8px] border border-[#EBEBEB]">
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                aria-pressed={viewMode === "table"}
+                className={`size-8 rounded-[6px] flex items-center justify-center border-0 cursor-pointer transition-colors ${
+                  viewMode === "table" ? "bg-[#171717] text-white" : "bg-white text-[#5C5C5C] hover:bg-neutral-100"
+                }`}
+                title="Table View"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+                  <path d="M3.75 3.75H16.25V5.25H3.75V3.75ZM3.75 7.5H16.25V9H3.75V7.5ZM3.75 11.25H16.25V12.75H3.75V11.25ZM3.75 15H16.25V16.5H3.75V15Z" fill="currentColor" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                aria-pressed={viewMode === "grid"}
+                className={`size-8 rounded-[6px] flex items-center justify-center border-0 cursor-pointer transition-colors ${
+                  viewMode === "grid" ? "bg-[#171717] text-white" : "bg-white text-[#5C5C5C] hover:bg-neutral-100"
+                }`}
+                title="Gallery View"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
+                  <path d="M3.75 3.75H8.75V8.75H3.75V3.75ZM11.25 3.75H16.25V8.75H11.25V3.75ZM3.75 11.25H8.75V16.25H3.75V11.25ZM11.25 11.25H16.25V16.25H11.25V11.25Z" fill="currentColor" />
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
 
-        {filteredCases.length === 0 ? (
+        {filteredCases.length === 0 && !isGroupSummaryView ? (
           <div className="flex flex-col items-center justify-center h-[592px] bg-white rounded-card shadow-x-small border border-neutral-200/20 select-none">
             {/* Group 9: Figma-matching stacked vector cards */}
             <div className="w-[77px] h-[88px] flex items-center justify-center relative mb-[24px]">
@@ -1396,6 +1557,7 @@ export default function CasesPage() {
             {/* Button: [1.1] style */}
             <button
               type="button"
+              onClick={() => router.push("/migrants/create")}
               className="w-[133px] h-[36px] bg-[#262626] hover:bg-[#333333] text-white text-[14px] font-medium leading-[20px] tracking-[-0.006em] rounded-[8px] flex items-center justify-center gap-[4px] p-[8px] cursor-pointer border-0 transition-colors font-sans"
             >
               <RiAddLine className="size-5 text-white shrink-0" />
@@ -1406,164 +1568,419 @@ export default function CasesPage() {
           <>
             <div className="w-full select-none">
               <div className="flex flex-col gap-sm">
-                <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs">
-                  <div className="basis-[94px] shrink-0 grow-0">Case ID #</div>
-                  <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
-                    Country
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                      <path d="m7 15 5 5 5-5"/>
-                      <path d="m7 9 5-5 5 5"/>
-                    </svg>
+                {activeTab === "refusals" ? (
+                  <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs select-none">
+                    <div className="basis-[94px] shrink-0 grow-0">Case ID #</div>
+                    <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
+                      Country
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      Name
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      Passport #
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      Date of Refusal
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-[1.5] min-w-0">Reason</div>
+                    <div className="w-[48px] shrink-0"></div>
                   </div>
-                  <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
-                    Name
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                      <path d="m7 15 5 5 5-5"/>
-                      <path d="m7 9 5-5 5 5"/>
-                    </svg>
+                ) : isGroupSummaryView ? (
+                  <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs select-none">
+                    <div className="basis-[198px] shrink-0 grow-0">CASE ID RANGE #</div>
+                    <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      GROUP NAME
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      MIGRANTS
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="w-[48px] shrink-0"></div>
                   </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
-                    Case Status
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                      <path d="m7 15 5 5 5-5"/>
-                      <path d="m7 9 5-5 5 5"/>
-                    </svg>
+                ) : (
+                  <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs">
+                    <div className="basis-[94px] shrink-0 grow-0">Case ID #</div>
+                    <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
+                      Country
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      Name
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      Case Status
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      Migration Status
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
+                        <path d="m7 15 5 5 5-5"/>
+                        <path d="m7 9 5-5 5 5"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">Compliance Action</div>
+                    <div className="w-[48px] shrink-0"></div>
                   </div>
-                  <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
-                    Migration Status
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                      <path d="m7 15 5 5 5-5"/>
-                      <path d="m7 9 5-5 5 5"/>
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">Compliance Action</div>
-                  <div className="w-[48px] shrink-0"></div>
-                </div>
+                )}
 
-                <div className="flex flex-col gap-sm">
-                  {filteredCases.map((row) => (
-                    <div
-                      key={row.caseId}
-                      onClick={() => router.push(`/cases/${row.id}`)}
-                      className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
-                    >
-                      <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
-                        {row.caseId}
-                      </div>
-
-                      <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-sm">
-                        {renderCircularFlag(row.country, row.flag)}
-                        <span className="font-normal text-[#171717] font-sans text-paragraph-sm">{row.country}</span>
-                      </div>
-
-                      <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
-                        {row.avatarUrl ? (
-                          <img 
-                            src={row.avatarUrl} 
-                            alt={row.name} 
-                            className="size-10 rounded-full object-cover shrink-0"
-                          />
-                        ) : (
-                          <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
-                            {row.avatarText}
-                          </div>
-                        )}
-                        <div className="flex flex-col min-w-0 gap-[2px]">
-                          <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm">
-                            {row.name}
-                          </span>
-                          <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-normal">
-                            {row.group}
-                          </span>
+                {activeTab === "refusals" ? (
+                  <div className="flex flex-col gap-sm select-none">
+                    {paginatedCases.map((row) => (
+                      <div
+                        key={row.caseId}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => router.push(`/cases/${row.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(`/cases/${row.id}`);
+                          }
+                        }}
+                        className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                      >
+                        <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                          {row.caseId}
                         </div>
-                      </div>
 
-                      <div className="flex-1 min-w-0 flex items-center">
-                        <CaseStatusDropdown
-                          currentStatus={row.status}
-                          statusColor={row.statusColor}
-                          getStatusBgAndText={getStatusBgAndText}
-                          getStatusDotColor={getStatusDotColor}
-                          onApplyStatus={(newStatus) => {
-                            setStatusModalRow(row);
-                            // Visa refused requires the refusal reason modal first
-                            const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
-                            if (norm === "visa refused" || norm === "visa_refused") {
+                        <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-sm">
+                          {renderCircularFlag(row.country, row.flag)}
+                          <span className="font-normal text-[#171717] font-sans text-paragraph-sm">{row.countryCode}</span>
+                        </div>
+
+                        <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
+                          {row.avatarUrl ? (
+                            <img 
+                              src={row.avatarUrl} 
+                              alt={row.name} 
+                              className="size-10 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
+                              {row.avatarText}
+                            </div>
+                          )}
+                          <div className="flex flex-col min-w-0 gap-[2px]">
+                            <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm font-sans">
+                              {row.name}
+                            </span>
+                            <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-normal font-sans">
+                              {row.group}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0 font-medium text-[#171717] font-mono text-paragraph-sm font-sans">
+                          {row.passportNumber}
+                        </div>
+
+                        <div className="flex-1 min-w-0 font-normal text-[#171717] text-paragraph-sm font-sans">
+                          {row.refusalDate}
+                        </div>
+
+                        <div className="flex-[1.5] min-w-0 font-normal text-[#171717] text-paragraph-sm font-sans truncate">
+                          {row.refusalReason}
+                        </div>
+
+                        <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                          <CaseRowMenu
+                            onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
+                            onChangeStatus={() => {
+                              setStatusModalRow(row);
+                              setStatusModalOpen(true);
+                            }}
+                            onMarkRefused={() => {
                               setRefusedModalRow(row);
                               setRefusedModalOpen(true);
-                            } else {
-                              handleChangeStatus(newStatus, row);
+                            }}
+                            onArchive={() => {
+                              setArchiveModalRow(row);
+                              setArchiveModalOpen(true);
+                            }}
+                            onDelete={() => {
+                              setDeleteModalRow(row);
+                              setDeleteModalOpen(true);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : isGroupSummaryView ? (
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg w-full select-none">
+                      {paginatedGroups.map((group, idx) => (
+                        <div
+                          key={group.groupName + "-" + idx}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setSearchQuery(group.groupName);
+                            setActiveTab("cases");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSearchQuery(group.groupName);
+                              setActiveTab("cases");
                             }
                           }}
-                        />
-                      </div>
+                          className="bg-white rounded-[16px] h-[160px] p-4 flex flex-col justify-between shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                        >
+                          {/* Top Row: Case ID range + Menu */}
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-paragraph-sm text-[#5C5C5C]">
+                              {group.caseIdRange}
+                            </span>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <GroupRowMenu
+                                onViewGroup={() => {
+                                  setSearchQuery(group.groupName);
+                                  setActiveTab("cases");
+                                }}
+                              />
+                            </div>
+                          </div>
 
-                      <div className="flex-1 min-w-0 flex items-center">
-                        <span className="inline-flex items-center gap-xs text-[11px] font-medium uppercase tracking-[0.02em]">
-                          <span className={`size-1.5 rounded-full ${getMigrationDotColor(row.migration)}`} />
-                          <span className={getMigrationTextColorClass(row.migration)}>{row.migration}</span>
-                        </span>
-                      </div>
+                          {/* Middle: Circle Avatar */}
+                          <div className="flex items-center">
+                            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-paragraph-sm flex items-center justify-center shrink-0">
+                              {group.initial}
+                            </div>
+                          </div>
 
-                      <div className="flex-1 min-w-0 flex items-center gap-xs">
-                        {row.actionColor !== "gray" && (
-                          <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
-                        )}
-                        {row.actionColor !== "gray" && row.action !== "No action required" ? (
-                          <button
-                            type="button"
-                            className={`${getActionTextClass(row.actionColor)} cursor-pointer text-left border-0 bg-transparent p-0 font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4] rounded-xs`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActionModalRow(row);
-                              setActionModalOpen(true);
-                            }}
-                          >
-                            {row.action}
-                          </button>
-                        ) : (
-                          <span className={getActionTextClass(row.actionColor)}>
-                            {row.action}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="w-[48px] shrink-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
-                        <CaseRowMenu
-                          onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
-                          onChangeStatus={() => {
-                            setStatusModalRow(row);
-                            setStatusModalOpen(true);
-                          }}
-                          onMarkRefused={() => {
-                            setRefusedModalRow(row);
-                            setRefusedModalOpen(true);
-                          }}
-                          onArchive={() => {
-                            setArchiveModalRow(row);
-                            setArchiveModalOpen(true);
-                          }}
-                          onDelete={() => {
-                            setDeleteModalRow(row);
-                            setDeleteModalOpen(true);
-                          }}
-                        />
-                      </div>
+                          {/* Bottom Row: Group Name + Migrants Badge */}
+                          <div className="flex items-center justify-between gap-sm min-w-0">
+                            <span className="font-medium text-[#171717] truncate text-paragraph-sm">
+                              {group.groupName}
+                            </span>
+                            <div className="w-5 h-[18px] bg-[#EBEBEB] rounded-[4px] text-[11px] font-medium text-[#5C5C5C] flex items-center justify-center shrink-0">
+                              {group.migrantsCount}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <div className="flex flex-col gap-sm select-none">
+                      {paginatedGroups.map((group) => (
+                        <div
+                          key={group.groupName}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setSearchQuery(group.groupName);
+                            setActiveTab("cases");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSearchQuery(group.groupName);
+                              setActiveTab("cases");
+                            }
+                          }}
+                          className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                        >
+                          <div className="basis-[198px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                            {group.caseIdRange}
+                          </div>
+
+                          <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
+                            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-paragraph-sm flex items-center justify-center shrink-0">
+                              {group.initial}
+                            </div>
+                            <span className="font-medium text-[#171717] truncate text-paragraph-sm">
+                              {group.groupName}
+                            </span>
+                          </div>
+
+                          <div className="flex-1 min-w-0 flex items-center font-normal text-[#171717] text-paragraph-sm">
+                            {group.migrantsCount}
+                          </div>
+
+                          <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                            <GroupRowMenu
+                              onViewGroup={() => {
+                                setSearchQuery(group.groupName);
+                                setActiveTab("cases");
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col gap-sm">
+                    {paginatedCases.map((row) => (
+                      <div
+                        key={row.caseId}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => router.push(`/cases/${row.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(`/cases/${row.id}`);
+                          }
+                        }}
+                        className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                      >
+                        <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                          {row.caseId}
+                        </div>
+
+                        <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-sm">
+                          {renderCircularFlag(row.country, row.flag)}
+                          <span className="font-normal text-[#171717] font-sans text-paragraph-sm">{row.country}</span>
+                        </div>
+
+                        <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
+                          {row.avatarUrl ? (
+                            <img 
+                              src={row.avatarUrl} 
+                              alt={row.name} 
+                              className="size-10 rounded-full object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
+                              {row.avatarText}
+                            </div>
+                          )}
+                          <div className="flex flex-col min-w-0 gap-[2px]">
+                            <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm">
+                              {row.name}
+                            </span>
+                            <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-normal">
+                              {row.group}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 min-w-0 flex items-center">
+                          <CaseStatusDropdown
+                            currentStatus={row.status}
+                            statusColor={row.statusColor}
+                            getStatusBgAndText={getStatusBgAndText}
+                            getStatusDotColor={getStatusDotColor}
+                            onApplyStatus={(newStatus) => {
+                              setStatusModalRow(row);
+                              // Visa refused requires the refusal reason modal first
+                              const norm = newStatus.toLowerCase().replace(/_/g, " ").trim();
+                              if (norm === "visa refused" || norm === "visa_refused") {
+                                setRefusedModalRow(row);
+                                setRefusedModalOpen(true);
+                              } else {
+                                handleChangeStatus(newStatus, row);
+                              }
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex-1 min-w-0 flex items-center">
+                          <span className="inline-flex items-center gap-xs text-[11px] font-medium uppercase tracking-[0.02em]">
+                            <span className={`size-1.5 rounded-full ${getMigrationDotColor(row.migration)}`} />
+                            <span className={getMigrationTextColorClass(row.migration)}>{row.migration}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex-1 min-w-0 flex items-center gap-xs">
+                          {row.actionColor !== "gray" && (
+                            <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
+                          )}
+                          {row.actionColor !== "gray" && row.action !== "No action required" ? (
+                            <button
+                              type="button"
+                              className={`${getActionTextClass(row.actionColor)} cursor-pointer text-left border-0 bg-transparent p-0 font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4] rounded-xs`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActionModalRow(row);
+                                setActionModalOpen(true);
+                              }}
+                            >
+                              {row.action}
+                            </button>
+                          ) : (
+                            <span className={getActionTextClass(row.actionColor)}>
+                              {row.action}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                          <CaseRowMenu
+                            onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
+                            onChangeStatus={() => {
+                              setStatusModalRow(row);
+                              setStatusModalOpen(true);
+                            }}
+                            onMarkRefused={() => {
+                              setRefusedModalRow(row);
+                              setRefusedModalOpen(true);
+                            }}
+                            onArchive={() => {
+                              setArchiveModalRow(row);
+                              setArchiveModalOpen(true);
+                            }}
+                            onDelete={() => {
+                              setDeleteModalRow(row);
+                              setDeleteModalOpen(true);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="flex flex-col gap-md md:flex-row md:items-center pt-lg border-t border-neutral-200/40 text-paragraph-sm text-neutral-500 select-none justify-between relative">
-              <span className="text-neutral-400 font-medium w-[150px] shrink-0">Page 1 of 16</span>
+              <span className="text-neutral-400 font-medium w-[150px] shrink-0">
+                Page {currentPage} of {totalPages}
+              </span>
 
               <div className="flex items-center gap-xs justify-center flex-1">
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  disabled
-                  className="text-neutral-400 hover:text-neutral-900"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(1)}
+                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
                 >
                   <RiArrowLeftDoubleLine className="size-4" />
                 </Button>
@@ -1571,74 +1988,56 @@ export default function CasesPage() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  disabled
-                  className="text-neutral-400 hover:text-neutral-900"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
                 >
                   <RiArrowLeftSLine className="size-4" />
                 </Button>
 
                 <div className="flex items-center gap-xs">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(1)}
-                    className={`text-paragraph-sm font-semibold ${
-                      currentPage === 1 ? "bg-neutral-950 text-white hover:bg-neutral-950 hover:text-white" : "text-neutral-400 hover:text-neutral-900"
-                    }`}
-                  >
-                    1
-                  </Button>
-                  <Button
-                    variant={currentPage === 2 ? "ghost" : "outline"}
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(2)}
-                    className={`text-paragraph-sm font-semibold ${
-                      currentPage === 2
-                        ? "bg-neutral-950 text-white hover:bg-neutral-950 hover:text-white"
-                        : "text-neutral-700"
-                    }`}
-                  >
-                    2
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(3)}
-                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
-                  >
-                    3
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(4)}
-                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
-                  >
-                    4
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(5)}
-                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
-                  >
-                    5
-                  </Button>
-                  <span className="size-8 flex items-center justify-center text-neutral-400 font-semibold select-none">...</span>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setCurrentPage(16)}
-                    className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
-                  >
-                    16
-                  </Button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum = i + 1;
+                    if (totalPages > 5 && currentPage > 3) {
+                      pageNum = Math.min(totalPages - 4 + i, currentPage - 2 + i);
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "ghost" : "outline"}
+                        size="icon-sm"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`text-paragraph-sm font-semibold ${
+                          currentPage === pageNum
+                            ? "bg-neutral-950 text-white hover:bg-neutral-950 hover:text-white"
+                            : "text-neutral-700 hover:text-neutral-900"
+                        }`}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <>
+                      <span className="size-8 flex items-center justify-center text-neutral-400 font-semibold select-none">...</span>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setCurrentPage(totalPages)}
+                        className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
+                      >
+                        {totalPages}
+                      </Button>
+                    </>
+                  )}
                 </div>
 
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-neutral-400 hover:text-neutral-900"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
                 >
                   <RiArrowRightSLine className="size-4" />
                 </Button>
@@ -1646,22 +2045,29 @@ export default function CasesPage() {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-neutral-400 hover:text-neutral-900"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(totalPages)}
+                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
                 >
                   <RiArrowRightDoubleLine className="size-4" />
                 </Button>
               </div>
 
               <div className="w-[150px] shrink-0 flex justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="px-lg text-[13px] font-medium text-[#5C5C5C]"
+                <select
+                  value={pageSize}
+                  aria-label="Rows per page"
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="h-8 px-2.5 bg-white border border-neutral-200/60 rounded-[8px] text-[13px] font-medium text-[#5C5C5C] hover:border-neutral-300 focus:outline-none cursor-pointer"
                 >
-                  10 / page
-                  <RiArrowDownSLine className="size-3 text-neutral-400" />
-                </Button>
+                  <option value={10}>10 / page</option>
+                  <option value={25}>25 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                </select>
               </div>
             </div>
           </>

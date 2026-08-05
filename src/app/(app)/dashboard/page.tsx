@@ -453,7 +453,7 @@ export default function DashboardPage() {
             Import
           </button>
           <button 
-            onClick={() => router.push("/cases")}
+            onClick={() => router.push("/migrants/create")}
             className="flex items-center gap-xs px-xl py-lg h-9 bg-[#7D52F4] hover:bg-brand-dark text-white rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer"
           >
             <RiAddLine className="size-4 text-white" />
