@@ -114,24 +114,111 @@ const defaultChecklist: ChecklistItem[] = [
 function formatToIsoDate(dateStr: string): string | null {
   if (!dateStr || !dateStr.trim()) return null;
   const cleaned = dateStr.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+    const [y, m, d] = cleaned.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    if (date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d) {
+      return cleaned;
+    }
+    return null;
+  }
   const parts = cleaned.split(/[\/\-\s]+/);
   if (parts.length === 3) {
-    const [d, m, y] = parts;
-    if (d && m && y && y.length === 4) {
-      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    if (
+      !isNaN(day) &&
+      !isNaN(month) &&
+      !isNaN(year) &&
+      year >= 1900 &&
+      year <= 2100 &&
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= 31
+    ) {
+      const date = new Date(year, month - 1, day);
+      if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day) {
+        const mm = String(month).padStart(2, "0");
+        const dd = String(day).padStart(2, "0");
+        return `${year}-${mm}-${dd}`;
+      }
     }
   }
-  return cleaned;
+  return null;
+}
+
+function QuickInvitePanel({
+  inviteEmail,
+  setInviteEmail,
+  onSendInvite,
+  isSending,
+}: {
+  inviteEmail: string;
+  setInviteEmail: (val: string) => void;
+  onSendInvite: (e: React.FormEvent) => void;
+  isSending: boolean;
+}) {
+  return (
+    <div className="w-full max-w-[728px] mx-auto bg-[#262626] rounded-[16px] p-[24px] pb-[26px] flex flex-col md:flex-row items-start gap-[12px] shadow-card-large mt-4">
+      <div className="size-[40px] rounded-full bg-[#7D52F4] flex items-center justify-center shrink-0 shadow-x-small">
+        <RiUserAddFill className="size-[20px] text-white" />
+      </div>
+
+      <div className="flex-1 flex flex-col gap-[16px] w-full">
+        <div className="flex flex-col gap-[4px]">
+          <h3 className="text-[14px] font-medium text-white tracking-[-0.006em] leading-[20px]">
+            Invite the migrant to fill in their details
+          </h3>
+          <p className="text-[13px] font-normal text-[#D1D1D1] tracking-[-0.006em] leading-[20px]">
+            Skip ahead by sending them a secure link. You can complete the admin sections later.
+          </p>
+        </div>
+
+        <form onSubmit={onSendInvite} className="flex flex-col sm:flex-row items-center gap-[8px] w-full">
+          <div className="flex-1 w-full">
+            <label htmlFor="quickInviteEmail" className="sr-only">
+              Migrant email address
+            </label>
+            <input
+              id="quickInviteEmail"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="Migrant email address"
+              className="w-full h-[40px] bg-[#333333] border border-[#7B7B7B] rounded-[10px] px-[12px] py-[10px] text-[14px] text-white placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isSending}
+            className="h-[40px] px-[16px] bg-white hover:bg-neutral-100 text-[#171717] text-[14px] font-medium rounded-[10px] shrink-0 transition-colors cursor-pointer border-0 w-full sm:w-auto disabled:opacity-50"
+          >
+            {isSending ? "Sending..." : "Send invite"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 export default function AddMigrantPage() {
   const router = useRouter();
-  const [activeStep, setActiveStep] = React.useState<number>(1); // Step 1: Get started / Welcome
-  const [viewMode, setViewMode] = React.useState<"admin" | "user">("admin"); // "admin" = Sponsorship Case, "user" = Migrant Visa Application
+  const [activeStep, setActiveStep] = React.useState<number>(1);
+  const [viewMode, setViewMode] = React.useState<"admin" | "user">(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlView = params.get("view") || params.get("mode");
+      if (urlView === "user") return "user";
+      if (urlView === "admin") return "admin";
+    }
+    return "admin";
+  });
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [isAiProcessing, setIsAiProcessing] = React.useState(false);
-  
+  const [isSendingInvite, setIsSendingInvite] = React.useState(false);
+
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const passportInputRef = React.useRef<HTMLInputElement | null>(null);
   const cosInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -143,58 +230,49 @@ export default function AddMigrantPage() {
 
   const [checklist, setChecklist] = React.useState<ChecklistItem[]>(defaultChecklist);
 
-  // Automatically detect Admin View vs User View based on URL params, email, and user role
   React.useEffect(() => {
-    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    const urlView = params?.get("view") || params?.get("mode");
-
-    if (urlView === "user") {
-      setViewMode("user");
-      return;
-    }
-    if (urlView === "admin") {
-      setViewMode("admin");
-      return;
-    }
+    let isMounted = true;
 
     async function checkUserIdentity() {
       try {
         const payload = getTokenPayload();
-        let userEmail = payload?.email ? String(payload.email).toLowerCase() : "";
         let userRole = payload?.role ? String(payload.role).toLowerCase() : "";
 
-        if (!userRole && !userEmail) {
+        if (!userRole) {
+          interface UserInfoRes {
+            email?: string;
+            role?: { value?: string } | string;
+          }
           const res = await apiClient.get<any>(ENDPOINTS.users.userInfo);
-          if (res?.data) {
-            userEmail = (res.data.email || userEmail).toLowerCase();
-            userRole = (res.data.role?.value || res.data.role || "").toLowerCase();
+          const userData: UserInfoRes | undefined = res?.data?.data || res?.data;
+          if (userData) {
+            const r = typeof userData.role === "object" ? userData.role?.value || "" : userData.role || "";
+            userRole = String(r).toLowerCase();
           }
         }
 
-        if (
-          userRole === "migrant" ||
-          userRole === "user" ||
-          userRole === "applicant" ||
-          userEmail.includes("migrant") ||
-          userEmail.includes("applicant")
-        ) {
+        if (!isMounted) return;
+
+        if (userRole === "migrant" || userRole === "user" || userRole === "applicant") {
           setViewMode("user");
         } else if (
           userRole === "superadmin" ||
           userRole === "supervisor" ||
           userRole === "admin" ||
-          userRole === "employee" ||
-          userEmail.includes("admin") ||
-          userEmail.includes("sponsor")
+          userRole === "employee"
         ) {
           setViewMode("admin");
         }
       } catch {
-        // Fallback to default admin view for dashboard case creation
+        // Retain default view
       }
     }
 
     checkUserIdentity();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Clean up timers on unmount
@@ -423,13 +501,18 @@ export default function AddMigrantPage() {
     }
   }, []);
 
-  // Autosave form to draft whenever form changes
+  // Autosave form to draft whenever form changes (debounced & excluding sensitive identity fields)
   React.useEffect(() => {
-    try {
-      localStorage.setItem("viems_add_migrant_draft", JSON.stringify(form));
-    } catch {
-      // Ignore localStorage write errors
-    }
+    const timer = setTimeout(() => {
+      try {
+        const { passportNumber, dob, personalEmail, mobilePhone, ...nonSensitive } = form;
+        localStorage.setItem("viems_add_migrant_draft", JSON.stringify(nonSensitive));
+      } catch {
+        // Ignore localStorage write errors
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [form]);
 
   const handleChange = (field: keyof PersonalDetailsState, value: string) => {
@@ -542,6 +625,12 @@ export default function AddMigrantPage() {
       };
 
       await apiClient.post(ENDPOINTS.migrants.base, payload);
+
+      try {
+        localStorage.removeItem("viems_add_migrant_draft");
+      } catch {
+        // Ignore localStorage removal errors
+      }
 
       toast.success("Migrant record created successfully!");
       router.push("/migrants");
@@ -1003,8 +1092,8 @@ export default function AddMigrantPage() {
               </div>
             </div>
 
-            {/* Passport Number & Issue Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Passport Number, Issue Date & Expiry Date */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex flex-col gap-1">
                 <label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">
                   Passport Number
@@ -1014,7 +1103,7 @@ export default function AddMigrantPage() {
                   type="text"
                   value={form.passportNumber}
                   onChange={(e) => handleChange("passportNumber", e.target.value)}
-                  placeholder="Select country..."
+                  placeholder="Enter passport number"
                   className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                 />
               </div>
@@ -1030,6 +1119,23 @@ export default function AddMigrantPage() {
                     type="text"
                     value={form.passportIssueDate}
                     onChange={(e) => handleChange("passportIssueDate", e.target.value)}
+                    placeholder="DD / MM / YYYY"
+                    className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white pl-10 pr-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="passportExpiryDate" className="text-[14px] font-medium text-[#171717]">
+                  Expiry Date
+                </label>
+                <div className="relative">
+                  <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
+                  <input
+                    id="passportExpiryDate"
+                    type="text"
+                    value={form.passportExpiryDate}
+                    onChange={(e) => handleChange("passportExpiryDate", e.target.value)}
                     placeholder="DD / MM / YYYY"
                     className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white pl-10 pr-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                   />
@@ -1119,45 +1225,12 @@ export default function AddMigrantPage() {
             </div>
 
             {/* Dark Banner Card for Quick Invite */}
-            <div className="w-full max-w-[728px] mx-auto bg-[#262626] rounded-[16px] p-[24px] pb-[26px] flex flex-col md:flex-row items-start gap-[12px] shadow-card-large">
-              <div className="size-[40px] rounded-full bg-[#7D52F4] flex items-center justify-center shrink-0 shadow-x-small">
-                <RiUserAddFill className="size-[20px] text-white" />
-              </div>
-
-              <div className="flex-1 flex flex-col gap-[16px] w-full">
-                <div className="flex flex-col gap-[4px]">
-                  <h3 className="text-[14px] font-medium text-white tracking-[-0.006em] leading-[20px]">
-                    Invite the migrant to fill in their details
-                  </h3>
-                  <p className="text-[13px] font-normal text-[#D1D1D1] tracking-[-0.006em] leading-[20px]">
-                    Skip ahead by sending them a secure link. You can complete the admin sections later.
-                  </p>
-                </div>
-
-                {/* Form Input Row */}
-                <form onSubmit={handleSendQuickInvite} className="flex flex-col sm:flex-row items-center gap-[8px] w-full">
-                  <div className="flex-1 w-full">
-                    <label htmlFor="quickInviteEmail" className="sr-only">
-                      Migrant email address
-                    </label>
-                    <input
-                      id="quickInviteEmail"
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="Migrant email address"
-                      className="w-full h-[40px] bg-[#333333] border border-[#7B7B7B] rounded-[10px] px-[12px] py-[10px] text-[14px] text-white placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="h-[40px] px-[16px] bg-white hover:bg-neutral-100 text-[#171717] text-[14px] font-medium rounded-[10px] shrink-0 transition-colors cursor-pointer border-0 w-full sm:w-auto"
-                  >
-                    Send invite
-                  </button>
-                </form>
-              </div>
-            </div>
+            <QuickInvitePanel
+              inviteEmail={inviteEmail}
+              setInviteEmail={setInviteEmail}
+              onSendInvite={handleSendQuickInvite}
+              isSending={isSendingInvite}
+            />
           </div>
         )}
 
@@ -1416,47 +1489,6 @@ export default function AddMigrantPage() {
                 </button>
               </div>
             </div>
-
-            {/* Dark Banner Card for Quick Invite */}
-            <div className="w-full max-w-[728px] mx-auto bg-[#262626] rounded-[16px] p-[24px] pb-[26px] flex flex-col md:flex-row items-start gap-[12px] shadow-card-large mt-6">
-              <div className="size-[40px] rounded-full bg-[#7D52F4] flex items-center justify-center shrink-0 shadow-x-small">
-                <RiUserAddFill className="size-[20px] text-white" />
-              </div>
-
-              <div className="flex-1 flex flex-col gap-[16px] w-full">
-                <div className="flex flex-col gap-[4px]">
-                  <h3 className="text-[14px] font-medium text-white tracking-[-0.006em] leading-[20px]">
-                    Invite the migrant to fill in their details
-                  </h3>
-                  <p className="text-[13px] font-normal text-[#D1D1D1] tracking-[-0.006em] leading-[20px]">
-                    Skip ahead by sending them a secure link. You can complete the admin sections later.
-                  </p>
-                </div>
-
-                {/* Form Input Row */}
-                <form onSubmit={handleSendQuickInvite} className="flex flex-col sm:flex-row items-center gap-[8px] w-full">
-                  <div className="flex-1 w-full">
-                    <label htmlFor="quickInviteEmail" className="sr-only">
-                      Migrant email address
-                    </label>
-                    <input
-                      id="quickInviteEmail"
-                      type="email"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      placeholder="Migrant email address"
-                      className="w-full h-[40px] bg-[#333333] border border-[#7B7B7B] rounded-[10px] px-[12px] py-[10px] text-[14px] text-white placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="h-[40px] px-[16px] bg-white hover:bg-neutral-100 text-[#171717] text-[14px] font-medium rounded-[10px] shrink-0 transition-colors cursor-pointer border-0 w-full sm:w-auto"
-                  >
-                    Send invite
-                  </button>
-                </form>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1521,27 +1553,58 @@ export default function AddMigrantPage() {
               />
             </div>
 
-            {/* Job Title Select Dropdown */}
-            <div className="flex flex-col gap-1">
-              <label htmlFor="jobTitle" className="text-[14px] font-medium text-[#171717]">
-                Job Title
-              </label>
-              <div className="relative">
-                <select
-                  id="jobTitle"
-                  value={form.jobTitle}
-                  onChange={(e) => handleChange("jobTitle", e.target.value)}
-                  className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                >
-                  <option value="">Select job title...</option>
-                  <option value="Senior Software Engineer">Senior Software Engineer</option>
-                  <option value="Software Engineer">Software Engineer</option>
-                  <option value="Product Manager">Product Manager</option>
-                  <option value="Data Scientist">Data Scientist</option>
-                  <option value="Business Analyst">Business Analyst</option>
-                  <option value="Marketing Specialist">Marketing Specialist</option>
-                </select>
-                <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 top-2.5 pointer-events-none" />
+            {/* Job Title & SOC Code Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="jobTitle" className="text-[14px] font-medium text-[#171717]">
+                  Job Title
+                </label>
+                <div className="relative">
+                  <select
+                    id="jobTitle"
+                    value={form.jobTitle}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const socMap: Record<string, string> = {
+                        "Senior Software Engineer": "2136",
+                        "Software Engineer": "2136",
+                        "Product Manager": "2139",
+                        "Data Scientist": "2135",
+                        "Business Analyst": "2423",
+                        "Marketing Specialist": "3543",
+                      };
+                      setForm((prev) => ({
+                        ...prev,
+                        jobTitle: val,
+                        socCode: socMap[val] || prev.socCode || "3416",
+                      }));
+                    }}
+                    className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
+                  >
+                    <option value="">Select job title...</option>
+                    <option value="Senior Software Engineer">Senior Software Engineer</option>
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Product Manager">Product Manager</option>
+                    <option value="Data Scientist">Data Scientist</option>
+                    <option value="Business Analyst">Business Analyst</option>
+                    <option value="Marketing Specialist">Marketing Specialist</option>
+                  </select>
+                  <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 top-2.5 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="socCode" className="text-[14px] font-medium text-[#171717]">
+                  SOC Code
+                </label>
+                <input
+                  id="socCode"
+                  type="text"
+                  value={form.socCode}
+                  onChange={(e) => handleChange("socCode", e.target.value)}
+                  placeholder="e.g. 2136"
+                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
+                />
               </div>
             </div>
 
@@ -2007,14 +2070,14 @@ export default function AddMigrantPage() {
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Nationality</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.nationality || "US"}
+                    {form.nationality || "—"}
                   </span>
                 </div>
 
                 <div className="flex justify-between items-center py-1">
                   <span className="text-[13px] text-[#5C5C5C]">Country of Birth</span>
                   <span className="text-[14px] font-medium text-[#171717]">
-                    {form.countryOfBirth || "US"}
+                    {form.countryOfBirth || "—"}
                   </span>
                 </div>
 
@@ -2255,8 +2318,9 @@ export default function AddMigrantPage() {
             await apiClient.post(ENDPOINTS.employees.sendRegistrationLink, { email });
             setToastEmail(email);
             setShowInviteToast(true);
-          } catch {
+          } catch (err) {
             toast.error("Failed to send invite link.");
+            throw err;
           }
         }}
         defaultEmail={form.personalEmail || ""}

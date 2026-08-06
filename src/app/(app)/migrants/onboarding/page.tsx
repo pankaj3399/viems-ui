@@ -21,10 +21,19 @@ import {
   RiUser3Line,
   RiSparklingFill,
 } from "@remixicon/react";
+import { toast } from "sonner";
+
+const ONBOARDING_DRAFT_KEY = "viems_onboarding_draft";
 
 export default function MigrantOnboardingPage() {
   const router = useRouter();
   const [activeStep, setActiveStep] = React.useState<number>(1);
+  const [validationError, setValidationError] = React.useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
+  const [passportUploaded, setPassportUploaded] = React.useState(false);
+
+  const photoInputRef = React.useRef<HTMLInputElement | null>(null);
+  const passportInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Form State for User View
   const [form, setForm] = React.useState({
@@ -41,12 +50,98 @@ export default function MigrantOnboardingPage() {
     mobilePhone: "",
   });
 
+  // Restore saved draft on mount
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.form) setForm((prev) => ({ ...prev, ...parsed.form }));
+        if (parsed.activeStep && parsed.activeStep <= 2) setActiveStep(parsed.activeStep);
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, []);
+
+  // Save draft to localStorage on form/step change
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(
+        ONBOARDING_DRAFT_KEY,
+        JSON.stringify({ form, activeStep })
+      );
+    } catch {
+      // Ignore write errors
+    }
+  }, [form, activeStep]);
+
   const handleChange = (field: string, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    setValidationError(null);
+  };
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPhotoPreview(url);
+      toast.success("Photo uploaded successfully");
+    }
+  };
+
+  const handlePassportSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPassportUploaded(true);
+      toast.success("Passport uploaded for AI parsing");
+    }
+  };
+
+  const handleNextStep2 = () => {
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setValidationError("First name and last name are required.");
+      return;
+    }
+    if (!form.dob.trim()) {
+      setValidationError("Date of birth is required.");
+      return;
+    }
+    if (!form.passportNumber.trim()) {
+      setValidationError("Passport number is required.");
+      return;
+    }
+    if (!form.personalEmail.trim()) {
+      setValidationError("Email address is required.");
+      return;
+    }
+
+    setValidationError(null);
+    toast.success("Personal details saved successfully.");
   };
 
   return (
     <div className="min-h-screen bg-[#F7F7F7] flex flex-col font-sans">
+      {/* Hidden File Inputs */}
+      <input
+        type="file"
+        ref={photoInputRef}
+        onChange={handlePhotoSelect}
+        accept="image/*"
+        aria-label="Upload photo file"
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={passportInputRef}
+        onChange={handlePassportSelect}
+        accept="image/*,.pdf"
+        aria-label="Upload passport file"
+        className="hidden"
+      />
+
       {/* User View Header */}
       <header className="w-full border-b border-[#EBEBEB] bg-white sticky top-0 z-30 px-8 py-4">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
@@ -59,7 +154,6 @@ export default function MigrantOnboardingPage() {
             </span>
           </div>
 
-          {/* User Profile avatar */}
           <div className="size-9 rounded-full bg-[#CAC0FF] flex items-center justify-center text-[#351A75] font-medium text-[14px]">
             AM
           </div>
@@ -127,85 +221,44 @@ export default function MigrantOnboardingPage() {
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
-          {/* Step 3: Employment */}
+          {/* Step 3: Employment (Disabled until implemented) */}
           <button
             type="button"
-            onClick={() => setActiveStep(3)}
-            aria-current={activeStep === 3 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0"
+            disabled
+            className="flex items-center gap-xs border-0 bg-transparent p-0 opacity-50 cursor-not-allowed"
           >
-            <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
-                activeStep === 3
-                  ? "bg-[#171717] text-white"
-                  : activeStep > 3
-                  ? "bg-[#7D52F4] text-white"
-                  : "bg-[#EBEBEB] text-[#5C5C5C]"
-              }`}
-            >
-              {activeStep > 3 ? <RiCheckLine className="size-3.5 text-white" /> : "3"}
+            <div className="size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 bg-[#EBEBEB] text-[#5C5C5C]">
+              3
             </div>
-            <span
-              className={`text-[14px] ${
-                activeStep === 3 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
-              }`}
-            >
-              Employment
-            </span>
+            <span className="text-[14px] font-normal text-[#5C5C5C]">Employment</span>
           </button>
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
-          {/* Step 4: Documents */}
+          {/* Step 4: Documents (Disabled until implemented) */}
           <button
             type="button"
-            onClick={() => setActiveStep(4)}
-            aria-current={activeStep === 4 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0"
+            disabled
+            className="flex items-center gap-xs border-0 bg-transparent p-0 opacity-50 cursor-not-allowed"
           >
-            <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
-                activeStep === 4
-                  ? "bg-[#171717] text-white"
-                  : activeStep > 4
-                  ? "bg-[#7D52F4] text-white"
-                  : "bg-[#EBEBEB] text-[#5C5C5C]"
-              }`}
-            >
-              {activeStep > 4 ? <RiCheckLine className="size-3.5 text-white" /> : "4"}
+            <div className="size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 bg-[#EBEBEB] text-[#5C5C5C]">
+              4
             </div>
-            <span
-              className={`text-[14px] ${
-                activeStep === 4 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
-              }`}
-            >
-              Documents
-            </span>
+            <span className="text-[14px] font-normal text-[#5C5C5C]">Documents</span>
           </button>
 
           <div className="h-[1px] w-8 bg-[#EBEBEB]" />
 
-          {/* Step 5: Review & Submit */}
+          {/* Step 5: Review & Submit (Disabled until implemented) */}
           <button
             type="button"
-            onClick={() => setActiveStep(5)}
-            aria-current={activeStep === 5 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0"
+            disabled
+            className="flex items-center gap-xs border-0 bg-transparent p-0 opacity-50 cursor-not-allowed"
           >
-            <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
-                activeStep === 5 ? "bg-[#171717] text-white" : "bg-[#EBEBEB] text-[#5C5C5C]"
-              }`}
-            >
+            <div className="size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 bg-[#EBEBEB] text-[#5C5C5C]">
               5
             </div>
-            <span
-              className={`text-[14px] ${
-                activeStep === 5 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
-              }`}
-            >
-              Review &amp; Submit
-            </span>
+            <span className="text-[14px] font-normal text-[#5C5C5C]">Review &amp; Submit</span>
           </button>
         </div>
       </div>
@@ -214,20 +267,13 @@ export default function MigrantOnboardingPage() {
       <main className="max-w-[768px] w-full mx-auto flex flex-col gap-6 px-8 py-8 bg-white rounded-[16px] shadow-x-small border border-neutral-200/20 my-6">
         {activeStep !== 1 && (
           <h2 className="text-[20px] font-medium text-[#171717] tracking-[-0.006em] font-aeonik-medium">
-            {activeStep === 2
-              ? "Personal details"
-              : activeStep === 3
-              ? "Employment details"
-              : activeStep === 4
-              ? "Documents upload"
-              : "Review & Submit"}
+            Personal details
           </h2>
         )}
 
         {/* STEP 1: WELCOME LANDING */}
         {activeStep === 1 && (
           <div className="w-full flex flex-col items-center justify-center py-2 select-none gap-12">
-            {/* Hero Header */}
             <div className="flex flex-col items-center text-center max-w-[586px] mx-auto">
               <h1 className="text-[40px] leading-[44px] font-medium text-[#7D52F4] text-center font-aeonik-medium tracking-[-0.01em]">
                 Viems has invited you to complete your visa application
@@ -236,7 +282,6 @@ export default function MigrantOnboardingPage() {
                 This should take around 10-15 minutes.
               </p>
 
-              {/* Badges Row */}
               <div className="flex flex-wrap items-center justify-center gap-[11px] mt-6 mb-6">
                 <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
                   <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
@@ -260,7 +305,6 @@ export default function MigrantOnboardingPage() {
                 </div>
               </div>
 
-              {/* Primary CTA */}
               <div className="flex justify-center">
                 <button
                   type="button"
@@ -475,17 +519,27 @@ export default function MigrantOnboardingPage() {
         {/* STEP 2: PERSONAL DETAILS */}
         {activeStep === 2 && (
           <div className="flex flex-col gap-6">
+            {validationError && (
+              <div className="p-3 bg-[#FFEBEC] border border-[#FB3748]/30 text-[#681219] rounded-[8px] text-[13px]">
+                {validationError}
+              </div>
+            )}
+
+            {/* Passport Banner */}
             <div className="bg-[#EFEBFF] rounded-[8px] p-3 px-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white">
                   <RiSparklingFill className="size-3.5 text-white" />
                 </div>
                 <span className="text-[13px] font-normal text-[#171717] leading-[20px]">
-                  Upload a passport and AI will auto-fill these fields for you.
+                  {passportUploaded
+                    ? "Passport uploaded! Fields can be updated below."
+                    : "Upload a passport and AI will auto-fill these fields for you."}
                 </span>
               </div>
               <button
                 type="button"
+                onClick={() => passportInputRef.current?.click()}
                 className="bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium px-3 py-1.5 h-8 rounded-[8px] flex items-center gap-1.5 shrink-0 cursor-pointer border-0 transition-colors shadow-x-small"
               >
                 <RiUpload2Line className="size-4 text-white" />
@@ -493,12 +547,21 @@ export default function MigrantOnboardingPage() {
               </button>
             </div>
 
+            {/* Photo Upload Card */}
             <div className="bg-[#F7F7F7] rounded-[8px] p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-[80px] h-[88px] bg-white border border-dashed border-[#D1D1D1] rounded-[8px] flex items-center justify-center shrink-0 overflow-hidden relative">
-                  <div className="size-8 rounded-full border border-[#EBEBEB] bg-white shadow-x-small flex items-center justify-center text-[#5C5C5C]">
-                    <RiUser3Line className="size-5 text-[#5C5C5C]" />
-                  </div>
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Uploaded application photo preview"
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <div className="size-8 rounded-full border border-[#EBEBEB] bg-white shadow-x-small flex items-center justify-center text-[#5C5C5C]">
+                      <RiUser3Line className="size-5 text-[#5C5C5C]" />
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1 max-w-[454px]">
                   <span className="text-[14px] font-medium text-[#171717]">Upload photo</span>
@@ -512,6 +575,7 @@ export default function MigrantOnboardingPage() {
               </div>
               <button
                 type="button"
+                onClick={() => photoInputRef.current?.click()}
                 className="bg-white border border-[#D1D1D1] hover:bg-neutral-50 text-[#5C5C5C] text-[14px] font-medium px-4 py-2 h-9 rounded-[8px] shrink-0 cursor-pointer shadow-x-small transition-colors"
               >
                 Upload photo
@@ -520,7 +584,9 @@ export default function MigrantOnboardingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">First Name</label>
+                <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">
+                  First Name <span className="text-[#FB3748]">*</span>
+                </label>
                 <input
                   id="firstName"
                   type="text"
@@ -532,7 +598,9 @@ export default function MigrantOnboardingPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">Last Name</label>
+                <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">
+                  Last Name <span className="text-[#FB3748]">*</span>
+                </label>
                 <input
                   id="lastName"
                   type="text"
@@ -546,7 +614,9 @@ export default function MigrantOnboardingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">Date of Birth</label>
+                <label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">
+                  Date of Birth <span className="text-[#FB3748]">*</span>
+                </label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -644,13 +714,15 @@ export default function MigrantOnboardingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">Passport Number</label>
+                <label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">
+                  Passport Number <span className="text-[#FB3748]">*</span>
+                </label>
                 <input
                   id="passportNumber"
                   type="text"
                   value={form.passportNumber}
                   onChange={(e) => handleChange("passportNumber", e.target.value)}
-                  placeholder="Select country..."
+                  placeholder="Enter passport number"
                   className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] shadow-x-small"
                 />
               </div>
@@ -673,7 +745,9 @@ export default function MigrantOnboardingPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">Email Address</label>
+                <label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">
+                  Email Address <span className="text-[#FB3748]">*</span>
+                </label>
                 <input
                   id="personalEmail"
                   type="email"
@@ -708,7 +782,7 @@ export default function MigrantOnboardingPage() {
 
               <button
                 type="button"
-                onClick={() => setActiveStep(3)}
+                onClick={handleNextStep2}
                 className="bg-[#171717] hover:bg-[#333333] text-white text-[14px] font-medium px-6 py-2.5 rounded-[10px] cursor-pointer border-0 shadow-x-small transition-all"
               >
                 Next

@@ -240,7 +240,14 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 <div key="Compliance" className="flex flex-col gap-1 w-full">
                   <button
                     type="button"
-                    onClick={() => setIsComplianceOpen((prev) => !prev)}
+                    aria-label="Compliance"
+                    onClick={() => {
+                      if (!isOpen) {
+                        router.push("/compliance");
+                      } else {
+                        setIsComplianceOpen((prev) => !prev);
+                      }
+                    }}
                     className={`relative flex items-center justify-between rounded-[8px] transition-all duration-300 border-0 cursor-pointer group ${
                       isOpen ? "w-[208px] h-9 px-2.5" : "size-12 justify-center"
                     } ${
@@ -250,9 +257,17 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <RiShieldFill className="size-5 shrink-0 text-white" />
+                      <RiShieldFill
+                        className={`size-5 shrink-0 transition-colors ${
+                          isComplianceActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                        }`}
+                      />
                       {isOpen && (
-                        <span className="text-[14px] font-medium text-white whitespace-nowrap">
+                        <span
+                          className={`text-[14px] font-medium whitespace-nowrap transition-colors ${
+                            isComplianceActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                          }`}
+                        >
                           Compliance
                         </span>
                       )}
