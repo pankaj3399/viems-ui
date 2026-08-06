@@ -27,9 +27,17 @@ import {
   RiMore2Line,
   RiAlertFill,
   RiPencilLine,
+  RiIdCardLine,
+  RiSendPlane2Line,
+  RiAtLine,
+  RiCalendarCheckLine,
+  RiPlaneLine,
+  RiFileList3Line,
+  RiQuillPenLine,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { getTokenPayload } from "@/lib/auth";
 import { toast } from "sonner";
 import { InviteMigrantModal } from "@/components/InviteMigrantModal";
 
@@ -119,7 +127,8 @@ function formatToIsoDate(dateStr: string): string | null {
 
 export default function AddMigrantPage() {
   const router = useRouter();
-  const [activeStep, setActiveStep] = React.useState<number>(1); // Step 1: Get started / New sponsorship case
+  const [activeStep, setActiveStep] = React.useState<number>(1); // Step 1: Get started / Welcome
+  const [viewMode, setViewMode] = React.useState<"admin" | "user">("admin"); // "admin" = Sponsorship Case, "user" = Migrant Visa Application
   const [photoPreview, setPhotoPreview] = React.useState<string | null>(null);
   const [isAiProcessing, setIsAiProcessing] = React.useState(false);
   
@@ -133,6 +142,60 @@ export default function AddMigrantPage() {
   const cosTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const [checklist, setChecklist] = React.useState<ChecklistItem[]>(defaultChecklist);
+
+  // Automatically detect Admin View vs User View based on URL params, email, and user role
+  React.useEffect(() => {
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const urlView = params?.get("view") || params?.get("mode");
+
+    if (urlView === "user") {
+      setViewMode("user");
+      return;
+    }
+    if (urlView === "admin") {
+      setViewMode("admin");
+      return;
+    }
+
+    async function checkUserIdentity() {
+      try {
+        const payload = getTokenPayload();
+        let userEmail = payload?.email ? String(payload.email).toLowerCase() : "";
+        let userRole = payload?.role ? String(payload.role).toLowerCase() : "";
+
+        if (!userRole && !userEmail) {
+          const res = await apiClient.get<any>(ENDPOINTS.users.userInfo);
+          if (res?.data) {
+            userEmail = (res.data.email || userEmail).toLowerCase();
+            userRole = (res.data.role?.value || res.data.role || "").toLowerCase();
+          }
+        }
+
+        if (
+          userRole === "migrant" ||
+          userRole === "user" ||
+          userRole === "applicant" ||
+          userEmail.includes("migrant") ||
+          userEmail.includes("applicant")
+        ) {
+          setViewMode("user");
+        } else if (
+          userRole === "superadmin" ||
+          userRole === "supervisor" ||
+          userRole === "admin" ||
+          userRole === "employee" ||
+          userEmail.includes("admin") ||
+          userEmail.includes("sponsor")
+        ) {
+          setViewMode("admin");
+        }
+      } catch {
+        // Fallback to default admin view for dashboard case creation
+      }
+    }
+
+    checkUserIdentity();
+  }, []);
 
   // Clean up timers on unmount
   React.useEffect(() => {
@@ -529,29 +592,33 @@ export default function AddMigrantPage() {
         className="hidden"
       />
 
-      {/* Top Bar Header */}
-      <header className="w-full border-b border-[#EBEBEB] bg-white sticky top-0 z-30 px-6 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-          {/* Left: Cancel Link */}
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 bg-transparent cursor-pointer"
-          >
-            Cancel
-          </button>
+      {/* Top Bar Header (Figma Frame 244 / Frame 108) */}
+      <header className="w-full border-b border-[#EBEBEB] bg-white sticky top-0 z-30 px-8 lg:px-[64px] py-4 lg:py-[32px]">
+        <div className="max-w-[1368px] mx-auto h-10 flex items-center justify-between gap-[24px]">
+          {/* Left Section (Frame 2087326933) */}
+          <div className="w-[266px] h-10 flex items-center">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="h-10 px-[10px] text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 bg-transparent cursor-pointer flex items-center gap-1 font-sans"
+            >
+              Cancel
+            </button>
+          </div>
 
-          {/* Center Title */}
-          <h1 className="text-[24px] font-medium text-[#171717] tracking-[-0.01em] font-aeonik-medium">
-            Add migrant
-          </h1>
+          {/* Center Section (Title: Add migrant) */}
+          <div className="flex-1 flex items-center justify-center">
+            <h1 className="text-[24px] leading-[32px] font-medium text-[#171717] tracking-[-0.01em] font-aeonik-medium text-center">
+              Add migrant
+            </h1>
+          </div>
 
-          {/* Right Action Buttons */}
-          <div className="flex items-center gap-sm">
+          {/* Right Section (Frame 265 Action Buttons) */}
+          <div className="w-[266px] h-10 flex items-center justify-end gap-[8px]">
             <button
               type="button"
               onClick={handleSaveDraft}
-              className="px-xl py-lg h-10 bg-[#FFFFFF] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] border border-[#EBEBEB] rounded-[10px] text-[14px] font-medium transition-all cursor-pointer shadow-x-small"
+              className="w-[115px] h-10 bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[10px] text-[14px] font-medium transition-all cursor-pointer border-0 flex items-center justify-center"
             >
               Save as draft
             </button>
@@ -559,9 +626,9 @@ export default function AddMigrantPage() {
             <button
               type="button"
               onClick={() => setIsInviteModalOpen(true)}
-              className="px-xl py-lg h-10 bg-[#7D52F4] hover:bg-[#6836E6] text-white rounded-[10px] text-[14px] font-medium transition-all cursor-pointer border-0 flex items-center gap-xs shadow-x-small"
+              className="w-[143px] h-10 bg-[#7D52F4] hover:bg-[#6836E6] text-white rounded-[10px] text-[14px] font-medium transition-all cursor-pointer border-0 flex items-center justify-center gap-[4px] shadow-x-small"
             >
-              <RiShareBoxFill className="size-4 text-white shrink-0" />
+              <RiShareBoxFill className="size-5 text-white shrink-0" />
               <span>Invite migrant</span>
             </button>
           </div>
@@ -594,7 +661,7 @@ export default function AddMigrantPage() {
                 activeStep === 1 ? "text-[#171717]" : "text-[#5C5C5C]"
               }`}
             >
-              Get started
+              {viewMode === "admin" ? "Get started" : "Welcome"}
             </span>
           </button>
 
@@ -706,7 +773,7 @@ export default function AddMigrantPage() {
                 activeStep === 5 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
               }`}
             >
-              Review & Create
+              {viewMode === "admin" ? "Review & Create" : "Review & Submit"}
             </span>
           </button>
         </div>
@@ -714,24 +781,24 @@ export default function AddMigrantPage() {
 
       {/* Main Content Area */}
       <main className="max-w-[768px] w-full mx-auto flex flex-col gap-6 px-8 py-8 bg-white rounded-[16px] shadow-x-small border border-neutral-200/20 my-6">
-        {/* Step Title */}
-        <h2 className="text-[20px] font-medium text-[#171717] tracking-[-0.006em] font-aeonik-medium">
-          {activeStep === 1
-            ? "Get started"
-            : activeStep === 2
-            ? "Personal details"
-            : activeStep === 3
-            ? "Employment details"
-            : activeStep === 4
-            ? "Documents upload"
-            : "Review & Create"}
-        </h2>
+        {/* Step Title (hidden for Step 1 as Step 1 has its own hero title) */}
+        {activeStep !== 1 && (
+          <h2 className="text-[20px] font-medium text-[#171717] tracking-[-0.006em] font-aeonik-medium">
+            {activeStep === 2
+              ? "Personal details"
+              : activeStep === 3
+              ? "Employment details"
+              : activeStep === 4
+              ? "Documents upload"
+              : "Review & Create"}
+          </h2>
+        )}
 
         {/* STEP 2: PERSONAL DETAILS FORM */}
         {activeStep === 2 && (
           <div className="flex flex-col gap-6">
             {/* AI Passport Auto-Fill Banner */}
-            <div className="bg-[#EFEBFF] rounded-[8px] p-4 flex items-center justify-between gap-4">
+            <div className="bg-[#EFEBFF] rounded-[8px] p-3 px-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white">
                   <RiSparklingFill className="size-3.5 text-white" />
@@ -744,9 +811,9 @@ export default function AddMigrantPage() {
                 type="button"
                 disabled={isAiProcessing}
                 onClick={() => passportInputRef.current?.click()}
-                className="bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium px-3 py-1.5 h-8 rounded-[8px] flex items-center gap-1 shrink-0 cursor-pointer border-0 transition-colors shadow-x-small"
+                className="bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium px-3 py-1.5 h-8 rounded-[8px] flex items-center gap-1.5 shrink-0 cursor-pointer border-0 transition-colors shadow-x-small"
               >
-                <RiUploadLine className="size-4 text-white" />
+                <RiUpload2Line className="size-4 text-white" />
                 <span>{isAiProcessing ? "Processing..." : "Upload"}</span>
               </button>
             </div>
@@ -758,16 +825,18 @@ export default function AddMigrantPage() {
                   {photoPreview ? (
                     <img src={photoPreview} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <div className="size-8 rounded-full border border-[#EBEBEB] bg-white flex items-center justify-center text-[#5C5C5C]">
-                      <RiUser3Line className="size-4 text-[#5C5C5C]" />
+                    <div className="size-8 rounded-full border border-[#EBEBEB] bg-white shadow-x-small flex items-center justify-center text-[#5C5C5C]">
+                      <RiUser3Line className="size-5 text-[#5C5C5C]" />
                     </div>
                   )}
                 </div>
                 <div className="flex flex-col gap-1 max-w-[454px]">
                   <span className="text-[14px] font-medium text-[#171717]">Upload photo</span>
                   <p className="text-[13px] font-normal text-[#171717] leading-[20px]">
-                    Photo will be used as the migrant&apos;s avatar across the platform and as their official application photo.{" "}
-                    <span className="underline cursor-pointer hover:text-[#5C5C5C]">More info</span>
+                    Photo will be used as your official application photo
+                  </p>
+                  <p className="text-[13px] font-normal text-[#A4A4A4] leading-[20px]">
+                    JPG or PNG, min 400 x 514px. Max 10 MB. Plain background, no filters.
                   </p>
                 </div>
               </div>
@@ -784,30 +853,28 @@ export default function AddMigrantPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
                 <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">
-                  First Name <span className="text-red-500">*</span>
+                  First Name
                 </label>
                 <input
                   id="firstName"
                   type="text"
-                  required
                   value={form.firstName}
                   onChange={(e) => handleChange("firstName", e.target.value)}
-                  placeholder="First name..."
+                  placeholder=""
                   className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
                 <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">
-                  Last Name <span className="text-red-500">*</span>
+                  Last Name
                 </label>
                 <input
                   id="lastName"
                   type="text"
-                  required
                   value={form.lastName}
                   onChange={(e) => handleChange("lastName", e.target.value)}
-                  placeholder="Last name..."
+                  placeholder=""
                   className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                 />
               </div>
@@ -816,7 +883,9 @@ export default function AddMigrantPage() {
             {/* Date of Birth & Gender */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">Date of Birth</label>
+                <label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">
+                  Date of Birth
+                </label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -831,7 +900,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="gender" className="text-[14px] font-medium text-[#171717]">Gender</label>
+                <label htmlFor="gender" className="text-[14px] font-medium text-[#171717]">
+                  Gender
+                </label>
                 <div className="relative">
                   <select
                     id="gender"
@@ -853,7 +924,9 @@ export default function AddMigrantPage() {
             {/* Marital Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="maritalStatus" className="text-[14px] font-medium text-[#171717]">Marital Status</label>
+                <label htmlFor="maritalStatus" className="text-[14px] font-medium text-[#171717]">
+                  Marital Status
+                </label>
                 <div className="relative">
                   <select
                     id="maritalStatus"
@@ -876,7 +949,9 @@ export default function AddMigrantPage() {
             {/* Nationality & Country of Birth */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="nationality" className="text-[14px] font-medium text-[#171717]">Nationality</label>
+                <label htmlFor="nationality" className="text-[14px] font-medium text-[#171717]">
+                  Nationality
+                </label>
                 <div className="relative">
                   <select
                     id="nationality"
@@ -901,7 +976,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="countryOfBirth" className="text-[14px] font-medium text-[#171717]">Country of Birth</label>
+                <label htmlFor="countryOfBirth" className="text-[14px] font-medium text-[#171717]">
+                  Country of Birth
+                </label>
                 <div className="relative">
                   <select
                     id="countryOfBirth"
@@ -926,38 +1003,26 @@ export default function AddMigrantPage() {
               </div>
             </div>
 
-            {/* City of Birth */}
-            <div className="flex flex-col gap-1">
-              <label htmlFor="cityOfBirth" className="text-[14px] font-medium text-[#171717]">City of Birth</label>
-              <input
-                id="cityOfBirth"
-                type="text"
-                value={form.cityOfBirth}
-                onChange={(e) => handleChange("cityOfBirth", e.target.value)}
-                placeholder="City of birth..."
-                className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-              />
-            </div>
-
-            {/* Passport Number, Passport Issue Date, Passport Expiry Date */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Passport Number & Issue Date */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
                 <label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">
-                  Passport Number <span className="text-red-500">*</span>
+                  Passport Number
                 </label>
                 <input
                   id="passportNumber"
                   type="text"
-                  required
                   value={form.passportNumber}
                   onChange={(e) => handleChange("passportNumber", e.target.value)}
-                  placeholder="Passport number..."
-                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small font-mono"
+                  placeholder="Select country..."
+                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="passportIssueDate" className="text-[14px] font-medium text-[#171717]">Passport Issue Date</label>
+                <label htmlFor="passportIssueDate" className="text-[14px] font-medium text-[#171717]">
+                  Issue Date
+                </label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -970,250 +1035,390 @@ export default function AddMigrantPage() {
                   />
                 </div>
               </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="passportExpiryDate" className="text-[14px] font-medium text-[#171717]">Passport Expiry Date</label>
-                <div className="relative">
-                  <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
-                  <input
-                    id="passportExpiryDate"
-                    type="text"
-                    value={form.passportExpiryDate}
-                    onChange={(e) => handleChange("passportExpiryDate", e.target.value)}
-                    placeholder="DD / MM / YYYY"
-                    className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white pl-10 pr-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
-              </div>
             </div>
 
-            {/* HOME ADDRESS SECTION */}
-            <div className="flex flex-col gap-4 pt-4 border-t border-[#EBEBEB]">
-              <span className="text-[12px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
-                Home Address
-              </span>
-
+            {/* Email Address & Phone Number */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="addressLine1" className="text-[14px] font-medium text-[#171717]">Address Line 1</label>
-                <input
-                  id="addressLine1"
-                  type="text"
-                  value={form.addressLine1}
-                  onChange={(e) => handleChange("addressLine1", e.target.value)}
-                  placeholder="Address Line 1"
-                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="addressLine2" className="text-[14px] font-medium text-[#171717]">
-                  Address Line 2 <span className="font-normal text-[#5C5C5C]">(Optional)</span>
+                <label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">
+                  Email Address
                 </label>
                 <input
-                  id="addressLine2"
-                  type="text"
-                  value={form.addressLine2}
-                  onChange={(e) => handleChange("addressLine2", e.target.value)}
-                  placeholder="Address Line 2"
-                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
+                  id="personalEmail"
+                  type="email"
+                  value={form.personalEmail}
+                  onChange={(e) => handleChange("personalEmail", e.target.value)}
+                  placeholder="e.g. name@example.com"
+                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="city" className="text-[14px] font-medium text-[#171717]">City</label>
-                  <input
-                    id="city"
-                    type="text"
-                    value={form.city}
-                    onChange={(e) => handleChange("city", e.target.value)}
-                    placeholder="City"
-                    className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="postCode" className="text-[14px] font-medium text-[#171717]">Post Code</label>
-                  <input
-                    id="postCode"
-                    type="text"
-                    value={form.postCode}
-                    onChange={(e) => handleChange("postCode", e.target.value)}
-                    placeholder="Post Code"
-                    className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
-              </div>
-
               <div className="flex flex-col gap-1">
-                <label htmlFor="country" className="text-[14px] font-medium text-[#171717]">Country</label>
-                <div className="relative">
-                  <select
-                    id="country"
-                    value={form.country}
-                    onChange={(e) => handleChange("country", e.target.value)}
-                    className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  >
-                    <option value="">Select country...</option>
-                    <option value="United States">United States</option>
-                    <option value="United Kingdom">United Kingdom</option>
-                    <option value="India">India</option>
-                    <option value="Canada">Canada</option>
-                    <option value="Australia">Australia</option>
-                  </select>
-                  <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 top-2.5 pointer-events-none" />
-                </div>
-              </div>
-            </div>
-
-            {/* CONTACT DETAILS SECTION */}
-            <div className="flex flex-col gap-4 pt-4 border-t border-[#EBEBEB]">
-              <span className="text-[12px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
-                Contact Details
-              </span>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">Personal Email</label>
-                  <input
-                    id="personalEmail"
-                    type="email"
-                    value={form.personalEmail}
-                    onChange={(e) => handleChange("personalEmail", e.target.value)}
-                    placeholder="email@example.com"
-                    className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="mobilePhone" className="text-[14px] font-medium text-[#171717]">Mobile Phone</label>
-                  <input
-                    id="mobilePhone"
-                    type="tel"
-                    value={form.mobilePhone}
-                    onChange={(e) => handleChange("mobilePhone", e.target.value)}
-                    placeholder="+44 7911 234567"
-                    className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* EMERGENCY CONTACT SECTION */}
-            <div className="flex flex-col gap-4 pt-4 border-t border-[#EBEBEB]">
-              <span className="text-[12px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
-                Emergency Contact
-              </span>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="emergencyName" className="text-[14px] font-medium text-[#171717]">Full Name</label>
+                <label htmlFor="mobilePhone" className="text-[14px] font-medium text-[#171717]">
+                  Phone Number
+                </label>
                 <input
-                  id="emergencyName"
-                  type="text"
-                  value={form.emergencyName}
-                  onChange={(e) => handleChange("emergencyName", e.target.value)}
-                  placeholder="Full Name"
-                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
+                  id="mobilePhone"
+                  type="tel"
+                  value={form.mobilePhone}
+                  onChange={(e) => handleChange("mobilePhone", e.target.value)}
+                  placeholder="e.g. +1 555-555-5555"
+                  className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
                 />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label htmlFor="emergencyRelationship" className="text-[14px] font-medium text-[#171717]">Relationship</label>
-                <div className="relative">
-                  <select
-                    id="emergencyRelationship"
-                    value={form.emergencyRelationship}
-                    onChange={(e) => handleChange("emergencyRelationship", e.target.value)}
-                    className="h-10 w-full rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] appearance-none cursor-pointer focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  >
-                    <option value="">Select relationship...</option>
-                    <option value="Spouse">Spouse</option>
-                    <option value="Parent">Parent</option>
-                    <option value="Sibling">Sibling</option>
-                    <option value="Child">Child</option>
-                    <option value="Friend">Friend</option>
-                    <option value="Other">Other</option>
-                  </select>
-                  <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 top-2.5 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="emergencyEmail" className="text-[14px] font-medium text-[#171717]">Email</label>
-                  <input
-                    id="emergencyEmail"
-                    type="email"
-                    value={form.emergencyEmail}
-                    onChange={(e) => handleChange("emergencyEmail", e.target.value)}
-                    placeholder="email@example.com"
-                    className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="emergencyPhone" className="text-[14px] font-medium text-[#171717]">Mobile Phone</label>
-                  <input
-                    id="emergencyPhone"
-                    type="tel"
-                    value={form.emergencyPhone}
-                    onChange={(e) => handleChange("emergencyPhone", e.target.value)}
-                    placeholder="+1 (555) 012-3456"
-                    className="h-10 rounded-[10px] border border-[#EBEBEB] bg-white px-3 text-[14px] text-[#171717] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4] shadow-x-small"
-                  />
-                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* STEP 1: GET STARTED / NEW SPONSORSHIP CASE */}
-        {activeStep === 1 && (
-          <div className="w-full flex flex-col items-center justify-center py-4 select-none">
-            {/* Header Description & Subtitle */}
-            <div className="flex flex-col items-center text-center max-w-[586px] mx-auto mb-[25px]">
-              <p className="text-[16px] font-normal text-[#5C5C5C] leading-[24px] tracking-[-0.011em] max-w-[446px] mx-auto">
+        {/* STEP 1: GET STARTED / WELCOME LANDING */}
+        {activeStep === 1 && viewMode === "admin" && (
+          <div className="w-full flex flex-col items-center justify-center py-4 select-none gap-8">
+            {/* Admin View Hero Header */}
+            <div className="flex flex-col items-center text-center max-w-[586px] mx-auto">
+              <h2 className="text-[32px] leading-[36px] font-medium text-[#171717] text-center font-aeonik-medium tracking-[-0.01em]">
+                New sponsorship case
+              </h2>
+              <p className="text-[16px] font-normal text-[#5C5C5C] leading-[24px] tracking-[-0.011em] max-w-[446px] mx-auto mt-2">
                 Invite the migrant to complete their details, or fill everything in yourself. Either way works.
               </p>
-            </div>
 
-            {/* Badges Row */}
-            <div className="flex flex-wrap items-center justify-center gap-[11px] mb-[25px]">
-              <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full border border-transparent">
-                <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
-                <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em]">
-                  10–15 MINS TO COMPLETE
-                </span>
+              {/* Badges Row */}
+              <div className="flex flex-wrap items-center justify-center gap-[11px] mt-6 mb-6">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                  <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
+                  <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
+                    10–15 MINS TO COMPLETE
+                  </span>
+                </div>
+
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                  <RiSaveFill className="size-4 text-[#7B7B7B] shrink-0" />
+                  <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
+                    PROGRESS SAVES AUTOMATICALLY
+                  </span>
+                </div>
+
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                  <RiShieldFill className="size-4 text-[#7B7B7B] shrink-0" />
+                  <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
+                    ENCRYPTED &amp; PRIVATE
+                  </span>
+                </div>
               </div>
 
-              <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full border border-transparent">
-                <RiSaveFill className="size-4 text-[#7B7B7B] shrink-0" />
-                <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em]">
-                  PROGRESS SAVES AUTOMATICALLY
-                </span>
-              </div>
-
-              <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full border border-transparent">
-                <RiShieldFill className="size-4 text-[#7B7B7B] shrink-0" />
-                <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em]">
-                  ENCRYPTED & PRIVATE
-                </span>
+              {/* Primary Action Button */}
+              <div className="flex justify-center mb-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="h-[40px] px-[20px] bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium rounded-[10px] transition-all cursor-pointer border-0 shadow-x-small flex items-center justify-center"
+                >
+                  Get started
+                </button>
               </div>
             </div>
 
-            {/* Primary Action Button */}
-            <div className="flex justify-center mb-[48px]">
-              <button
-                type="button"
-                onClick={() => setActiveStep(2)}
-                className="h-[40px] px-[20px] bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium rounded-[10px] transition-all cursor-pointer border-0 shadow-x-small flex items-center justify-center"
-              >
-                Get started
-              </button>
-            </div>
-
-            {/* Dark Banner Card */}
+            {/* Dark Banner Card for Quick Invite */}
             <div className="w-full max-w-[728px] mx-auto bg-[#262626] rounded-[16px] p-[24px] pb-[26px] flex flex-col md:flex-row items-start gap-[12px] shadow-card-large">
+              <div className="size-[40px] rounded-full bg-[#7D52F4] flex items-center justify-center shrink-0 shadow-x-small">
+                <RiUserAddFill className="size-[20px] text-white" />
+              </div>
+
+              <div className="flex-1 flex flex-col gap-[16px] w-full">
+                <div className="flex flex-col gap-[4px]">
+                  <h3 className="text-[14px] font-medium text-white tracking-[-0.006em] leading-[20px]">
+                    Invite the migrant to fill in their details
+                  </h3>
+                  <p className="text-[13px] font-normal text-[#D1D1D1] tracking-[-0.006em] leading-[20px]">
+                    Skip ahead by sending them a secure link. You can complete the admin sections later.
+                  </p>
+                </div>
+
+                {/* Form Input Row */}
+                <form onSubmit={handleSendQuickInvite} className="flex flex-col sm:flex-row items-center gap-[8px] w-full">
+                  <div className="flex-1 w-full">
+                    <label htmlFor="quickInviteEmail" className="sr-only">
+                      Migrant email address
+                    </label>
+                    <input
+                      id="quickInviteEmail"
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="Migrant email address"
+                      className="w-full h-[40px] bg-[#333333] border border-[#7B7B7B] rounded-[10px] px-[12px] py-[10px] text-[14px] text-white placeholder:text-[#A4A4A4] focus:outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="h-[40px] px-[16px] bg-white hover:bg-neutral-100 text-[#171717] text-[14px] font-medium rounded-[10px] shrink-0 transition-colors cursor-pointer border-0 w-full sm:w-auto"
+                  >
+                    Send invite
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: USER VIEW (MIGRANT VISA APPLICATION LANDING) */}
+        {activeStep === 1 && viewMode === "user" && (
+          <div className="w-full flex flex-col items-center justify-center py-2 select-none gap-12">
+            {/* Hero Header & Badges */}
+            <div className="flex flex-col items-center text-center max-w-[586px] mx-auto">
+              <h1 className="text-[40px] leading-[44px] font-medium text-[#7D52F4] text-center font-aeonik-medium tracking-[-0.01em]">
+                Viems has invited you to complete your visa application
+              </h1>
+              <p className="text-[16px] font-normal text-[#5C5C5C] leading-[24px] tracking-[-0.011em] max-w-[446px] mx-auto mt-3">
+                This should take around 10-15 minutes.
+              </p>
+
+              {/* Badges Row */}
+              <div className="flex flex-wrap items-center justify-center gap-[11px] mt-6 mb-6">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                  <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
+                  <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
+                    10–15 MINS TO COMPLETE
+                  </span>
+                </div>
+
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                  <RiSaveFill className="size-4 text-[#7B7B7B] shrink-0" />
+                  <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
+                    PROGRESS SAVES AUTOMATICALLY
+                  </span>
+                </div>
+
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                  <RiShieldFill className="size-4 text-[#7B7B7B] shrink-0" />
+                  <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
+                    ENCRYPTED &amp; PRIVATE
+                  </span>
+                </div>
+              </div>
+
+              {/* Primary Action Button */}
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="h-[40px] px-[20px] bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium rounded-[10px] transition-all cursor-pointer border-0 shadow-x-small flex items-center justify-center"
+                >
+                  Get started
+                </button>
+              </div>
+            </div>
+
+            {/* Section 1: Three steps; you handle the first two */}
+            <div className="w-full flex flex-col items-center gap-6">
+              <div className="flex flex-col items-center text-center max-w-[586px] mx-auto gap-2">
+                <h2 className="text-[40px] leading-[44px] font-medium text-[#171717] font-aeonik-medium tracking-[-0.01em]">
+                  Three steps; you handle the first two
+                </h2>
+                <p className="text-[16px] leading-[24px] font-normal text-[#5C5C5C] tracking-[-0.011em]">
+                  Your sponsor takes over once you submit. You can save and return any time. Nothing is sent until you&apos;re ready.
+                </p>
+              </div>
+
+              {/* 3 Feature Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-[728px]">
+                {/* Card 1 */}
+                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-6">
+                  <div className="w-[52px] h-[52px] rounded-[12px] bg-white shadow-[0px_3px_3px_-1.5px_rgba(0,0,0,0.04),0px_1px_1px_-0.5px_rgba(0,0,0,0.04),0px_0px_0px_1px_rgba(0,0,0,0.04)] flex items-center justify-center shrink-0 border border-neutral-200/50">
+                    <RiIdCardLine className="size-8 text-[#171717]" />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-[20px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
+                      Your details
+                    </h3>
+                    <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                      Fill in personal information from your passport — nationality, expiry, contact details.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 2 */}
+                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-6">
+                  <div className="w-[52px] h-[52px] rounded-[12px] bg-white shadow-[0px_3px_3px_-1.5px_rgba(0,0,0,0.04),0px_1px_1px_-0.5px_rgba(0,0,0,0.04),0px_0px_0px_1px_rgba(0,0,0,0.04)] flex items-center justify-center shrink-0 border border-neutral-200/50">
+                    <RiUpload2Line className="size-8 text-[#171717]" />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-[20px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
+                      Upload documents
+                    </h3>
+                    <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                      Upload whatever you have ready now. You can come back to add the rest later — nothing is lost.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Card 3 */}
+                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-6">
+                  <div className="w-[52px] h-[52px] rounded-[12px] bg-white shadow-[0px_3px_3px_-1.5px_rgba(0,0,0,0.04),0px_1px_1px_-0.5px_rgba(0,0,0,0.04),0px_0px_0px_1px_rgba(0,0,0,0.04)] flex items-center justify-center shrink-0 border border-neutral-200/50">
+                    <RiSendPlane2Line className="size-8 text-[#171717]" />
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <h3 className="text-[20px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
+                      Submit
+                    </h3>
+                    <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                      Review your answers, then send it securely to your sponsor. They&apos;ll take it from there.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Gather these before you start */}
+            <div className="w-full flex flex-col gap-6 max-w-[728px] mx-auto">
+              <div className="flex flex-col gap-2">
+                <h2 className="text-[40px] leading-[44px] font-medium text-[#171717] font-aeonik-medium tracking-[-0.01em]">
+                  Gather these before you start
+                </h2>
+                <p className="text-[16px] leading-[24px] font-normal text-[#5C5C5C] tracking-[-0.011em] max-w-[586px]">
+                  Some documents you&apos;ll have already. Others you may need a few minutes to find or generate. Your sponsor handles the rest.
+                </p>
+              </div>
+
+              {/* Group 1: Have ready */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[20px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
+                    Have ready
+                  </h3>
+                  <span className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                    2 items (already in your pocket)
+                  </span>
+                </div>
+                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4">
+                  {/* Item 1 */}
+                  <div className="flex items-start gap-3">
+                    <RiFileTextLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
+                        Valid passport
+                      </span>
+                      <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                        You will need your passport number, expiry date, and nationality. A colour scan of the bio-data page will be needed in the next step.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-full h-[1px] bg-[#EBEBEB]" />
+                  {/* Item 2 */}
+                  <div className="flex items-start gap-3">
+                    <RiAtLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
+                        Email address and phone number
+                      </span>
+                      <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                        We will use your email to send confirmations and your phone as a backup contact. Include your country code.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 2: You may need to obtain */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[20px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
+                    You may need to obtain
+                  </h3>
+                  <span className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                    2 items (gotta be ready)
+                  </span>
+                </div>
+                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4">
+                  {/* Item 1 */}
+                  <div className="flex items-start gap-3">
+                    <RiCalendarCheckLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
+                        Posters, schedule, or performance dates
+                      </span>
+                      <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                        Event posters, engagement schedules, or booking confirmations showing where you&apos;re performing in the UK.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-full h-[1px] bg-[#EBEBEB]" />
+                  {/* Item 2 */}
+                  <div className="flex items-start gap-3">
+                    <RiPlaneLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
+                        Flight and accommodation
+                      </span>
+                      <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                        Booking confirmations for your flights and where you&apos;ll be staying — hotel, tenancy, or a letter from your host.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group 3: Your sponsor will provide */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[20px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
+                    Your sponsor will provide
+                  </h3>
+                  <span className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                    2 items (check your inbox)
+                  </span>
+                </div>
+                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4">
+                  {/* Item 1 */}
+                  <div className="flex items-start gap-3">
+                    <RiFileList3Line className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
+                        Signed declaration &amp; consent forms
+                      </span>
+                      <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                        Your sponsor will email these to you. You&apos;ll sign and upload them in the next step. Check your inbox for emails from Viems.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="w-full h-[1px] bg-[#EBEBEB]" />
+                  {/* Item 2 */}
+                  <div className="flex items-start gap-3">
+                    <RiQuillPenLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
+                        Lead artist cover letter (if applicable)
+                      </span>
+                      <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                        If you&apos;re performing with a group, the lead artist may send a short letter confirming your involvement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Let's get your application started */}
+            <div className="w-full flex flex-col items-center gap-4 text-center mt-4">
+              <h2 className="text-[40px] leading-[44px] font-medium text-[#171717] font-aeonik-medium max-w-[477px] mx-auto tracking-[-0.01em]">
+                Let&apos;s get your application started.
+              </h2>
+              <p className="text-[16px] leading-[24px] font-normal text-[#5C5C5C] tracking-[-0.011em] max-w-[446px] mx-auto">
+                Ready when you are
+              </p>
+              <div className="flex justify-center mt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="h-[40px] px-[20px] bg-[#7D52F4] hover:bg-[#6836E6] text-white text-[14px] font-medium rounded-[10px] transition-all cursor-pointer border-0 shadow-x-small flex items-center justify-center"
+                >
+                  Get started
+                </button>
+              </div>
+            </div>
+
+            {/* Dark Banner Card for Quick Invite */}
+            <div className="w-full max-w-[728px] mx-auto bg-[#262626] rounded-[16px] p-[24px] pb-[26px] flex flex-col md:flex-row items-start gap-[12px] shadow-card-large mt-6">
               <div className="size-[40px] rounded-full bg-[#7D52F4] flex items-center justify-center shrink-0 shadow-x-small">
                 <RiUserAddFill className="size-[20px] text-white" />
               </div>

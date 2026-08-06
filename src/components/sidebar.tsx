@@ -12,7 +12,19 @@ import {
   Settings,
   Headphones,
 } from "lucide-react";
-import { RiPieChartLine, RiPieChartFill } from "@remixicon/react";
+import {
+  RiPieChartLine,
+  RiPieChartFill,
+  RiShieldCheckLine,
+  RiShieldCheckFill,
+  RiShieldFill,
+  RiShieldLine,
+  RiFolderShieldFill,
+  RiFileCheckLine,
+  RiFileTextLine,
+  RiArrowUpSLine,
+  RiArrowDownSLine,
+} from "@remixicon/react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 
 const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
@@ -68,6 +80,7 @@ interface SidebarProps {
 export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isComplianceOpen, setIsComplianceOpen] = React.useState(true);
 
   // Nav Items definition using original icons (LayoutGrid, Users, CasesIcon, PieChart, Sliders, Settings, Headphones)
   const mainNavItems = [
@@ -75,6 +88,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
       name: "Dashboard",
       href: "/dashboard",
       icon: LayoutGrid,
+    },
+    {
+      name: "Compliance",
+      href: "/compliance",
+      icon: RiShieldCheckLine,
     },
     {
       name: "Migrants",
@@ -215,6 +233,86 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
 
+            if (item.name === "Compliance") {
+              const isComplianceActive = pathname.startsWith("/compliance");
+
+              return (
+                <div key="Compliance" className="flex flex-col gap-1 w-full">
+                  <button
+                    type="button"
+                    onClick={() => setIsComplianceOpen((prev) => !prev)}
+                    className={`relative flex items-center justify-between rounded-[8px] transition-all duration-300 border-0 cursor-pointer group ${
+                      isOpen ? "w-[208px] h-9 px-2.5" : "size-12 justify-center"
+                    } ${
+                      isComplianceActive
+                        ? "text-white"
+                        : "text-[#5C5C5C] hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <RiShieldFill className="size-5 shrink-0 text-white" />
+                      {isOpen && (
+                        <span className="text-[14px] font-medium text-white whitespace-nowrap">
+                          Compliance
+                        </span>
+                      )}
+                    </div>
+                    {isOpen && (
+                      <RiArrowUpSLine
+                        className={`size-5 text-[#7B7B7B] transition-transform ${
+                          isComplianceOpen ? "" : "rotate-180"
+                        }`}
+                      />
+                    )}
+                  </button>
+
+                  {/* Accordion Submenu Items (Indented 34px / pl-6) */}
+                  {isOpen && isComplianceOpen && (
+                    <div className="flex flex-col gap-1 w-full pl-6">
+                      {/* Subitem 1: Compliance Centre */}
+                      <Link
+                        href="/compliance"
+                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium ${
+                          pathname === "/compliance"
+                            ? "bg-[#262626] text-white"
+                            : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                        }`}
+                      >
+                        <RiFolderShieldFill className={`size-5 shrink-0 ${pathname === "/compliance" ? "text-white" : "text-[#5C5C5C]"}`} />
+                        <span className="whitespace-nowrap truncate">Compliance Centre</span>
+                      </Link>
+
+                      {/* Subitem 2: RTW Checks */}
+                      <Link
+                        href="/compliance/rtw-checks"
+                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium ${
+                          pathname.startsWith("/compliance/rtw-checks")
+                            ? "bg-[#262626] text-white"
+                            : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                        }`}
+                      >
+                        <RiFileCheckLine className={`size-5 shrink-0 ${pathname.startsWith("/compliance/rtw-checks") ? "text-white" : "text-[#5C5C5C]"}`} />
+                        <span className="whitespace-nowrap truncate">RTW Checks</span>
+                      </Link>
+
+                      {/* Subitem 3: Documents */}
+                      <Link
+                        href="/compliance/documents"
+                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium ${
+                          pathname.startsWith("/compliance/documents")
+                            ? "bg-[#262626] text-white"
+                            : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                        }`}
+                      >
+                        <RiFileTextLine className={`size-5 shrink-0 ${pathname.startsWith("/compliance/documents") ? "text-white" : "text-[#5C5C5C]"}`} />
+                        <span className="whitespace-nowrap truncate">Documents</span>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.name}
@@ -228,7 +326,13 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 }`}
                 title={item.name}
               >
-                {item.name === "Insights" ? (
+                {item.name === "Compliance" ? (
+                  isActive ? (
+                    <RiShieldCheckFill className="size-6 shrink-0 text-white transition-colors" />
+                  ) : (
+                    <RiShieldCheckLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                  )
+                ) : item.name === "Insights" ? (
                   isActive ? (
                     <RiPieChartFill className="size-6 shrink-0 text-white transition-colors" />
                   ) : (
