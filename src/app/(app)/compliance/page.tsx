@@ -20,6 +20,43 @@ import {
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { formatFullName, getInitials } from "@/lib/format";
+
+interface BackendCaseItem {
+  id: number | string;
+  first_name?: string;
+  last_name?: string;
+  caseIdDisplay?: string;
+  caseNumber?: string;
+  group_name?: string;
+  company?: string;
+  next_rtw_check?: string;
+  compliance_status?: string;
+  doc_count?: string;
+  migrant?: {
+    user?: {
+      avatarUrl?: string;
+      personalInfo?: {
+        firstName?: string;
+        lastName?: string;
+      };
+    };
+  };
+}
+
+interface BackendTaskItem {
+  id?: number | string;
+  title?: string;
+  description?: string;
+  subtitle?: string;
+  migrantName?: string;
+  caseId?: string;
+  status?: string;
+  statusType?: string;
+  dueDate?: string;
+  priority?: string | number;
+  impact?: string;
+}
 
 interface TaskItem {
   id: string;
@@ -127,22 +164,6 @@ interface MigrantComplianceRow {
   docs: string;
 }
 
-function formatFullName(first?: string, last?: string): string {
-  const f = (first || "").trim();
-  const l = (last || "").trim();
-  if (!f && !l) return "";
-  return `${f} ${l}`.trim();
-}
-
-function getInitials(name?: string): string {
-  if (!name) return "MA";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
-
 const fallbackMigrantsData: MigrantComplianceRow[] = [
   {
     caseId: "431/2026",
@@ -174,7 +195,7 @@ const fallbackMigrantsData: MigrantComplianceRow[] = [
     status: "COMPLIANT",
     statusStyle: "bg-[#E3F7EC] text-[#0D6332]",
     nextRtw: "22 Jan 2027",
-    docs: "12/12",
+    docs: "22 Jan 2027",
   },
   {
     caseId: "428/2026",
@@ -224,27 +245,31 @@ export default function ComplianceCentrePage() {
       try {
         setLoading(true);
         const [casesRes, tasksRes] = await Promise.allSettled([
-          apiClient.get<any>(ENDPOINTS.cases.base),
-          apiClient.get<any>(ENDPOINTS.tasks.base),
+          apiClient.get<BackendCaseItem[] | { data: BackendCaseItem[] }>(ENDPOINTS.cases.base),
+          apiClient.get<BackendTaskItem[] | { data: BackendTaskItem[] }>(ENDPOINTS.tasks.base),
         ]);
 
         if (casesRes.status === "fulfilled" && casesRes.value) {
-          const rawCases: any[] = Array.isArray(casesRes.value) ? casesRes.value : casesRes.value?.data ?? [];
+          const resVal = casesRes.value;
+          const rawCases: BackendCaseItem[] = Array.isArray(resVal) ? resVal : (resVal as any)?.data ?? [];
           if (rawCases.length > 0) {
-            const mappedMigrants: MigrantComplianceRow[] = rawCases.map((c, i) => {
+            const mappedMigrants: MigrantComplianceRow[] = rawCases.map((c) => {
               const name = formatFullName(c.first_name || c.migrant?.user?.personalInfo?.firstName, c.last_name || c.migrant?.user?.personalInfo?.lastName) || `Migrant #${c.id}`;
               const caseId = c.caseIdDisplay || c.caseNumber || `${c.id}/2026`;
               const company = c.group_name || c.company || "AX Studios";
               const initials = getInitials(name);
 
-              let status = "COMPLIANT";
+              let status = c.compliance_status ? String(c.compliance_status).toUpperCase() : "COMPLIANT";
               let statusStyle = "bg-[#E3F7EC] text-[#0D6332]";
-              if (i % 3 === 0) {
+              if (status === "ACTION NEEDED" || status === "ACTION_NEEDED") {
                 status = "ACTION NEEDED";
                 statusStyle = "bg-[#FFEBEC] text-[#681219]";
-              } else if (i % 3 === 2) {
+              } else if (status === "REVIEW" || status === "UNDER_REVIEW") {
                 status = "REVIEW";
                 statusStyle = "bg-[#FFFAEB] text-[#624C18]";
+              } else {
+                status = "COMPLIANT";
+                statusStyle = "bg-[#E3F7EC] text-[#0D6332]";
               }
 
               return {
@@ -256,7 +281,7 @@ export default function ComplianceCentrePage() {
                 status,
                 statusStyle,
                 nextRtw: c.next_rtw_check ? new Date(c.next_rtw_check).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "18 Nov 2026",
-                docs: `${12 - (i % 4)}/12`,
+                docs: c.doc_count || "12/12",
               };
             });
             setMigrantsData(mappedMigrants);
@@ -264,15 +289,14 @@ export default function ComplianceCentrePage() {
         }
 
         if (tasksRes.status === "fulfilled" && tasksRes.value) {
-          const rawTasks: any[] = Array.isArray(tasksRes.value) ? tasksRes.value : tasksRes.value?.data ?? [];
+          const resVal = tasksRes.value;
+          const rawTasks: BackendTaskItem[] = Array.isArray(resVal) ? resVal : (resVal as any)?.data ?? [];
           if (rawTasks.length > 0) {
             const mappedTasks: TaskItem[] = rawTasks.map((t, i) => {
               const prioStr = typeof t.priority === "string" ? t.priority.toUpperCase() : "";
               const riskLevel: "HIGH" | "MEDIUM" | "LOW" =
                 prioStr === "HIGH" || prioStr === "MEDIUM" || prioStr === "LOW"
                   ? prioStr
-                  : i % 2 === 0
-                  ? "HIGH"
                   : "MEDIUM";
 
               return {
@@ -355,7 +379,7 @@ export default function ComplianceCentrePage() {
       }
       return true;
     });
-  }, [searchQuery, statusFilter]);
+  }, [migrantsData, searchQuery, statusFilter]);
 
   return (
     <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-16 flex flex-col gap-8 px-6 lg:px-12 py-8 select-none">

@@ -31,6 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatFullName, getInitials } from "@/lib/format";
 
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
@@ -108,22 +109,6 @@ interface MigrantDocItem {
   status: "MISSING" | "REVIEW" | "VERIFIED";
   expiryDate: string;
   uploadedDate: string;
-}
-
-function formatFullName(first?: string, last?: string): string {
-  const f = (first || "").trim();
-  const l = (last || "").trim();
-  if (!f && !l) return "";
-  return `${f} ${l}`.trim();
-}
-
-function getInitials(name?: string): string {
-  if (!name) return "MA";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
 }
 
 const fallbackMigrantDocs: MigrantDocItem[] = [
@@ -219,6 +204,7 @@ export default function ComplianceDocumentsPage() {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [fileName, setFileName] = React.useState("");
   const [uploadSuccess, setUploadSuccess] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
 
   // Fetch real cases and migrant document data from NestJS backend
@@ -229,16 +215,20 @@ export default function ComplianceDocumentsPage() {
       const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
 
       if (rawArr.length > 0) {
-        const docTypes = ["Passport", "Payslip", "Proof of Address", "Passport", "Passport", "CoS"];
-        const statuses: ("MISSING" | "REVIEW" | "VERIFIED")[] = ["MISSING", "REVIEW", "REVIEW", "VERIFIED", "VERIFIED", "VERIFIED"];
-
         const mapped: MigrantDocItem[] = rawArr.map((c, i) => {
           const name = formatFullName(c.first_name || c.migrant?.user?.personalInfo?.firstName, c.last_name || c.migrant?.user?.personalInfo?.lastName) || `Migrant #${c.id}`;
           const initials = getInitials(name);
           const caseId = c.caseIdDisplay || c.caseNumber || `${c.id}/2026`;
           const company = c.group_name || c.company || "AX Studios";
-          const docType = docTypes[i % docTypes.length];
-          const st = statuses[i % statuses.length];
+          const docType = c.doc_type || "Passport";
+          
+          let st: "MISSING" | "REVIEW" | "VERIFIED" = "VERIFIED";
+          if (c.doc_status) {
+            const upper = String(c.doc_status).toUpperCase();
+            if (upper === "MISSING") st = "MISSING";
+            else if (upper === "REVIEW" || upper === "PENDING") st = "REVIEW";
+            else st = "VERIFIED";
+          }
 
           return {
             id: String(c.id || i + 1),
@@ -266,6 +256,17 @@ export default function ComplianceDocumentsPage() {
   React.useEffect(() => {
     fetchDocumentsData();
   }, [fetchDocumentsData]);
+
+  // Derived KPI Counts
+  const kpis = React.useMemo(() => {
+    return {
+      total: migrantDocs.length,
+      review: migrantDocs.filter((d) => d.status === "REVIEW").length,
+      expiringSoon: migrantDocs.filter((d) => (d as any).status === "DUE" || (d as any).status === "EXPIRING_SOON").length,
+      expired: migrantDocs.filter((d) => d.status === "MISSING").length,
+      verified: migrantDocs.filter((d) => d.status === "VERIFIED").length,
+    };
+  }, [migrantDocs]);
 
   // Filtered table rows
   const filteredDocs = React.useMemo(() => {
@@ -295,6 +296,7 @@ export default function ComplianceDocumentsPage() {
     e.preventDefault();
     setIsUploading(true);
     setUploadSuccess(false);
+    setUploadError(null);
 
     try {
       // Submit real file to NestJS backend
@@ -310,8 +312,8 @@ export default function ComplianceDocumentsPage() {
       setUploadSuccess(true);
       fetchDocumentsData();
     } catch (err: any) {
-      console.warn("Backend API document upload note:", err?.message || err);
-      setUploadSuccess(true);
+      console.error("Backend API document upload error:", err?.message || err);
+      setUploadError(err?.message || "Failed to upload document. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -343,9 +345,11 @@ export default function ComplianceDocumentsPage() {
 
         <div>
           <button
+            type="button"
             onClick={() => {
               setIsUploadModalOpen(true);
               setUploadSuccess(false);
+              setUploadError(null);
             }}
             className="bg-[#7D52F4] hover:bg-[#6C3FEB] text-white rounded-[10px] h-[36px] px-4 font-medium text-[14px] flex items-center gap-2 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
           >
@@ -355,7 +359,7 @@ export default function ComplianceDocumentsPage() {
         </div>
       </div>
 
-      {/* KPI / Summary Stat Cards (5 Column Grid) */}
+      {/* KPI / Summary Stat Cards (5 Column Grid - Dynamic Counts) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {/* Card 1: TOTAL MIGRANTS */}
         <div className="bg-[#F2EFFE] border border-[#E7E2FE] rounded-[16px] p-4 flex flex-col justify-between h-[88px] transition-all hover:shadow-xs">
@@ -363,7 +367,7 @@ export default function ComplianceDocumentsPage() {
             TOTAL MIGRANTS
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#7D52F4] font-aeonik-medium">
-            3
+            {kpis.total}
           </span>
         </div>
 
@@ -373,7 +377,7 @@ export default function ComplianceDocumentsPage() {
             PENDING REVIEW
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#D97706] font-aeonik-medium">
-            1
+            {kpis.review}
           </span>
         </div>
 
@@ -383,7 +387,7 @@ export default function ComplianceDocumentsPage() {
             EXPIRING SOON
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#171717] font-aeonik-medium">
-            0
+            {kpis.expiringSoon}
           </span>
         </div>
 
@@ -393,7 +397,7 @@ export default function ComplianceDocumentsPage() {
             EXPIRED
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#FB3748] font-aeonik-medium">
-            0
+            {kpis.expired}
           </span>
         </div>
 
@@ -403,7 +407,7 @@ export default function ComplianceDocumentsPage() {
             VERIFIED
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#0D6332] font-aeonik-medium">
-            3
+            {kpis.verified}
           </span>
         </div>
       </div>
@@ -419,218 +423,156 @@ export default function ComplianceDocumentsPage() {
             {docCategories.map((cat) => (
               <div
                 key={cat.id}
-                className="border border-[#EBEBEB] rounded-[12px] p-4 flex flex-col justify-between hover:border-[#7D52F4]/40 transition-all cursor-pointer bg-white group min-h-[110px]"
+                className="bg-[#FAFAFA] rounded-[12px] p-4 border border-[#EBEBEB] flex flex-col gap-3"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#5C5C5C] shrink-0 mt-0.5">
-                      <RiUserLine className="size-4" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[14px] font-medium text-[#171717] leading-[20px] group-hover:text-[#7D52F4] transition-colors">
-                        {cat.title}
-                      </span>
-                      <span className="text-[12px] text-[#5C5C5C] leading-[16px]">
-                        {cat.subtitle}
-                      </span>
-                    </div>
-                  </div>
-
-                  <RiArrowRightSLine className="size-4 text-[#A4A4A4] shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-
-                <div className="mt-3">
-                  {cat.status === "MISSING" ? (
-                    <span className="bg-[#FFEBEC] text-[#681219] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] font-medium text-[#171717]">
+                    {cat.title}
+                  </span>
+                  {cat.status === "MISSING" && (
+                    <span className="px-2 py-0.5 rounded-[6px] bg-[#FFEBEC] text-[#FB3748] text-[11px] font-medium">
                       MISSING
                     </span>
-                  ) : (
-                    <div className="h-1.5 w-full bg-[#EBEBEB] rounded-full overflow-hidden mt-2">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          cat.status === "GREEN"
-                            ? "bg-[#1FC16B] w-full"
-                            : "bg-[#F6B51E] w-[60%]"
-                        }`}
-                      />
-                    </div>
+                  )}
+                  {cat.status === "AMBER" && (
+                    <span className="px-2 py-0.5 rounded-[6px] bg-[#FEF6E6] text-[#D97706] text-[11px] font-medium">
+                      AMBER
+                    </span>
+                  )}
+                  {cat.status === "GREEN" && (
+                    <span className="px-2 py-0.5 rounded-[6px] bg-[#E3F7EC] text-[#0D6332] text-[11px] font-medium">
+                      100%
+                    </span>
                   )}
                 </div>
+                <p className="text-[13px] text-[#5C5C5C] leading-snug">
+                  {cat.subtitle}
+                </p>
               </div>
             ))}
           </div>
-
-          <span className="text-[12px] text-[#A4A4A4] mt-2 font-normal">
-            Last assessed 20 Jul 2026, 09:42
-          </span>
         </div>
       </div>
 
-      {/* Migrant Compliance Table Section */}
+      {/* Migrants Document Table Section */}
       <div className="flex flex-col gap-3 mt-4">
-        <h2 className="text-[20px] leading-[28px] font-medium text-[#171717] font-aeonik-medium">
-          Migrant compliance
-        </h2>
-
-        {/* Toolbar: Search + Filters */}
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          {/* Search Box */}
-          <div className="relative w-full sm:w-[348px] h-[32px] bg-white rounded-[8px] border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] px-2.5 flex items-center gap-2 focus-within:border-[#7D52F4] transition-colors">
-            <RiSearch2Line className="size-4 text-[#A4A4A4] shrink-0" />
+        {/* Controls Bar: Search & Status Dropdown */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative flex items-center w-full sm:w-[320px]">
+            <RiSearch2Line className="size-4 text-[#A4A4A4] absolute left-3 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full text-[14px] text-[#171717] placeholder-[#A4A4A4] outline-none bg-transparent"
+              placeholder="Search by migrant, case ID or document..."
+              className="w-full h-[36px] pl-9 pr-8 text-[13px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] shadow-xs placeholder:text-[#A4A4A4] transition-colors"
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery("")}
-                className="text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                className="absolute right-2.5 text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
               >
                 <RiCloseLine className="size-4" />
               </button>
             )}
           </div>
 
-          {/* Filter Button */}
-          <button className="w-[32px] h-[32px] bg-white rounded-[8px] border border-[#EBEBEB] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 transition-colors cursor-pointer">
-            <RiFilter3Line className="size-4" />
-          </button>
-
-          {/* All Status Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger className="h-[32px] px-3 bg-white rounded-[8px] border border-[#EBEBEB] text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] flex items-center gap-1.5 hover:bg-neutral-50 transition-colors cursor-pointer outline-none">
-              <span>{statusDropdownFilter}</span>
-              <RiArrowDownSLine className="size-4 text-[#5C5C5C]" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[140px]">
-              {["All status", "Missing", "Review", "Verified"].map((opt) => (
-                <DropdownMenuItem
-                  key={opt}
-                  onClick={() => setStatusDropdownFilter(opt)}
-                  className="cursor-pointer text-[13px]"
-                >
-                  {opt}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <div className="relative flex items-center">
+              <select
+                value={statusDropdownFilter}
+                onChange={(e) => setStatusDropdownFilter(e.target.value)}
+                className="h-[36px] pl-3 pr-8 text-[13px] font-medium text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] shadow-xs appearance-none cursor-pointer transition-colors"
+              >
+                <option value="All status">All status</option>
+                <option value="Missing">Missing</option>
+                <option value="Review">Review</option>
+                <option value="Verified">Verified</option>
+              </select>
+              <RiArrowDownSLine className="size-4 text-[#5C5C5C] absolute right-2.5 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
-        {/* Main Table Layout */}
-        <div className="bg-[#F7F7F7] rounded-[16px] p-2 flex flex-col gap-2">
-          {/* Table Header Row */}
-          <div className="h-[36px] bg-[#F7F7F7] px-4 flex items-center text-[12px] font-medium tracking-[0.04em] uppercase text-[#A4A4A4] select-none">
-            <div className="w-[100px] flex items-center gap-1">
-              <span>CASE ID #</span>
-            </div>
-
-            <div className="w-[280px] flex items-center gap-1">
-              <span>NAME</span>
-              <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-            </div>
-
-            <div className="w-[200px] flex items-center gap-1">
-              <span>DOCUMENT TYPE</span>
-            </div>
-
-            <div className="w-[150px] flex items-center gap-1">
-              <span>STATUS</span>
-              <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-            </div>
-
-            <div className="w-[160px] flex items-center gap-1">
-              <span>EXPIRY DATE</span>
-              <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-            </div>
-
-            <div className="flex-1 flex items-center justify-start">
-              <span>UPLOADED</span>
-              <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4] ml-1" />
-            </div>
-
-            <div className="w-[48px]" />
+        {/* Table Box */}
+        <div className="bg-white rounded-[16px] border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] overflow-hidden">
+          {/* Table Header */}
+          <div className="flex items-center px-6 py-3 bg-[#FAFAFA] border-b border-[#EBEBEB] text-[12px] font-medium text-[#5C5C5C] uppercase tracking-wider">
+            <div className="flex-1 min-w-[200px]">MIGRANT / CASE</div>
+            <div className="flex-1 min-w-[140px]">DOCUMENT TYPE</div>
+            <div className="w-[120px]">STATUS</div>
+            <div className="flex-1 min-w-[120px]">EXPIRY DATE</div>
+            <div className="flex-1 min-w-[120px]">UPLOADED</div>
+            <div className="w-[48px]"></div>
           </div>
 
-          {/* Floating Table Card Rows */}
-          <div className="flex flex-col gap-2">
+          {/* Table Body */}
+          <div className="divide-y divide-[#EBEBEB]">
             {filteredDocs.length === 0 ? (
-              <div className="bg-white rounded-[16px] py-12 px-4 text-center text-[#5C5C5C] text-[14px]">
-                No migrant documents found matching your criteria.
+              <div className="p-8 text-center text-[#5C5C5C] text-[14px]">
+                No document compliance records found matching your filters.
               </div>
             ) : (
               filteredDocs.map((row) => (
                 <div
                   key={row.id}
-                  className="bg-white rounded-[16px] h-[72px] px-4 flex items-center justify-between border border-transparent hover:border-[#EBEBEB] hover:shadow-xs transition-all"
+                  className="flex items-center px-6 py-3.5 hover:bg-[#FAFAFA] transition-colors"
                 >
-                  {/* Case ID */}
-                  <div className="w-[100px] font-mono text-[14px] text-[#5C5C5C]">
-                    {row.caseId}
-                  </div>
-
-                  {/* Name + Subtitle + Avatar */}
-                  <div className="w-[280px] flex items-center gap-3">
+                  {/* Migrant / Case Column */}
+                  <div className="flex-1 min-w-[200px] flex items-center gap-3">
                     {row.avatarUrl ? (
                       <img
                         src={row.avatarUrl}
                         alt={row.name}
-                        className="w-10 h-10 rounded-full object-cover shrink-0"
+                        className="w-9 h-9 rounded-full object-cover shrink-0"
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[14px] flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[13px] flex items-center justify-center shrink-0">
                         {row.avatarInitials}
                       </div>
                     )}
-
-                    <div className="flex flex-col justify-center">
-                      <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-medium text-[#171717]">
                         {row.name}
                       </span>
-                      <span className="text-[12px] text-[#5C5C5C] leading-[16px]">
-                        {row.company}
+                      <span className="text-[12px] text-[#5C5C5C]">
+                        {row.caseId} • {row.company}
                       </span>
                     </div>
                   </div>
 
                   {/* Document Type */}
-                  <div className="w-[200px] flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#5C5C5C] shrink-0">
-                      <RiFileTextLine className="size-4" />
-                    </div>
-                    <span className="text-[14px] font-normal text-[#171717]">
-                      {row.documentType}
-                    </span>
+                  <div className="flex-1 min-w-[140px] text-[14px] font-medium text-[#171717]">
+                    {row.documentType}
                   </div>
 
                   {/* Status Badge */}
-                  <div className="w-[150px]">
+                  <div className="w-[120px]">
                     {row.status === "MISSING" && (
-                      <span className="bg-[#FFEBEC] text-[#681219] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
+                      <span className="px-2.5 py-1 rounded-[6px] bg-[#FFEBEC] text-[#FB3748] text-[12px] font-medium inline-block">
                         MISSING
                       </span>
                     )}
                     {row.status === "REVIEW" && (
-                      <span className="bg-[#FFFAEB] text-[#624C18] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
+                      <span className="px-2.5 py-1 rounded-[6px] bg-[#FEF6E6] text-[#D97706] text-[12px] font-medium inline-block">
                         REVIEW
                       </span>
                     )}
                     {row.status === "VERIFIED" && (
-                      <span className="bg-[#E3F7EC] text-[#0D6332] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
+                      <span className="px-2.5 py-1 rounded-[6px] bg-[#E3F7EC] text-[#0D6332] text-[12px] font-medium inline-block">
                         VERIFIED
                       </span>
                     )}
                   </div>
 
                   {/* Expiry Date */}
-                  <div className="w-[160px] text-[14px] font-normal text-[#171717] opacity-80">
+                  <div className="flex-1 min-w-[120px] text-[14px] text-[#171717]">
                     {row.expiryDate}
                   </div>
 
                   {/* Uploaded Date */}
-                  <div className="flex-1 text-[14px] font-normal text-[#171717] opacity-80">
+                  <div className="flex-1 min-w-[120px] text-[14px] text-[#5C5C5C]">
                     {row.uploadedDate}
                   </div>
 
@@ -646,6 +588,8 @@ export default function ComplianceDocumentsPage() {
                             setSelectedMigrant(row.name);
                             setSelectedDocType(row.documentType);
                             setIsUploadModalOpen(true);
+                            setUploadSuccess(false);
+                            setUploadError(null);
                           }}
                           className="cursor-pointer text-[13px]"
                         >
@@ -669,22 +613,23 @@ export default function ComplianceDocumentsPage() {
 
       {/* Upload Document Modal Dialog */}
       <Dialog open={isUploadModalOpen} onOpenChange={setIsUploadModalOpen}>
-        <DialogContent className="sm:max-w-[480px]">
+        <DialogContent className="sm:max-w-[480px] p-6 rounded-[20px] bg-white border border-[#EBEBEB] shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-[20px] font-medium font-aeonik-medium text-[#171717]">
-              Upload Compliance Document
+              Upload Document
             </DialogTitle>
-            <DialogDescription className="text-[14px] text-[#5C5C5C]">
-              Attach statutory compliance documentation to migrant record.
+            <DialogDescription className="text-[13px] text-[#5C5C5C]">
+              Attach compliance evidence for migrant verification.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleUploadSubmit} className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="upload-migrant-name-input" className="text-[13px] font-medium text-[#171717]">
                 Migrant Name
               </label>
               <input
+                id="upload-migrant-name-input"
                 type="text"
                 value={selectedMigrant}
                 onChange={(e) => setSelectedMigrant(e.target.value)}
@@ -695,10 +640,11 @@ export default function ComplianceDocumentsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="upload-doc-type-select" className="text-[13px] font-medium text-[#171717]">
                 Document Type
               </label>
               <select
+                id="upload-doc-type-select"
                 value={selectedDocType}
                 onChange={(e) => setSelectedDocType(e.target.value)}
                 className="w-full h-[36px] px-3 text-[14px] bg-white border border-[#EBEBEB] rounded-[8px] outline-none focus:border-[#7D52F4]"
@@ -714,10 +660,11 @@ export default function ComplianceDocumentsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="upload-expiry-date-input" className="text-[13px] font-medium text-[#171717]">
                 Expiry Date
               </label>
               <input
+                id="upload-expiry-date-input"
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
@@ -727,7 +674,7 @@ export default function ComplianceDocumentsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-medium text-[#171717]">
+              <label htmlFor="doc-file-upload" className="text-[13px] font-medium text-[#171717]">
                 Document File (PDF, PNG, JPG)
               </label>
               <div className="border-2 border-dashed border-[#EBEBEB] rounded-[10px] p-4 text-center flex flex-col items-center justify-center gap-2 hover:border-[#7D52F4]/50 transition-colors bg-[#FAF8FF]/50 cursor-pointer">
@@ -764,6 +711,13 @@ export default function ComplianceDocumentsPage() {
               </div>
             )}
 
+            {uploadError && (
+              <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-3 text-[13px] text-[#FB3748] flex items-center gap-2">
+                <RiCloseLine className="size-5 shrink-0 text-[#FB3748]" />
+                <span>{uploadError}</span>
+              </div>
+            )}
+
             <DialogFooter className="pt-2">
               <button
                 type="button"
@@ -793,4 +747,3 @@ export default function ComplianceDocumentsPage() {
     </div>
   );
 }
-

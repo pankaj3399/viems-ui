@@ -136,8 +136,10 @@ export const ENDPOINTS = {
     archive: `${API_BASE}/files/archive`,
     rename: `${API_BASE}/files/rename`,
     upload: `${API_BASE}/files/upload`,
+    /** POST /files/upload/custom/:folderId */
     uploadCustom: (folderId: number | string) =>
       `${API_BASE}/files/upload/custom/${folderId}`,
+    /** POST /files/upload/right-to-work/:id */
     uploadRightToWork: (id: number | string) =>
       `${API_BASE}/files/upload/right-to-work/${id}`,
     uploadBackgroundCheck: `${API_BASE}/files/upload/background-check`,

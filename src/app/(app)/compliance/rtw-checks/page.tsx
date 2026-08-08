@@ -37,6 +37,7 @@ import {
 
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { formatFullName, getInitials } from "@/lib/format";
 
 interface RtwCheckItem {
   id: string;
@@ -50,22 +51,6 @@ interface RtwCheckItem {
   lastCheck: string;
   nextCheck: string;
   daysUntil: number | null;
-}
-
-function formatFullName(first?: string, last?: string): string {
-  const f = (first || "").trim();
-  const l = (last || "").trim();
-  if (!f && !l) return "";
-  return `${f} ${l}`.trim();
-}
-
-function getInitials(name?: string): string {
-  if (!name) return "MA";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
 }
 
 const fallbackRtwChecks: RtwCheckItem[] = [
@@ -157,7 +142,7 @@ export default function RtwChecksPage() {
     "ALL" | "OVERDUE" | "DUE" | "COMPLIANT" | "FOLLOW-UP"
   >("ALL");
   const [statusDropdownFilter, setStatusDropdownFilter] = React.useState<string>("All status");
-  // Modal State for Action - RTW Check
+  
   const [selectedMigrant, setSelectedMigrant] = React.useState("Taylor Johnson");
   const [selectedCaseId, setSelectedCaseId] = React.useState("#430/2026");
   const [selectedEntityId, setSelectedEntityId] = React.useState<number | string>("430");
@@ -179,7 +164,6 @@ export default function RtwChecksPage() {
     msg: string;
   }>(null);
 
-  // Fetch real cases and migrant RTW data from NestJS backend
   const fetchRtwData = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -193,16 +177,24 @@ export default function RtwChecksPage() {
           const caseId = c.caseIdDisplay || c.caseNumber || `${c.id}/2026`;
           const company = c.group_name || c.company || "AX Studios";
           
-          let status: "OVERDUE" | "DUE SOON" | "FOLLOW-UP" | "COMPLIANT" = "COMPLIANT";
+          let derivedStatus: "OVERDUE" | "DUE SOON" | "FOLLOW-UP" | "COMPLIANT" = "COMPLIANT";
           const mod = i % 4;
-          if (mod === 0) status = "OVERDUE";
-          else if (mod === 1) status = "DUE SOON";
-          else if (mod === 2) status = "FOLLOW-UP";
-          else status = "COMPLIANT";
+          if (mod === 0) derivedStatus = "OVERDUE";
+          else if (mod === 1) derivedStatus = "DUE SOON";
+          else if (mod === 2) derivedStatus = "FOLLOW-UP";
+          else derivedStatus = "COMPLIANT";
+
+          let normalizedStatus: "OVERDUE" | "DUE SOON" | "FOLLOW-UP" | "COMPLIANT" = derivedStatus;
+          if (c.rtw_status) {
+            const rawSt = String(c.rtw_status).trim().toUpperCase();
+            if (rawSt === "OVERDUE" || rawSt === "DUE SOON" || rawSt === "FOLLOW-UP" || rawSt === "COMPLIANT") {
+              normalizedStatus = rawSt as any;
+            }
+          }
 
           let daysUntil: number | null = null;
-          if (status === "OVERDUE") daysUntil = -3;
-          else if (status === "DUE SOON") daysUntil = 4;
+          if (normalizedStatus === "OVERDUE") daysUntil = -3;
+          else if (normalizedStatus === "DUE SOON") daysUntil = 4;
 
           return {
             id: String(c.id || i + 1),
@@ -212,7 +204,7 @@ export default function RtwChecksPage() {
             company,
             avatarUrl: c.migrant?.user?.avatarUrl,
             avatarInitials: initials,
-            status: (c.rtw_status || status) as any,
+            status: normalizedStatus,
             lastCheck: c.last_rtw_check ? new Date(c.last_rtw_check).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "20 Jul 2025",
             nextCheck: c.next_rtw_check ? new Date(c.next_rtw_check).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "20 Jul 2026",
             daysUntil: c.days_until !== undefined ? c.days_until : daysUntil,
@@ -233,6 +225,7 @@ export default function RtwChecksPage() {
 
   const handleOpenVerifyForMigrant = (item: RtwCheckItem) => {
     setSelectedMigrant(item.name);
+    setSelectedEntityId(item.entityId);
     setSelectedCaseId(item.caseId.startsWith("#") ? item.caseId : `#${item.caseId}`);
     setSelectedAvatarUrl(item.avatarUrl);
     setSelectedAvatarInitials(item.avatarInitials);
@@ -240,8 +233,6 @@ export default function RtwChecksPage() {
     setVerificationResult(null);
   };
 
-
-  // Dynamic status counts
   const counts = React.useMemo(() => {
     return {
       all: rtwChecks.length,
@@ -252,16 +243,13 @@ export default function RtwChecksPage() {
     };
   }, [rtwChecks]);
 
-  // Filtered list based on search and selected tab
   const filteredChecks = React.useMemo(() => {
     return rtwChecks.filter((item) => {
-      // Tab filter
       if (activeTab === "OVERDUE" && item.status !== "OVERDUE") return false;
       if (activeTab === "DUE" && item.status !== "DUE SOON") return false;
       if (activeTab === "COMPLIANT" && item.status !== "COMPLIANT") return false;
       if (activeTab === "FOLLOW-UP" && item.status !== "FOLLOW-UP") return false;
 
-      // Status Dropdown filter
       if (statusDropdownFilter !== "All status") {
         if (statusDropdownFilter === "Overdue" && item.status !== "OVERDUE") return false;
         if (statusDropdownFilter === "Due Soon" && item.status !== "DUE SOON") return false;
@@ -269,26 +257,30 @@ export default function RtwChecksPage() {
         if (statusDropdownFilter === "Follow-up" && item.status !== "FOLLOW-UP") return false;
       }
 
-      // Search query filter
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
-        const matchesName = item.name.toLowerCase().includes(query);
-        const matchesCase = item.caseId.toLowerCase().includes(query);
-        const matchesCompany = item.company.toLowerCase().includes(query);
-        return matchesName || matchesCase || matchesCompany;
+        return item.name.toLowerCase().includes(query) || item.caseId.toLowerCase().includes(query) || item.company.toLowerCase().includes(query);
       }
-
       return true;
     });
   }, [rtwChecks, activeTab, statusDropdownFilter, searchQuery]);
 
   const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isVerifying) return;
+
+    if (!selectedEntityId) {
+      setVerificationResult({
+        success: false,
+        msg: "No migrant record selected for verification.",
+      });
+      return;
+    }
+
     setIsVerifying(true);
     setVerificationResult(null);
 
     try {
-      // Real API Call to NestJS backend for Right to Work upload/verification
       const formData = new FormData();
       if (shareCode) formData.append("shareCode", shareCode);
       if (dob) formData.append("dob", dob);
@@ -296,21 +288,18 @@ export default function RtwChecksPage() {
       if (govRefNumber) formData.append("govRefNumber", govRefNumber);
       if (selectedFile) formData.append("file", selectedFile);
 
-      // Submit to backend
-      const targetEntityId = selectedEntityId || "1";
-      await apiClient.post(ENDPOINTS.files.uploadRightToWork(targetEntityId), formData);
+      await apiClient.post(ENDPOINTS.files.uploadRightToWork(selectedEntityId), formData);
       
       setVerificationResult({
         success: true,
         msg: `Statutory RTW Verification complete for ${selectedMigrant}. Saved to backend compliance vault.`,
       });
-      // Re-fetch live data from NestJS
       fetchRtwData();
     } catch (err: any) {
-      console.warn("Backend API upload result note:", err?.message || err);
+      console.error("Backend API RTW verification error:", err?.message || err);
       setVerificationResult({
-        success: true,
-        msg: `Statutory RTW Verification complete for ${selectedMigrant}. Saved to compliance vault.`,
+        success: false,
+        msg: err?.message || `Failed to verify RTW check for ${selectedMigrant}. Please try again.`,
       });
     } finally {
       setIsVerifying(false);
@@ -319,7 +308,6 @@ export default function RtwChecksPage() {
 
   return (
     <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-16 flex flex-col gap-6 px-6 lg:px-12 py-8 select-none">
-      {/* Top Breadcrumb Navigation */}
       <div className="flex items-center gap-2">
         <Link
           href="/compliance"
@@ -330,19 +318,19 @@ export default function RtwChecksPage() {
         </Link>
       </div>
 
-      {/* Page Title Header + Primary Action Button */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-[32px] leading-[40px] font-medium text-[#171717] font-aeonik-medium tracking-[-0.01em]">
-            RTW Checks
+            Right to Work Checks
           </h1>
           <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
-            Manage Right to Work verification workflow
+            Track statutory RTW checks and renewal deadlines
           </p>
         </div>
 
         <div>
           <button
+            type="button"
             onClick={() => {
               setIsVerifyModalOpen(true);
               setVerificationResult(null);
@@ -355,94 +343,94 @@ export default function RtwChecksPage() {
         </div>
       </div>
 
-      {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-6 border-b border-[#EBEBEB] pb-0">
-        <button className="text-[14px] font-medium text-[#171717] border-b-2 border-[#171717] pb-2.5 flex items-center gap-2 cursor-pointer">
+        <button
+          type="button"
+          className="text-[14px] font-medium text-[#171717] border-b-2 border-[#171717] pb-2.5 flex items-center gap-2 cursor-pointer"
+        >
           <span>RTW Checks</span>
           <span className="bg-[#EBEBEB] text-[#171717] text-[12px] font-medium px-2 py-0.5 rounded-full">
-            3
+            {counts.overdue}
           </span>
         </button>
-        <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] pb-2.5 transition-colors cursor-pointer">
+        <button
+          type="button"
+          className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] pb-2.5 transition-colors cursor-pointer"
+        >
           Verification History
         </button>
       </div>
 
-      {/* Attention Needed Alert Banner */}
       <div className="bg-[#FFF4ED] border border-[#FEE4E2] rounded-[12px] p-3.5 px-4 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-2.5 text-[14px]">
           <RiErrorWarningLine className="size-5 text-[#F04438] shrink-0" />
           <span className="font-medium text-[#171717]">Attention needed</span>
           <span className="text-[#5C5C5C]">·</span>
-          <span className="text-[#171717]">3 actions need attention</span>
+          <span className="text-[#171717]">
+            {counts.overdue + counts.due} actions need attention
+          </span>
           <span className="text-[#5C5C5C]">·</span>
-          <span className="text-[#FB3748] font-medium">1 high risk</span>
+          <span className="text-[#FB3748] font-medium">{counts.overdue} high risk</span>
         </div>
 
-        <button className="text-[13px] font-medium text-[#171717] hover:underline flex items-center gap-1 cursor-pointer shrink-0">
+        <button
+          type="button"
+          className="text-[13px] font-medium text-[#171717] hover:underline flex items-center gap-1 cursor-pointer shrink-0"
+        >
           <span>Review actions</span>
           <RiArrowRightSLine className="size-4" />
         </button>
       </div>
 
-      {/* KPI / Summary Cards (5 Column Layout) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {/* Card 1: TOTAL MIGRANTS */}
         <div className="bg-[#F2EFFE] border border-[#E7E2FE] rounded-[16px] p-4 flex flex-col justify-between h-[88px] transition-all hover:shadow-xs">
           <span className="text-[11px] font-medium tracking-[0.02em] uppercase text-[#5C5C5C]">
             TOTAL MIGRANTS
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#7D52F4] font-aeonik-medium">
-            6
+            {counts.all}
           </span>
         </div>
 
-        {/* Card 2: OVERDUE CHECKS */}
         <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[16px] p-4 flex flex-col justify-between h-[88px] transition-all hover:shadow-xs">
           <span className="text-[11px] font-medium tracking-[0.02em] uppercase text-[#5C5C5C]">
             OVERDUE CHECKS
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#FB3748] font-aeonik-medium">
-            3
+            {counts.overdue}
           </span>
         </div>
 
-        {/* Card 3: DUE SOON */}
         <div className="bg-[#FEF6E6] border border-[#FEF0C7] rounded-[16px] p-4 flex flex-col justify-between h-[88px] transition-all hover:shadow-xs">
           <span className="text-[11px] font-medium tracking-[0.02em] uppercase text-[#5C5C5C]">
             DUE SOON
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#D97706] font-aeonik-medium">
-            1
+            {counts.due}
           </span>
         </div>
 
-        {/* Card 4: SCHEDULED */}
         <div className="bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] rounded-[16px] p-4 flex flex-col justify-between h-[88px] transition-all hover:shadow-xs">
           <span className="text-[11px] font-medium tracking-[0.02em] uppercase text-[#5C5C5C]">
-            SCHEDULED
+            FOLLOW-UP
           </span>
-          <span className="text-[28px] leading-[32px] font-semibold text-[#171717] font-aeonik-medium">
-            0
+          <span className="text-[28px] leading-[32px] font-semibold text-[#7D52F4] font-aeonik-medium">
+            {counts.followUp}
           </span>
         </div>
 
-        {/* Card 5: COMPLETED THIS MONTH */}
         <div className="bg-[#E3F7EC] border border-[#A6F4C5] rounded-[16px] p-4 flex flex-col justify-between h-[88px] transition-all hover:shadow-xs">
           <span className="text-[11px] font-medium tracking-[0.02em] uppercase text-[#5C5C5C]">
-            COMPLETED THIS MONTH
+            COMPLIANT
           </span>
           <span className="text-[28px] leading-[32px] font-semibold text-[#0D6332] font-aeonik-medium">
-            12
+            {counts.compliant}
           </span>
         </div>
       </div>
 
-      {/* Toolbar: Search, Filters, Segmented Control Tabs, Navigation */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mt-2">
-        {/* Left Cluster: Search & Dropdown Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Search Box */}
           <div className="relative w-full sm:w-[348px] h-[32px] bg-white rounded-[8px] border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] px-2.5 flex items-center gap-2 focus-within:border-[#7D52F4] transition-colors">
             <RiSearch2Line className="size-4 text-[#A4A4A4] shrink-0" />
             <input
@@ -454,6 +442,7 @@ export default function RtwChecksPage() {
             />
             {searchQuery && (
               <button
+                type="button"
                 onClick={() => setSearchQuery("")}
                 className="text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
               >
@@ -462,12 +451,13 @@ export default function RtwChecksPage() {
             )}
           </div>
 
-          {/* Filter Button */}
-          <button className="w-[32px] h-[32px] bg-white rounded-[8px] border border-[#EBEBEB] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 transition-colors cursor-pointer">
+          <button
+            type="button"
+            className="w-[32px] h-[32px] bg-white rounded-[8px] border border-[#EBEBEB] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 transition-colors cursor-pointer"
+          >
             <RiFilter3Line className="size-4" />
           </button>
 
-          {/* All Status Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className="h-[32px] px-3 bg-white rounded-[8px] border border-[#EBEBEB] text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] flex items-center gap-1.5 hover:bg-neutral-50 transition-colors cursor-pointer outline-none">
               <span>{statusDropdownFilter}</span>
@@ -487,9 +477,9 @@ export default function RtwChecksPage() {
           </DropdownMenu>
         </div>
 
-        {/* Center: Segmented Control Tabs */}
         <div className="bg-[#EBEBEB] rounded-full p-1 flex items-center gap-1 h-[32px] self-center sm:self-auto overflow-x-auto max-w-full">
           <button
+            type="button"
             onClick={() => setActiveTab("ALL")}
             className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.02em] transition-all cursor-pointer ${
               activeTab === "ALL"
@@ -501,6 +491,7 @@ export default function RtwChecksPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("OVERDUE")}
             className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.02em] flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "OVERDUE"
@@ -513,6 +504,7 @@ export default function RtwChecksPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("DUE")}
             className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.02em] flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "DUE"
@@ -525,6 +517,7 @@ export default function RtwChecksPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("COMPLIANT")}
             className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.02em] flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "COMPLIANT"
@@ -537,6 +530,7 @@ export default function RtwChecksPage() {
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab("FOLLOW-UP")}
             className={`rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-[0.02em] flex items-center gap-1.5 transition-all cursor-pointer ${
               activeTab === "FOLLOW-UP"
@@ -545,61 +539,41 @@ export default function RtwChecksPage() {
             }`}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-[#7D52F4] shrink-0" />
-            <span>FOLLOW-UP</span>
+            <span>FOLLOW-UP ({counts.followUp})</span>
           </button>
         </div>
 
-        {/* Right: Pagination / Arrow Controls */}
         <div className="hidden sm:flex items-center gap-1.5">
-          <button className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer">
+          <button
+            type="button"
+            className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+          >
             <RiArrowLeftSLine className="size-4" />
           </button>
-          <button className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer">
+          <button
+            type="button"
+            className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+          >
             <RiArrowRightSLine className="size-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Table Layout with Card Rows */}
       <div className="bg-[#F7F7F7] rounded-[16px] p-2 flex flex-col gap-2">
-        {/* Table Header Row */}
         <div className="h-[36px] bg-[#F7F7F7] px-4 flex items-center text-[12px] font-medium tracking-[0.04em] uppercase text-[#A4A4A4] select-none">
-          <div className="w-[100px] flex items-center gap-1">
-            <span>CASE ID #</span>
-          </div>
-
-          <div className="w-[280px] flex items-center gap-1">
-            <span>NAME</span>
-            <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-          </div>
-
-          <div className="w-[160px] flex items-center gap-1">
-            <span>STATUS</span>
-            <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-          </div>
-
-          <div className="w-[180px] flex items-center gap-1">
-            <span>LAST CHECK</span>
-            <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-          </div>
-
-          <div className="w-[180px] flex items-center gap-1">
-            <span>NEXT CHECK</span>
-            <RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" />
-          </div>
-
-          <div className="flex-1 flex items-center justify-start">
-            <span>DAYS UNTIL</span>
-          </div>
-
+          <div className="w-[100px] flex items-center gap-1"><span>CASE ID #</span></div>
+          <div className="w-[280px] flex items-center gap-1"><span>NAME</span><RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" /></div>
+          <div className="w-[150px] flex items-center gap-1"><span>STATUS</span><RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" /></div>
+          <div className="w-[160px] flex items-center gap-1"><span>LAST CHECK</span><RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" /></div>
+          <div className="w-[160px] flex items-center gap-1"><span>NEXT CHECK</span><RiExpandUpDownLine className="size-3.5 text-[#A4A4A4]" /></div>
+          <div className="flex-1 flex items-center justify-start"><span>DAYS UNTIL</span></div>
           <div className="w-[48px]" />
         </div>
 
-        {/* Floating Table Rows */}
         <div className="flex flex-col gap-2">
           {filteredChecks.length === 0 ? (
             <div className="bg-white rounded-[16px] py-12 px-4 text-center text-[#5C5C5C] text-[14px]">
-              No RTW checks found matching your criteria.
+              No RTW checks found matching your search or filters.
             </div>
           ) : (
             filteredChecks.map((row) => (
@@ -607,107 +581,52 @@ export default function RtwChecksPage() {
                 key={row.id}
                 className="bg-white rounded-[16px] h-[72px] px-4 flex items-center justify-between border border-transparent hover:border-[#EBEBEB] hover:shadow-xs transition-all"
               >
-                {/* Case ID */}
-                <div className="w-[100px] font-mono text-[14px] text-[#5C5C5C]">
-                  {row.caseId}
-                </div>
-
-                {/* Name + Subtitle + Avatar */}
+                <div className="w-[100px] font-mono text-[14px] text-[#5C5C5C]">{row.caseId}</div>
                 <div className="w-[280px] flex items-center gap-3">
                   {row.avatarUrl ? (
-                    <img
-                      src={row.avatarUrl}
-                      alt={row.name}
-                      className="w-10 h-10 rounded-full object-cover shrink-0"
-                    />
+                    <img src={row.avatarUrl} alt={row.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[14px] flex items-center justify-center shrink-0">
-                      {row.avatarInitials}
-                    </div>
+                    <div className="w-10 h-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[14px] flex items-center justify-center shrink-0">{row.avatarInitials}</div>
                   )}
-
                   <div className="flex flex-col justify-center">
-                    <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
-                      {row.name}
-                    </span>
-                    <span className="text-[12px] text-[#5C5C5C] leading-[16px]">
-                      {row.company}
-                    </span>
+                    <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">{row.name}</span>
+                    <span className="text-[12px] text-[#5C5C5C] leading-[16px]">{row.company}</span>
                   </div>
                 </div>
-
-                {/* Status Pill Badge */}
-                <div className="w-[160px]">
-                  {row.status === "OVERDUE" && (
-                    <span className="bg-[#FFEBEC] text-[#681219] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
-                      OVERDUE
-                    </span>
-                  )}
-                  {row.status === "DUE SOON" && (
-                    <span className="bg-[#FEF6E6] text-[#B45309] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
-                      DUE SOON
-                    </span>
-                  )}
-                  {row.status === "FOLLOW-UP" && (
-                    <span className="bg-[#F2EFFE] text-[#7D52F4] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
-                      FOLLOW-UP
-                    </span>
-                  )}
-                  {row.status === "COMPLIANT" && (
-                    <span className="bg-[#E3F7EC] text-[#0D6332] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">
-                      COMPLIANT
-                    </span>
-                  )}
+                <div className="w-[150px]">
+                  {row.status === "OVERDUE" && <span className="bg-[#FFEBEC] text-[#681219] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">OVERDUE</span>}
+                  {row.status === "DUE SOON" && <span className="bg-[#FEF6E6] text-[#624C18] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">DUE SOON</span>}
+                  {row.status === "FOLLOW-UP" && <span className="bg-[#F2EFFE] text-[#5326CD] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">FOLLOW-UP</span>}
+                  {row.status === "COMPLIANT" && <span className="bg-[#E3F7EC] text-[#0D6332] rounded-full px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-[0.02em] inline-flex items-center">COMPLIANT</span>}
                 </div>
-
-                {/* Last Check */}
-                <div className="w-[180px] text-[14px] font-medium text-[#171717] opacity-80">
-                  {row.lastCheck}
-                </div>
-
-                {/* Next Check */}
-                <div className="w-[180px] flex items-center gap-2 text-[14px] font-medium text-[#171717] opacity-80">
-                  <RiCalendarLine className="size-4.5 text-[#171717]" />
-                  <span>{row.nextCheck}</span>
-                </div>
-
-                {/* Days Until */}
-                <div className="flex-1 font-medium text-[14px]">
+                <div className="w-[160px] text-[14px] font-normal text-[#171717] opacity-80">{row.lastCheck}</div>
+                <div className="w-[160px] text-[14px] font-normal text-[#171717] opacity-80">{row.nextCheck}</div>
+                <div className="flex-1 flex items-center justify-start">
                   {row.daysUntil !== null ? (
-                    <span
-                      className={
-                        row.daysUntil < 0
-                          ? "text-[#FB3748]"
-                          : row.daysUntil <= 7
-                          ? "text-[#F6B51E]"
-                          : "text-[#171717]"
-                      }
-                    >
-                      {row.daysUntil}
-                    </span>
+                    row.daysUntil < 0 ? (
+                      <span className="bg-[#FFEBEC] text-[#681219] rounded-[6px] px-2 py-0.5 text-[12px] font-medium">
+                        {Math.abs(row.daysUntil)}d overdue
+                      </span>
+                    ) : (
+                      <span className="bg-[#FEF6E6] text-[#624C18] rounded-[6px] px-2 py-0.5 text-[12px] font-medium">
+                        in {row.daysUntil} days
+                      </span>
+                    )
                   ) : (
-                    <span className="text-[#A4A4A4]">—</span>
+                    <span className="text-[14px] text-[#A4A4A4]">—</span>
                   )}
                 </div>
-
-                {/* Action Context Menu */}
                 <div className="w-[48px] flex justify-end">
                   <DropdownMenu>
                     <DropdownMenuTrigger className="w-7 h-7 rounded-[6px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-100 transition-colors cursor-pointer outline-none">
                       <RiMore2Line className="size-5" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-[200px] p-1 rounded-[12px] bg-white shadow-lg border border-[#EBEBEB]">
-                      <DropdownMenuItem
-                        onClick={() => handleOpenVerifyForMigrant(row)}
-                        className="cursor-pointer text-[13px] font-medium text-[#171717] flex items-center gap-2.5 py-2 px-3 hover:bg-[#F5F5F5] rounded-[8px]"
-                      >
-                        <RiShieldCheckLine className="size-4 text-[#5C5C5C]" />
+                    <DropdownMenuContent align="end" className="w-[200px]">
+                      <DropdownMenuItem onClick={() => handleOpenVerifyForMigrant(row)} className="cursor-pointer text-[13px] flex items-center gap-2">
+                        <RiShieldCheckLine className="size-4 text-[#7D52F4]" />
                         <span>Verify with Share Code</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleOpenVerifyForMigrant(row)}
-                        className="cursor-pointer text-[13px] font-medium text-[#171717] flex items-center gap-2.5 py-2 px-3 hover:bg-[#F5F5F5] rounded-[8px]"
-                      >
+                      <DropdownMenuItem onClick={() => handleOpenVerifyForMigrant(row)} className="cursor-pointer text-[13px] flex items-center gap-2">
                         <RiEditLine className="size-4 text-[#5C5C5C]" />
                         <span>Complete check</span>
                       </DropdownMenuItem>
@@ -720,55 +639,37 @@ export default function RtwChecksPage() {
         </div>
       </div>
 
-      {/* Action - RTW Check Modal Dialog (Matching Figma Design) */}
       <Dialog open={isVerifyModalOpen} onOpenChange={setIsVerifyModalOpen}>
         <DialogContent className="sm:max-w-[480px] p-6 rounded-[20px] bg-white border border-[#EBEBEB] shadow-2xl">
-          {/* Header with Avatar, Case ID, Name */}
-          <div className="flex items-center gap-3 pb-2 border-b border-[#EBEBEB]/60">
+          <div className="flex items-center gap-3 bg-[#FAFAFA] border border-[#EBEBEB] rounded-[14px] p-3">
             {selectedAvatarUrl ? (
-              <img
-                src={selectedAvatarUrl}
-                alt={selectedMigrant}
-                className="w-10 h-10 rounded-full object-cover shrink-0"
-              />
+              <img src={selectedAvatarUrl} alt={selectedMigrant} className="w-10 h-10 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[14px] flex items-center justify-center shrink-0">
-                {selectedAvatarInitials}
-              </div>
+              <div className="w-10 h-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[14px] flex items-center justify-center shrink-0">{selectedAvatarInitials}</div>
             )}
             <div className="flex flex-col">
-              <span className="text-[12px] font-mono text-[#5C5C5C]">
-                {selectedCaseId}
-              </span>
-              <span className="text-[15px] font-medium text-[#171717] leading-tight">
-                {selectedMigrant}
-              </span>
+              <span className="text-[12px] font-mono text-[#5C5C5C]">{selectedCaseId}</span>
+              <span className="text-[15px] font-medium text-[#171717] leading-tight">{selectedMigrant}</span>
             </div>
           </div>
 
           <DialogHeader className="pt-2">
-            <DialogTitle className="text-[20px] font-medium font-aeonik-medium text-[#171717]">
-              Verify with share code
-            </DialogTitle>
-            <DialogDescription className="text-[13px] text-[#5C5C5C] leading-snug">
-              Verify Right to Work status using a Home Office share code
-            </DialogDescription>
+            <DialogTitle className="text-[20px] font-medium font-aeonik-medium text-[#171717]">Verify with share code</DialogTitle>
+            <DialogDescription className="text-[13px] text-[#5C5C5C] leading-snug">Verify Right to Work status using a Home Office share code</DialogDescription>
           </DialogHeader>
 
-          {/* Select Migrant Dropdown Field */}
           <div className="flex flex-col gap-1 mt-2">
-            <label className="text-[13px] font-medium text-[#171717]">
-              Select migrant
-            </label>
+            <label htmlFor="rtw-migrant-select" className="text-[13px] font-medium text-[#171717]">Select migrant</label>
             <div className="relative flex items-center">
               <select
-                value={selectedMigrant}
+                id="rtw-migrant-select"
+                value={selectedEntityId}
                 onChange={(e) => {
-                  const mName = e.target.value;
-                  setSelectedMigrant(mName);
-                  const found = rtwChecks.find((c) => c.name === mName);
+                  const entId = e.target.value;
+                  setSelectedEntityId(entId);
+                  const found = rtwChecks.find((c) => String(c.entityId) === String(entId));
                   if (found) {
-                    setSelectedEntityId(found.entityId);
+                    setSelectedMigrant(found.name);
                     setSelectedCaseId(found.caseId.startsWith("#") ? found.caseId : `#${found.caseId}`);
                     setSelectedAvatarUrl(found.avatarUrl);
                     setSelectedAvatarInitials(found.avatarInitials);
@@ -777,185 +678,77 @@ export default function RtwChecksPage() {
                 className="w-full h-[38px] px-3 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-medium transition-colors"
               >
                 {rtwChecks.map((item) => (
-                  <option key={item.id} value={item.name}>
-                    {item.name}
-                  </option>
+                  <option key={item.id} value={item.entityId}>{item.name}</option>
                 ))}
               </select>
               <RiArrowDownSLine className="size-4 text-[#5C5C5C] absolute right-3 pointer-events-none" />
             </div>
           </div>
 
-          {/* Automatic / Manual Segmented Control */}
           <div className="bg-[#F5F5F5] rounded-[12px] p-1 flex items-center gap-1 mt-1">
-            <button
-              type="button"
-              onClick={() => setVerifyMode("automatic")}
-              className={`flex-1 py-1.5 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer ${
-                verifyMode === "automatic"
-                  ? "bg-white text-[#171717] shadow-2xs"
-                  : "text-[#5C5C5C] hover:text-[#171717]"
-              }`}
-            >
-              Automatic
-            </button>
-            <button
-              type="button"
-              onClick={() => setVerifyMode("manual")}
-              className={`flex-1 py-1.5 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer ${
-                verifyMode === "manual"
-                  ? "bg-white text-[#171717] shadow-2xs"
-                  : "text-[#5C5C5C] hover:text-[#171717]"
-              }`}
-            >
-              Manual
-            </button>
+            <button type="button" onClick={() => setVerifyMode("automatic")} className={`flex-1 py-1.5 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer ${verifyMode === "automatic" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C] hover:text-[#171717]"}`}>Automatic</button>
+            <button type="button" onClick={() => setVerifyMode("manual")} className={`flex-1 py-1.5 rounded-[8px] text-[13px] font-medium transition-all cursor-pointer ${verifyMode === "manual" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C] hover:text-[#171717]"}`}>Manual</button>
           </div>
 
           <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4 mt-2">
-            {/* Manual Mode Info Callout */}
-            {verifyMode === "manual" && (
-              <div className="bg-[#F5F5F5] rounded-[10px] p-3 text-[12px] text-[#5C5C5C] flex items-start gap-2 border border-[#EBEBEB]">
-                <RiInformationLine className="size-4 shrink-0 mt-0.5 text-[#5C5C5C]" />
-                <span>
-                  Enter results from your manual check at{" "}
-                  <a
-                    href="https://www.gov.uk/check-job-applicant-right-to-work"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline text-[#7D52F4] hover:text-[#6C3FEB]"
-                  >
-                    gov.uk/check-job-applicant-right-to-work
-                  </a>
-                </span>
-              </div>
-            )}
-
-            {/* Drag & Drop Result Box with Sparkles */}
             <div className="relative border-2 border-dashed border-[#E5DBFF] bg-[#FAF8FF]/60 hover:bg-[#FAF8FF] rounded-[16px] p-5 text-center flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer group">
               <RiMagicLine className="size-4 text-[#7D52F4] absolute top-3 right-3" />
               <div className="w-10 h-10 rounded-[10px] bg-[#EFE9FF] flex items-center justify-center text-[#7D52F4] mb-1">
                 <RiUpload2Line className="size-5" />
               </div>
-              <input
-                type="file"
-                id="rtw-file-drop"
-                className="hidden"
-                onChange={(e) => {
+              <input type="file" id="rtw-file-drop" className="hidden" onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
+                    setSelectedFile(e.target.files[0]);
                     setDragFileName(e.target.files[0].name);
                   }
-                }}
-              />
+                }} />
               <label htmlFor="rtw-file-drop" className="cursor-pointer">
-                <span className="text-[14px] font-medium text-[#171717] block">
-                  {dragFileName ? dragFileName : "Drop RTW check result here"}
-                </span>
-                <span className="text-[12px] text-[#5C5C5C] block mt-0.5">
-                  JPEG, PNG, and PDF, up to 5MB.
-                </span>
+                <span className="text-[14px] font-medium text-[#171717] block">{dragFileName ? dragFileName : "Drop RTW check result here"}</span>
+                <span className="text-[12px] text-[#5C5C5C] block mt-0.5">JPEG, PNG, and PDF, up to 5MB.</span>
               </label>
             </div>
 
-            {/* Share Code Field */}
             <div className="flex flex-col gap-1">
-              <label className="text-[13px] font-medium text-[#171717]">
-                Share code
-              </label>
-              <input
-                type="text"
-                value={shareCode}
-                onChange={(e) => setShareCode(e.target.value.toUpperCase())}
-                placeholder="e.g. W1234567X"
-                className="w-full h-[38px] px-3 text-[14px] uppercase font-sans bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
-                maxLength={9}
-              />
-              <span className="text-[11px] text-[#5C5C5C] flex items-center gap-1 mt-0.5">
-                <RiInformationLine className="size-3.5 text-[#5C5C5C]" />
-                <span>9-character code</span>
-              </span>
+              <label htmlFor="rtw-share-code-input" className="text-[13px] font-medium text-[#171717]">Share code</label>
+              <input id="rtw-share-code-input" type="text" value={shareCode} onChange={(e) => setShareCode(e.target.value.toUpperCase())} placeholder="e.g. W1234567X" className="w-full h-[38px] px-3 text-[14px] uppercase font-sans bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors" maxLength={9} />
             </div>
 
-            {/* Date of Birth Field */}
             <div className="flex flex-col gap-1">
-              <label className="text-[13px] font-medium text-[#171717]">
-                Date of Birth
-              </label>
-              <div className="relative flex items-center">
-                <RiCalendarLine className="size-4 text-[#A4A4A4] absolute left-3 pointer-events-none" />
-                <input
-                  type="text"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  placeholder="DD / MM / YYYY"
-                  className="w-full h-[38px] pl-9 pr-3 text-[14px] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
-                />
-              </div>
-              <span className="text-[11px] text-[#5C5C5C] flex items-center gap-1 mt-0.5">
-                <RiInformationLine className="size-3.5 text-[#5C5C5C]" />
-                <span>Must match the share code holder</span>
-              </span>
+              <label htmlFor="rtw-dob-input" className="text-[13px] font-medium text-[#171717]">Date of Birth</label>
+              <input id="rtw-dob-input" type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="w-full h-[38px] px-3 text-[14px] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors" />
             </div>
 
-            {/* Manual Mode Extra Fields */}
             {verifyMode === "manual" && (
               <>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-medium text-[#171717]">
-                    Work conditions/restrictions
-                  </label>
-                  <input
-                    type="text"
-                    value={workRestrictions}
-                    onChange={(e) => setWorkRestrictions(e.target.value)}
-                    placeholder="e.g. Can work full-time, no restrictions"
-                    className="w-full h-[38px] px-3 text-[14px] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
-                  />
+                  <label htmlFor="rtw-restrictions-input" className="text-[13px] font-medium text-[#171717]">Work conditions/restrictions</label>
+                  <input id="rtw-restrictions-input" type="text" value={workRestrictions} onChange={(e) => setWorkRestrictions(e.target.value)} placeholder="e.g. Can work full-time, no restrictions" className="w-full h-[38px] px-3 text-[14px] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors" />
                 </div>
-
                 <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-medium text-[#171717]">
-                    GOV.uk reference number
-                  </label>
-                  <input
-                    type="text"
-                    value={govRefNumber}
-                    onChange={(e) => setGovRefNumber(e.target.value.toUpperCase())}
-                    placeholder="e.g. WE-G98V497-0S"
-                    className="w-full h-[38px] px-3 text-[14px] uppercase bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
-                  />
+                  <label htmlFor="rtw-gov-ref-input" className="text-[13px] font-medium text-[#171717]">GOV.uk reference number</label>
+                  <input id="rtw-gov-ref-input" type="text" value={govRefNumber} onChange={(e) => setGovRefNumber(e.target.value.toUpperCase())} placeholder="e.g. WE-G98V497-0S" className="w-full h-[38px] px-3 text-[14px] uppercase bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors" />
                 </div>
               </>
             )}
 
             {verificationResult && (
-              <div className="bg-[#E3F7EC] border border-[#A6F4C5] rounded-[10px] p-3 text-[13px] text-[#0D6332] flex items-start gap-2">
-                <RiCheckLine className="size-5 shrink-0 mt-0.5 text-[#0D6332]" />
-                <div>{verificationResult.msg}</div>
-              </div>
+              verificationResult.success ? (
+                <div className="bg-[#E3F7EC] border border-[#A6F4C5] rounded-[10px] p-3 text-[13px] text-[#0D6332] flex items-start gap-2">
+                  <RiCheckLine className="size-5 shrink-0 mt-0.5 text-[#0D6332]" />
+                  <div>{verificationResult.msg}</div>
+                </div>
+              ) : (
+                <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-3 text-[13px] text-[#FB3748] flex items-start gap-2">
+                  <RiErrorWarningLine className="size-5 shrink-0 mt-0.5 text-[#FB3748]" />
+                  <div>{verificationResult.msg}</div>
+                </div>
+              )
             )}
 
-            {/* Modal Footer */}
             <div className="flex items-center justify-between pt-2 border-t border-[#EBEBEB]/60 mt-1">
-              <button
-                type="button"
-                className="text-[13px] font-medium text-[#5C5C5C] hover:text-[#171717] underline cursor-pointer"
-              >
-                How it works
-              </button>
-
-              <button
-                type="submit"
-                disabled={isVerifying}
-                className="h-[36px] px-5 rounded-[10px] bg-[#7D52F4] hover:bg-[#6C3FEB] text-white text-[14px] font-medium transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center disabled:opacity-50"
-              >
-                {isVerifying ? (
-                  <span>Processing...</span>
-                ) : verifyMode === "automatic" ? (
-                  <span>Verify share code</span>
-                ) : (
-                  <span>Save verification</span>
-                )}
+              <button type="button" className="text-[13px] font-medium text-[#5C5C5C] hover:text-[#171717] underline cursor-pointer">How it works</button>
+              <button type="submit" disabled={isVerifying} className="h-[36px] px-5 rounded-[10px] bg-[#7D52F4] hover:bg-[#6C3FEB] text-white text-[14px] font-medium transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center disabled:opacity-50">
+                {isVerifying ? <span>Processing...</span> : <span>{verifyMode === "automatic" ? "Verify share code" : "Save verification"}</span>}
               </button>
             </div>
           </form>
@@ -964,5 +757,3 @@ export default function RtwChecksPage() {
     </div>
   );
 }
-
-
