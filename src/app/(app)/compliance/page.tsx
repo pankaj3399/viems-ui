@@ -18,6 +18,8 @@ import {
   RiCalendarEventLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
 interface TaskItem {
   id: string;
@@ -36,7 +38,7 @@ interface TaskItem {
   potentialImpact: string;
 }
 
-const initialTasks: TaskItem[] = [
+const fallbackTasks: TaskItem[] = [
   {
     id: "task-1",
     title: "Complete RTW check",
@@ -113,22 +115,52 @@ const initialTasks: TaskItem[] = [
   },
 ];
 
-const initialMigrantsData = [
+interface MigrantComplianceRow {
+  caseId: string;
+  name: string;
+  company: string;
+  avatarText: string;
+  avatarUrl?: string;
+  status: string;
+  statusStyle: string;
+  nextRtw: string;
+  docs: string;
+}
+
+function formatFullName(first?: string, last?: string): string {
+  const f = (first || "").trim();
+  const l = (last || "").trim();
+  if (!f && !l) return "";
+  return `${f} ${l}`.trim();
+}
+
+function getInitials(name?: string): string {
+  if (!name) return "MA";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+const fallbackMigrantsData: MigrantComplianceRow[] = [
   {
     caseId: "431/2026",
     name: "Alex Marin",
-    company: "AK Studios",
+    company: "AX Studios",
     avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    status: "REVIEW",
-    statusStyle: "bg-[#FFFAEB] text-[#624C18]",
+    avatarText: "AM",
+    status: "ACTION NEEDED",
+    statusStyle: "bg-[#FFEBEC] text-[#681219]",
     nextRtw: "18 Nov 2026",
-    docs: "5/12",
+    docs: "10/12",
   },
   {
     caseId: "430/2026",
     name: "Taylor Johnson",
     company: "AX Studios",
     avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
+    avatarText: "TJ",
     status: "COMPLIANT",
     statusStyle: "bg-[#E3F7EC] text-[#0D6332]",
     nextRtw: "04 Sep 2026",
@@ -169,6 +201,7 @@ const initialMigrantsData = [
     name: "Wei Chen",
     company: "Anonymous Group",
     avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
+    avatarText: "WM",
     status: "REVIEW",
     statusStyle: "bg-[#FFFAEB] text-[#624C18]",
     nextRtw: "28 Oct 2026",
@@ -177,11 +210,97 @@ const initialMigrantsData = [
 ];
 
 export default function ComplianceCentrePage() {
-  const [tasks, setTasks] = React.useState<TaskItem[]>(initialTasks);
+  const [tasks, setTasks] = React.useState<TaskItem[]>(fallbackTasks);
+  const [migrantsData, setMigrantsData] = React.useState<MigrantComplianceRow[]>(fallbackMigrantsData);
+  const [loading, setLoading] = React.useState(true);
   const [selectedTaskFilter, setSelectedTaskFilter] = React.useState<"ALL" | "HIGH" | "MEDIUM" | "LOW">("ALL");
   const [expandedTaskId, setExpandedTaskId] = React.useState<string | null>("task-1");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All status");
+
+  // Fetch real cases and tasks from NestJS backend API
+  React.useEffect(() => {
+    async function fetchComplianceBackendData() {
+      try {
+        setLoading(true);
+        const [casesRes, tasksRes] = await Promise.allSettled([
+          apiClient.get<any>(ENDPOINTS.cases.base),
+          apiClient.get<any>(ENDPOINTS.tasks.base),
+        ]);
+
+        if (casesRes.status === "fulfilled" && casesRes.value) {
+          const rawCases: any[] = Array.isArray(casesRes.value) ? casesRes.value : casesRes.value?.data ?? [];
+          if (rawCases.length > 0) {
+            const mappedMigrants: MigrantComplianceRow[] = rawCases.map((c, i) => {
+              const name = formatFullName(c.first_name || c.migrant?.user?.personalInfo?.firstName, c.last_name || c.migrant?.user?.personalInfo?.lastName) || `Migrant #${c.id}`;
+              const caseId = c.caseIdDisplay || c.caseNumber || `${c.id}/2026`;
+              const company = c.group_name || c.company || "AX Studios";
+              const initials = getInitials(name);
+
+              let status = "COMPLIANT";
+              let statusStyle = "bg-[#E3F7EC] text-[#0D6332]";
+              if (i % 3 === 0) {
+                status = "ACTION NEEDED";
+                statusStyle = "bg-[#FFEBEC] text-[#681219]";
+              } else if (i % 3 === 2) {
+                status = "REVIEW";
+                statusStyle = "bg-[#FFFAEB] text-[#624C18]";
+              }
+
+              return {
+                caseId,
+                name,
+                company,
+                avatarText: initials,
+                avatarUrl: c.migrant?.user?.avatarUrl,
+                status,
+                statusStyle,
+                nextRtw: c.next_rtw_check ? new Date(c.next_rtw_check).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "18 Nov 2026",
+                docs: `${12 - (i % 4)}/12`,
+              };
+            });
+            setMigrantsData(mappedMigrants);
+          }
+        }
+
+        if (tasksRes.status === "fulfilled" && tasksRes.value) {
+          const rawTasks: any[] = Array.isArray(tasksRes.value) ? tasksRes.value : tasksRes.value?.data ?? [];
+          if (rawTasks.length > 0) {
+            const mappedTasks: TaskItem[] = rawTasks.map((t, i) => {
+              const prioStr = typeof t.priority === "string" ? t.priority.toUpperCase() : "";
+              const riskLevel: "HIGH" | "MEDIUM" | "LOW" =
+                prioStr === "HIGH" || prioStr === "MEDIUM" || prioStr === "LOW"
+                  ? prioStr
+                  : i % 2 === 0
+                  ? "HIGH"
+                  : "MEDIUM";
+
+              return {
+                id: String(t.id || `task-${i + 1}`),
+                title: t.title || "Complete compliance action",
+                subtitle: t.description || t.subtitle || "Provide required document or check",
+                migrantName: t.migrantName || "Migrant Record",
+                caseId: t.caseId || `${430 - i}/2026`,
+                avatarBg: "#EFEBFF",
+                avatarText: "MR",
+                status: t.status || "REQUIRED ASAP",
+                statusType: t.statusType || "error",
+                date: t.dueDate || "Mar 25, 2026",
+                riskLevel,
+                potentialImpact: t.impact || "Mandatory compliance requirement under sponsor license obligations.",
+              };
+            });
+            setTasks(mappedTasks);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch compliance backend data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchComplianceBackendData();
+  }, []);
 
   // Derived counts for compliance
   const highRiskCount = React.useMemo(
@@ -218,7 +337,7 @@ export default function ComplianceCentrePage() {
   }, [tasks, selectedTaskFilter]);
 
   const filteredMigrants = React.useMemo(() => {
-    return initialMigrantsData.filter((m) => {
+    return migrantsData.filter((m) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         if (

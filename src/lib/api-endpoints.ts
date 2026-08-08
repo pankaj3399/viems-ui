@@ -136,8 +136,10 @@ export const ENDPOINTS = {
     archive: `${API_BASE}/files/archive`,
     rename: `${API_BASE}/files/rename`,
     upload: `${API_BASE}/files/upload`,
-    uploadCustom: `${API_BASE}/files/upload/custom`,
-    uploadRightToWork: `${API_BASE}/files/upload/right-to-work`,
+    uploadCustom: (folderId: number | string) =>
+      `${API_BASE}/files/upload/custom/${folderId}`,
+    uploadRightToWork: (id: number | string) =>
+      `${API_BASE}/files/upload/right-to-work/${id}`,
     uploadBackgroundCheck: `${API_BASE}/files/upload/background-check`,
     /** GET /files/image/:id — photo/avatar */
     image: (id: number | string) => `${API_BASE}/files/image/${id}`,
