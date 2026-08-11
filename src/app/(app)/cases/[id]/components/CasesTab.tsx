@@ -24,9 +24,10 @@ interface CaseHistoryRow {
 
 interface CasesTabProps {
   migrant?: any;
+  migrantId?: string;
 }
 
-export function CasesTab({ migrant }: CasesTabProps) {
+export function CasesTab({ migrant, migrantId }: CasesTabProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
@@ -34,12 +35,29 @@ export function CasesTab({ migrant }: CasesTabProps) {
   const [casesList, setCasesList] = React.useState<CaseHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
+  // Resolve the migrant ID from either the explicit prop or the migrant object
+  const resolvedMigrantId = migrantId || migrant?.id;
+
   React.useEffect(() => {
     async function fetchCases() {
       try {
         setLoading(true);
-        const res = await apiClient.get<any>(ENDPOINTS.cases.base);
-        const casesData = Array.isArray(res) ? res : res?.data || res?.cases;
+        let casesData: any[] = [];
+
+        if (resolvedMigrantId) {
+          // Fetch only this migrant's cases from the migrant endpoint
+          const migrantRes = await apiClient.get<any>(ENDPOINTS.migrants.byId(resolvedMigrantId));
+          // The migrant response includes a nested `cases` array
+          const migrantCases = migrantRes?.cases || migrantRes?.data?.cases;
+          if (Array.isArray(migrantCases)) {
+            casesData = migrantCases;
+          }
+        } else {
+          // Fallback: fetch all cases (should not happen in migrant context)
+          const res = await apiClient.get<any>(ENDPOINTS.cases.base);
+          casesData = Array.isArray(res) ? res : res?.data || res?.cases || [];
+        }
+
         if (Array.isArray(casesData) && casesData.length > 0) {
           const mapped: CaseHistoryRow[] = casesData.map((c: any) => {
             const rawStatus = c.case_status || c.status || "PENDING";
@@ -48,7 +66,7 @@ export function CasesTab({ migrant }: CasesTabProps) {
             return {
               id: String(c.id || ""),
               caseId: c.caseIdDisplay || c.caseNumber || (c.id ? `#${c.id}` : "—"),
-              date: c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              date: c.created_at || c.creation_date ? new Date(c.created_at || c.creation_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
               visaType: c.job_title || c.visaType || c.personal?.jobTitle || "—",
               group: c.group_name || c.personal?.groupName || "—",
               status: rawStatus.toUpperCase(),
@@ -69,7 +87,7 @@ export function CasesTab({ migrant }: CasesTabProps) {
       }
     }
     fetchCases();
-  }, []);
+  }, [resolvedMigrantId]);
 
   const filteredCases = React.useMemo(() => {
     return casesList.filter((item) => {

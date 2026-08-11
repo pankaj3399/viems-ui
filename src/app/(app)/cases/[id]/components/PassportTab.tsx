@@ -8,6 +8,7 @@ import {
 } from "@remixicon/react";
 import { Flag } from "@/components/ui/flag";
 import { getInitials } from "@/lib/utils";
+import { FilePreviewModal } from "../../components/FilePreviewModal";
 
 interface PassportTabProps {
   migrant?: any;
@@ -16,6 +17,7 @@ interface PassportTabProps {
 
 export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
   const [imgError, setImgError] = React.useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
 
   const surname = migrant?.personalInfo?.lastName || migrant?.passport?.surname || "—";
   const givenNames = migrant?.personalInfo?.firstName || migrant?.passport?.givenNames || "—";
@@ -201,6 +203,7 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setIsPreviewOpen(true)}
               aria-label="Download passport document"
               className="size-10 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
               title="Download passport document"
@@ -209,6 +212,7 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
             </button>
             <button
               type="button"
+              onClick={() => setIsPreviewOpen(true)}
               aria-label="Preview passport document"
               className="h-10 px-3.5 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center gap-1.5 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
             >
@@ -323,6 +327,19 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           </div>
         </div>
       </div>
+
+      <FilePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        document={{
+          id: passportNumber,
+          name: `${fullName} - Passport Scan`,
+          subtitle: `${passportNumber}.pdf · 2.4 MB`,
+          category: "Passport & Identity Scan",
+          date: issueDate !== "—" ? issueDate : "22 Nov 2022",
+          status: "uploaded",
+        }}
+      />
     </div>
   );
 }

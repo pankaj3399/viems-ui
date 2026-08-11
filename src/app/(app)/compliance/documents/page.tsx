@@ -35,6 +35,8 @@ import { formatFullName, getInitials } from "@/lib/format";
 
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { FilePreviewModal } from "@/app/(app)/cases/components/FilePreviewModal";
+import { DocumentItem } from "@/app/(app)/cases/components/types";
 
 interface DocComplianceCategory {
   id: string;
@@ -206,6 +208,22 @@ export default function ComplianceDocumentsPage() {
   const [uploadSuccess, setUploadSuccess] = React.useState(false);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
+
+  // File Preview Modal State
+  const [previewDoc, setPreviewDoc] = React.useState<DocumentItem | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = React.useState(false);
+
+  const handleOpenPreviewDoc = (row: MigrantDocItem) => {
+    setPreviewDoc({
+      id: row.id,
+      name: `${row.name} - ${row.documentType}`,
+      subtitle: `${row.documentType.replace(/\s+/g, "_")}.pdf · 1.8 MB`,
+      category: row.documentType || "Compliance Document",
+      date: row.uploadedDate || row.expiryDate || "15 May 2026",
+      status: row.status === "VERIFIED" ? "uploaded" : "under_review",
+    });
+    setIsPreviewOpen(true);
+  };
 
   // Fetch real cases and migrant document data from NestJS backend
   const fetchDocumentsData = React.useCallback(async () => {
@@ -595,7 +613,10 @@ export default function ComplianceDocumentsPage() {
                         >
                           Upload / Replace Document
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="cursor-pointer text-[13px]">
+                        <DropdownMenuItem
+                          onClick={() => handleOpenPreviewDoc(row)}
+                          className="cursor-pointer text-[13px]"
+                        >
                           View Document Preview
                         </DropdownMenuItem>
                         <DropdownMenuItem className="cursor-pointer text-[13px]">
@@ -744,6 +765,12 @@ export default function ComplianceDocumentsPage() {
           </form>
         </DialogContent>
       </Dialog>
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        document={previewDoc}
+      />
     </div>
   );
 }

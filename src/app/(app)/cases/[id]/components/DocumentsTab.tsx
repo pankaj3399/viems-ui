@@ -758,16 +758,12 @@ interface BackendFileResponse {
                           tabIndex={0}
                           className="bg-white border border-[#F5F5F5] rounded-[16px] p-[4px] flex items-center h-[72px] w-full gap-3 hover:border-neutral-200 transition-all cursor-pointer"
                           onClick={() => {
-                            if (doc.status === "uploaded" || doc.status === "under_review") {
-                              handleOpenPreview(doc);
-                            }
+                            handleOpenPreview(doc);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              if (doc.status === "uploaded" || doc.status === "under_review") {
-                                handleOpenPreview(doc);
-                              }
+                              handleOpenPreview(doc);
                             }
                           }}
                         >
@@ -913,16 +909,12 @@ interface BackendFileResponse {
                           tabIndex={0}
                           className="bg-white rounded-[16px] p-5 flex flex-col items-center justify-between text-center relative h-[336px] shadow-2xs hover:shadow-md transition-all border border-[#F5F5F5] cursor-pointer"
                           onClick={() => {
-                            if (doc.status === "uploaded" || doc.status === "under_review") {
-                              handleOpenPreview(doc);
-                            }
+                            handleOpenPreview(doc);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              if (doc.status === "uploaded" || doc.status === "under_review") {
-                                handleOpenPreview(doc);
-                              }
+                              handleOpenPreview(doc);
                             }
                           }}
                         >
