@@ -8,6 +8,7 @@ import {
   RiLockFill,
   RiNotification2Line,
   RiNotification3Line,
+  RiNotification3Fill,
   RiListSettingsLine,
   RiSettings3Line,
   RiUserSettingsLine,
@@ -44,10 +45,18 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
 
-  // Notification Toggle States
-  const [emailAlerts, setEmailAlerts] = React.useState(true);
-  const [rtwReminders, setRtwReminders] = React.useState(true);
-  const [docExpiryAlerts, setDocExpiryAlerts] = React.useState(true);
+  // Email Digest Frequency
+  const [digestFrequency, setDigestFrequency] = React.useState<"Real-time" | "Daily" | "Weekly" | "Off">("Real-time");
+
+  // Notification Channel Toggles [email, push]
+  const [notifMentions, setNotifMentions] = React.useState<[boolean, boolean]>([true, true]);
+  const [notifStatusChanges, setNotifStatusChanges] = React.useState<[boolean, boolean]>([true, true]);
+  const [notifUrgentAlerts, setNotifUrgentAlerts] = React.useState<[boolean, boolean]>([true, true]);
+  const [notifExpiryWarnings, setNotifExpiryWarnings] = React.useState<[boolean, boolean]>([false, true]);
+  const [notifMigrantActions, setNotifMigrantActions] = React.useState<[boolean, boolean]>([true, false]);
+  const [notifDocUploads, setNotifDocUploads] = React.useState<[boolean, boolean]>([false, false]);
+  const [notifReminders, setNotifReminders] = React.useState<[boolean, boolean]>([true, true]);
+  const [notifSystem, setNotifSystem] = React.useState<[boolean, boolean]>([true, true]);
 
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -170,11 +179,17 @@ export default function SettingsPage() {
         toast.success("Password updated successfully.");
       } else if (activeTab === "NOTIFICATIONS") {
         await apiClient.patch(ENDPOINTS.users.settings, {
-          emailAlerts,
-          rtwReminders,
-          docExpiryAlerts,
+          digestFrequency,
+          notifMentions,
+          notifStatusChanges,
+          notifUrgentAlerts,
+          notifExpiryWarnings,
+          notifMigrantActions,
+          notifDocUploads,
+          notifReminders,
+          notifSystem,
         });
-        toast.success("Notification preferences updated.");
+        toast.success("Notification preferences saved.");
       } else if (activeTab === "PREFERENCES") {
         await apiClient.patch(ENDPOINTS.users.settings, {
           language,
@@ -257,7 +272,11 @@ export default function SettingsPage() {
                   : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
               }`}
             >
-              <RiNotification3Line className="size-5 text-[#5C5C5C]" />
+              {activeTab === "NOTIFICATIONS" ? (
+                <RiNotification3Fill className="size-5 text-[#171717]" />
+              ) : (
+                <RiNotification3Line className="size-5 text-[#5C5C5C]" />
+              )}
               <span>Notifications</span>
             </button>
 
@@ -270,7 +289,13 @@ export default function SettingsPage() {
                   : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
               }`}
             >
-              <RiSettings3Line className="size-5 text-[#5C5C5C]" />
+              {activeTab === "PREFERENCES" ? (
+                <svg width="20" height="20" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-5 text-[#171717]">
+                  <path d="M5.68934 2.17484L7.64459 0.21959C7.78524 0.0789866 7.97597 0 8.17484 0C8.37371 0 8.56444 0.0789866 8.70509 0.21959L10.6603 2.17484H13.4248C13.6238 2.17484 13.8145 2.25386 13.9552 2.39451C14.0958 2.53516 14.1748 2.72593 14.1748 2.92484V5.68934L16.1301 7.64459C16.2707 7.78524 16.3497 7.97597 16.3497 8.17484C16.3497 8.37371 16.2707 8.56444 16.1301 8.70509L14.1748 10.6603V13.4248C14.1748 13.6238 14.0958 13.8145 13.9552 13.9552C13.8145 14.0958 13.6238 14.1748 13.4248 14.1748H10.6603L8.70509 16.1301C8.56444 16.2707 8.37371 16.3497 7.64459 16.1301L5.68934 14.1748H2.92484C2.72593 14.1748 2.53516 14.0958 2.39451 2.39451C2.53516 2.25386 2.72593 2.17484 2.92484 2.17484H5.68934ZM8.17484 10.4248C8.77158 10.4248 9.34387 10.1878 9.76583 9.76583C10.1878 9.34387 10.4248 8.77158 10.4248 8.17484C10.4248 7.5781 10.1878 7.00581 9.76583 6.58385C9.34387 6.16189 8.77158 5.92484 8.17484 5.92484C7.5781 5.92484 7.00581 6.16189 6.58385 6.58385C6.16189 7.00581 5.92484 7.5781 5.92484 8.17484C5.92484 8.77158 6.16189 9.34387 6.58385 9.76583C7.00581 10.1878 7.5781 10.4248 8.17484 10.4248V10.4248Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+                </svg>
+              ) : (
+                <RiSettings3Line className="size-5 text-[#5C5C5C]" />
+              )}
               <span>Preferences</span>
             </button>
 
@@ -561,63 +586,177 @@ export default function SettingsPage() {
 
             {/* NOTIFICATIONS TAB */}
             {activeTab === "NOTIFICATIONS" && (
-              <div className="flex flex-col gap-3">
-                <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium">
-                  Notification Settings
-                </h2>
-                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 lg:p-8 flex flex-col gap-6 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <label htmlFor="notif-email-alerts" className="text-[14px] font-medium text-[#171717] cursor-pointer">
-                        Email Alerts
-                      </label>
-                      <span className="text-[13px] text-[#5C5C5C]">
-                        Receive immediate emails for high risk compliance tasks.
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      id="notif-email-alerts"
-                      role="switch"
-                      aria-checked={emailAlerts}
-                      onClick={() => setEmailAlerts(!emailAlerts)}
-                      className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                        emailAlerts ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                          emailAlerts ? "translate-x-5" : ""
-                        }`}
-                      />
-                    </button>
+              <div className="flex flex-col gap-6">
+                {/* Email Digest Section */}
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">Email digest</h2>
+                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">Receive a summary of activity and pending actions.</p>
                   </div>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-[#EBEBEB]">
-                    <div className="flex flex-col">
-                      <label htmlFor="notif-rtw-reminders" className="text-[14px] font-medium text-[#171717] cursor-pointer">
-                        RTW Renewal Reminders
-                      </label>
-                      <span className="text-[13px] text-[#5C5C5C]">
-                        Weekly digests for upcoming right-to-work deadlines.
-                      </span>
+                  <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 shadow-sm">
+                    <p className="text-[14px] font-medium text-[#171717] mb-5">Your preferred email digest frequency.</p>
+                    <div className="flex items-center gap-2">
+                      {(["Real-time", "Daily", "Weekly", "Off"] as const).map((freq) => (
+                        <button
+                          key={freq}
+                          type="button"
+                          id={`digest-freq-${freq.toLowerCase()}`}
+                          onClick={() => setDigestFrequency(freq)}
+                          className={`px-4 py-2 rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer ${
+                            digestFrequency === freq
+                              ? "bg-[#171717] text-white"
+                              : "bg-[#F7F7F7] text-[#5C5C5C] hover:bg-[#EBEBEB] hover:text-[#171717]"
+                          }`}
+                        >
+                          {freq}
+                        </button>
+                      ))}
                     </div>
-                    <button
-                      type="button"
-                      id="notif-rtw-reminders"
-                      role="switch"
-                      aria-checked={rtwReminders}
-                      onClick={() => setRtwReminders(!rtwReminders)}
-                      className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                        rtwReminders ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                          rtwReminders ? "translate-x-5" : ""
-                        }`}
-                      />
-                    </button>
+                  </div>
+                </div>
+
+                {/* Notifications Channels Section */}
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">Notifications channels</h2>
+                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">Choose which notifications you receive by email and push notifications.</p>
+                  </div>
+                  <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 shadow-sm">
+                    {/* Column Headers */}
+                    <div className="flex items-center justify-end gap-[38px] mb-4 pr-0">
+                      <span className="w-[33px] text-[13px] text-[#000] text-center leading-[20px] tracking-[-0.006em]">Email</span>
+                      <span className="w-[33px] text-[13px] text-[#000] text-center leading-[20px] tracking-[-0.006em]">Push</span>
+                    </div>
+
+                    {/* Notification Rows */}
+                    {([
+                      {
+                        id: "mentions",
+                        label: "Mentions",
+                        desc: "When someone @mentions you in a note",
+                        state: notifMentions,
+                        setState: setNotifMentions,
+                      },
+                      {
+                        id: "status-changes",
+                        label: "Status changes",
+                        desc: "When a case status is updated",
+                        state: notifStatusChanges,
+                        setState: setNotifStatusChanges,
+                      },
+                      {
+                        id: "urgent-alerts",
+                        label: "Urgent alerts",
+                        desc: "RTW overdue, salary flags, compliance breaches",
+                        state: notifUrgentAlerts,
+                        setState: setNotifUrgentAlerts,
+                      },
+                      {
+                        id: "expiry-warnings",
+                        label: "Expiry warnings",
+                        desc: "Visa or passport approaching expiry",
+                        state: notifExpiryWarnings,
+                        setState: setNotifExpiryWarnings,
+                      },
+                      {
+                        id: "migrant-actions",
+                        label: "Migrant actions",
+                        desc: "When a migrant submits information or takes action",
+                        state: notifMigrantActions,
+                        setState: setNotifMigrantActions,
+                      },
+                      {
+                        id: "doc-uploads",
+                        label: "Document uploads",
+                        desc: "When documents are added to a case",
+                        state: notifDocUploads,
+                        setState: setNotifDocUploads,
+                      },
+                      {
+                        id: "reminders",
+                        label: "Reminders",
+                        desc: "Upcoming deadlines and scheduled tasks",
+                        state: notifReminders,
+                        setState: setNotifReminders,
+                      },
+                      {
+                        id: "system",
+                        label: "System",
+                        desc: "Audits, compliance visits, platform updates",
+                        state: notifSystem,
+                        setState: setNotifSystem,
+                      },
+                    ] as Array<{
+                      id: string;
+                      label: string;
+                      desc: string;
+                      state: [boolean, boolean];
+                      setState: React.Dispatch<React.SetStateAction<[boolean, boolean]>>;
+                    }>).map((row, i, arr) => (
+                      <React.Fragment key={row.id}>
+                        <div className="flex items-center gap-[7px] py-[10px]">
+                          {/* Content */}
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">{row.label}</span>
+                            <span className="text-[13px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">{row.desc}</span>
+                          </div>
+                          {/* Email + Push Switches */}
+                          <div className="flex items-center gap-[38px] shrink-0">
+                            {/* Email Switch */}
+                            <button
+                              type="button"
+                              id={`notif-${row.id}-email`}
+                              role="switch"
+                              aria-checked={row.state[0]}
+                              aria-label={`${row.label} email notifications`}
+                              onClick={() => row.setState([!row.state[0], row.state[1]])}
+                              className="relative w-[33px] h-[20px] cursor-pointer shrink-0"
+                            >
+                              <span
+                                className={`absolute inset-0 rounded-full transition-colors ${
+                                  row.state[0] ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+                                }`}
+                                style={{ width: 28, height: 16, top: 2, left: 2.5 }}
+                              />
+                              <span
+                                className="absolute w-3 h-3 rounded-full bg-white shadow-[0px_4px_8px_rgba(27,28,29,0.06),0px_2px_4px_rgba(14,18,27,0.08)] transition-all"
+                                style={{
+                                  top: 4,
+                                  left: row.state[0] ? 18.5 : 4.5,
+                                }}
+                              />
+                            </button>
+                            {/* Push Switch */}
+                            <button
+                              type="button"
+                              id={`notif-${row.id}-push`}
+                              role="switch"
+                              aria-checked={row.state[1]}
+                              aria-label={`${row.label} push notifications`}
+                              onClick={() => row.setState([row.state[0], !row.state[1]])}
+                              className="relative w-[33px] h-[20px] cursor-pointer shrink-0"
+                            >
+                              <span
+                                className={`absolute inset-0 rounded-full transition-colors ${
+                                  row.state[1] ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+                                }`}
+                                style={{ width: 28, height: 16, top: 2, left: 2.5 }}
+                              />
+                              <span
+                                className="absolute w-3 h-3 rounded-full bg-white shadow-[0px_4px_8px_rgba(27,28,29,0.06),0px_2px_4px_rgba(14,18,27,0.08)] transition-all"
+                                style={{
+                                  top: 4,
+                                  left: row.state[1] ? 18.5 : 4.5,
+                                }}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                        {i < arr.length - 1 && (
+                          <div className="w-full border-t border-[#EBEBEB]" />
+                        )}
+                      </React.Fragment>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -626,23 +765,26 @@ export default function SettingsPage() {
             {/* PREFERENCES TAB */}
             {activeTab === "PREFERENCES" && (
               <div className="flex flex-col gap-3">
-                <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium">
+                <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">
                   Workspace Preferences
                 </h2>
-                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 lg:p-8 flex flex-col gap-4 shadow-sm">
-                  <div className="flex flex-col gap-1.5 max-w-md">
+                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 flex flex-col gap-6 shadow-sm">
+                  <div className="flex flex-col gap-1.5" style={{ maxWidth: 360 }}>
                     <label htmlFor="pref-system-language" className="text-[14px] font-medium text-[#171717]">
                       System Language
                     </label>
-                    <select
-                      id="pref-system-language"
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
-                    >
-                      <option value="English (UK)">English (UK)</option>
-                      <option value="English (US)">English (US)</option>
-                    </select>
+                    <div className="relative flex items-center">
+                      <select
+                        id="pref-system-language"
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full h-[40px] px-3.5 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-normal transition-colors shadow-sm"
+                      >
+                        <option value="English (UK)">English (UK)</option>
+                        <option value="English (US)">English (US)</option>
+                      </select>
+                      <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 pointer-events-none" />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -651,28 +793,106 @@ export default function SettingsPage() {
             {/* TEAM & ROLES TAB */}
             {activeTab === "TEAM" && (
               <div className="flex flex-col gap-3">
-                <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium">
-                  Team Members & Roles
-                </h2>
-                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 lg:p-8 flex flex-col gap-4 shadow-sm">
-                  <div className="flex items-center justify-between pb-4 border-b border-[#EBEBEB]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-medium text-[14px] flex items-center justify-center">
-                        AM
+                {/* Section header with Invite button */}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">
+                    Team members
+                  </h2>
+                  <button
+                    type="button"
+                    id="team-invite-member-btn"
+                    className="flex items-center justify-center px-4 py-2 bg-[#171717] hover:bg-[#262626] text-white text-[14px] font-medium rounded-[8px] transition-colors cursor-pointer"
+                    onClick={() => toast.info("Invite member coming soon.")}
+                  >
+                    Invite member
+                  </button>
+                </div>
+
+                {/* Team members card */}
+                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 flex flex-col gap-6 shadow-sm">
+                  {([
+                    {
+                      id: "alex-marin",
+                      initials: "AM",
+                      avatarBg: "#CAC0FF",
+                      avatarColor: "#351A75",
+                      name: "Alex Marin",
+                      email: "alex.marin@viems.io",
+                      role: "Admin",
+                      roleBg: "#EFEBFF",
+                      roleColor: "#7D52F4",
+                      showEdit: false,
+                    },
+                    {
+                      id: "nathan-wood",
+                      initials: "NW",
+                      avatarBg: "#D1E9FF",
+                      avatarColor: "#1A4D8F",
+                      name: "Nathan Wood",
+                      email: "nathan.wood@viems.io",
+                      role: "Case Manager",
+                      roleBg: "#EBF1FF",
+                      roleColor: "#335CFF",
+                      showEdit: true,
+                    },
+                    {
+                      id: "sarah-kim",
+                      initials: "SK",
+                      avatarBg: "#CAC0FF",
+                      avatarColor: "#351A75",
+                      name: "Sarah Kim",
+                      email: "sarah.kim@viems.io",
+                      role: "Viewer",
+                      roleBg: "#EBF1FF",
+                      roleColor: "#335CFF",
+                      showEdit: true,
+                    },
+                  ]).map((member, i, arr) => (
+                    <React.Fragment key={member.id}>
+                      <div className="flex items-center justify-between">
+                        {/* Avatar + Info */}
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-medium shrink-0"
+                            style={{ background: member.avatarBg, color: member.avatarColor }}
+                          >
+                            {member.initials}
+                          </div>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
+                              {member.name}
+                            </span>
+                            <span className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
+                              {member.email}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Role badge + Edit button */}
+                        <div className="flex items-center gap-4">
+                          <span
+                            className="px-2 py-[2px] rounded-full text-[12px] font-medium leading-[12px]"
+                            style={{ background: member.roleBg, color: member.roleColor }}
+                          >
+                            {member.role}
+                          </span>
+                          {member.showEdit && (
+                            <button
+                              type="button"
+                              id={`team-edit-${member.id}`}
+                              className="px-[6px] py-1 bg-[#F7F7F7] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] text-[14px] font-medium rounded-[8px] transition-colors cursor-pointer"
+                              onClick={() => toast.info(`Edit ${member.name} coming soon.`)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[14px] font-medium text-[#171717]">
-                          Alex Marin
-                        </span>
-                        <span className="text-[13px] text-[#5C5C5C]">
-                          alex.marin@viems.io
-                        </span>
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 rounded-[6px] bg-[#E3F7EC] text-[#0D6332] text-[12px] font-medium">
-                      Super Admin
-                    </span>
-                  </div>
+                      {i < arr.length - 1 && (
+                        <div className="w-full border-t border-[#EBEBEB]" />
+                      )}
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
             )}
@@ -697,6 +917,8 @@ export default function SettingsPage() {
                   ? "Saving..."
                   : activeTab === "SECURITY"
                   ? "Update password"
+                  : activeTab === "NOTIFICATIONS"
+                  ? "Save preferences"
                   : "Save changes"}
               </button>
             </div>
