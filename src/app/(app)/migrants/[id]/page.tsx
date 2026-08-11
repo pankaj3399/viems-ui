@@ -38,7 +38,7 @@ const migrantTabs = [
   { label: "Overview", iconLine: RiLayoutGridLine, iconFill: RiLayoutGridFill },
   { label: "Passport", iconLine: RiFileTextLine, iconFill: RiFileTextFill },
   { label: "Cases", iconLine: (props: React.SVGProps<SVGSVGElement>) => <CasesTabIcon active={false} {...props} />, iconFill: (props: React.SVGProps<SVGSVGElement>) => <CasesTabIcon active={true} {...props} /> },
-  { label: "Travel History", iconLine: RiSuitcase2Line, iconFill: RiSuitcase2Fill },
+  { label: "UK Travel History", iconLine: RiSuitcase2Line, iconFill: RiSuitcase2Fill },
 ];
 
 function sanitizeFirstAndLastName(rawFirst: string, rawLast: string) {
@@ -215,7 +215,7 @@ export default function MigrantDetailPage() {
           onAddNote={() => setIsAddNoteOpen(true)}
         />
 
-        {/* ====== TAB MENU (Overview, Passport, Cases, Travel History) ====== */}
+        {/* ====== TAB MENU (Overview, Passport, Cases, UK Travel History) ====== */}
         <div className="px-[64px] flex items-center gap-2xl h-[50px] border-b border-[#EBEBEB]">
           {migrantTabs.map((tab) => {
             const isActive = activeTab === tab.label;
@@ -432,7 +432,7 @@ export default function MigrantDetailPage() {
         ) : activeTab === "Passport" ? (
           <PassportTab migrant={migrant} onEditPassport={() => setIsPersonalModalOpen(true)} />
         ) : activeTab === "Cases" ? (
-          <CasesTab migrant={migrant} />
+          <CasesTab migrant={migrant} migrantId={id} />
         ) : (
           <TravelHistoryTab migrant={migrant} />
         )}

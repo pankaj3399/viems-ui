@@ -24,6 +24,12 @@ import { MarkVisaRefusedModal } from "../cases/components/MarkVisaRefusedModal";
 import { ArchiveCaseModal } from "../cases/components/ArchiveCaseModal";
 import { DeleteCaseModal } from "../cases/components/DeleteCaseModal";
 import { CaseActionModal } from "../cases/components/CaseActionModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Flag } from "@/components/ui/flag";
 
 interface MigrantRow {
@@ -723,10 +729,26 @@ export default function MigrantsPage() {
         </div>
 
         {/* Right Items per Page */}
-        <div className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer">
-          <span>{itemsPerPage} / page</span>
-          <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer outline-none hover:text-[#171717] hover:bg-neutral-50 transition-colors">
+            <span>{itemsPerPage} / page</span>
+            <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {[10, 25, 50].map((val) => (
+              <DropdownMenuItem
+                key={val}
+                onClick={() => {
+                  setItemsPerPage(val);
+                  setCurrentPage(1);
+                }}
+                className="cursor-pointer text-[13px]"
+              >
+                {val} / page
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Action & Status Modals */}

@@ -243,6 +243,13 @@ export default function RtwChecksPage() {
     };
   }, [rtwChecks]);
 
+  const [itemsPerPage, setItemsPerPage] = React.useState(10);
+  const [currentPage, setCurrentPage] = React.useState(1);
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, statusDropdownFilter, itemsPerPage]);
+
   const filteredChecks = React.useMemo(() => {
     return rtwChecks.filter((item) => {
       if (activeTab === "OVERDUE" && item.status !== "OVERDUE") return false;
@@ -264,6 +271,27 @@ export default function RtwChecksPage() {
       return true;
     });
   }, [rtwChecks, activeTab, statusDropdownFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredChecks.length / itemsPerPage));
+
+  const pageNumbers = React.useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let p = start; p <= end; p++) {
+      pages.push(p);
+    }
+    return pages;
+  }, [currentPage, totalPages]);
+
+  const paginatedChecks = React.useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredChecks.slice(start, start + itemsPerPage);
+  }, [filteredChecks, currentPage, itemsPerPage]);
 
   const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -546,13 +574,17 @@ export default function RtwChecksPage() {
         <div className="hidden sm:flex items-center gap-1.5">
           <button
             type="button"
-            className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 disabled:opacity-40 transition-colors cursor-pointer"
           >
             <RiArrowLeftSLine className="size-4" />
           </button>
           <button
             type="button"
-            className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-6 h-6 rounded-[6px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 disabled:opacity-40 transition-colors cursor-pointer"
           >
             <RiArrowRightSLine className="size-4" />
           </button>
@@ -571,12 +603,12 @@ export default function RtwChecksPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          {filteredChecks.length === 0 ? (
+          {paginatedChecks.length === 0 ? (
             <div className="bg-white rounded-[16px] py-12 px-4 text-center text-[#5C5C5C] text-[14px]">
               No RTW checks found matching your search or filters.
             </div>
           ) : (
-            filteredChecks.map((row) => (
+            paginatedChecks.map((row) => (
               <div
                 key={row.id}
                 className="bg-white rounded-[16px] h-[72px] px-4 flex items-center justify-between border border-transparent hover:border-[#EBEBEB] hover:shadow-xs transition-all"
@@ -637,6 +669,89 @@ export default function RtwChecksPage() {
             ))
           )}
         </div>
+      </div>
+
+      {/* Pagination & Footer Controls */}
+      <div className="flex items-center justify-between w-full font-sans select-none pt-2">
+        {/* Left: Showing X-Y of Z checks */}
+        <span className="text-[13px] text-[#5C5C5C]">
+          Showing {filteredChecks.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-
+          {Math.min(currentPage * itemsPerPage, filteredChecks.length)} of {filteredChecks.length}
+        </span>
+
+        {/* Center: Pagination Controls */}
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+          >
+            «
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+          >
+            <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
+          </button>
+
+          {pageNumbers.map((pNum) => (
+            <button
+              key={pNum}
+              type="button"
+              onClick={() => setCurrentPage(pNum)}
+              className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
+                currentPage === pNum
+                  ? "bg-[#171717] text-white"
+                  : "bg-transparent text-[#5C5C5C] hover:bg-neutral-200"
+              }`}
+            >
+              {pNum}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+          >
+            <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+          >
+            »
+          </button>
+        </div>
+
+        {/* Right: Items per Page Dropdown (10, 25, 50) */}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer outline-none hover:text-[#171717] hover:bg-neutral-50 transition-colors">
+            <span>{itemsPerPage} / page</span>
+            <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {[10, 25, 50].map((val) => (
+              <DropdownMenuItem
+                key={val}
+                onClick={() => {
+                  setItemsPerPage(val);
+                  setCurrentPage(1);
+                }}
+                className="cursor-pointer text-[13px]"
+              >
+                {val} / page
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Dialog open={isVerifyModalOpen} onOpenChange={setIsVerifyModalOpen}>
