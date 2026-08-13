@@ -21,8 +21,84 @@ import {
 } from "recharts";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { WorldMapSvg } from "../dashboard/WorldMapSvg";
+import { Flag } from "@/components/ui/flag";
 
 const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+// Country map coordinates for World Map visualisation
+const COUNTRY_COORDINATES: Record<string, { left: string; top: string; label: string }> = {
+  India: { left: "69.0%", top: "51.0%", label: "India" },
+  Indian: { left: "69.0%", top: "51.0%", label: "India" },
+  Pakistan: { left: "66.5%", top: "47.8%", label: "Pakistan" },
+  Pakistani: { left: "66.5%", top: "47.8%", label: "Pakistan" },
+  "United Kingdom": { left: "48.2%", top: "31.5%", label: "United Kingdom" },
+  British: { left: "48.2%", top: "31.5%", label: "United Kingdom" },
+  UK: { left: "48.2%", top: "31.5%", label: "United Kingdom" },
+  Germany: { left: "52.0%", top: "33.7%", label: "Germany" },
+  German: { left: "52.0%", top: "33.7%", label: "Germany" },
+  France: { left: "49.0%", top: "38.9%", label: "France" },
+  French: { left: "49.0%", top: "38.9%", label: "France" },
+  China: { left: "77.4%", top: "49.0%", label: "China" },
+  Chinese: { left: "77.4%", top: "49.0%", label: "China" },
+  "United States": { left: "27.1%", top: "42.2%", label: "United States" },
+  American: { left: "27.1%", top: "42.2%", label: "United States" },
+  USA: { left: "27.1%", top: "42.2%", label: "United States" },
+  Greenland: { left: "39.4%", top: "20.1%", label: "Greenland" },
+  Italy: { left: "51.6%", top: "43.3%", label: "Italy" },
+  Italian: { left: "51.6%", top: "43.3%", label: "Italy" },
+  Jamaica: { left: "31.0%", top: "56.5%", label: "Jamaica" },
+  Jamaican: { left: "31.0%", top: "56.5%", label: "Jamaica" },
+  Nigeria: { left: "51.6%", top: "58.7%", label: "Nigeria" },
+  Nigerian: { left: "51.6%", top: "58.7%", label: "Nigeria" },
+  Australia: { left: "86.2%", top: "73.9%", label: "Australia" },
+  Australian: { left: "86.2%", top: "73.9%", label: "Australia" },
+  Canada: { left: "27.1%", top: "28.3%", label: "Canada" },
+  Canadian: { left: "27.1%", top: "28.3%", label: "Canada" },
+  Spain: { left: "47.5%", top: "42.0%", label: "Spain" },
+  Spanish: { left: "47.5%", top: "42.0%", label: "Spain" },
+  Poland: { left: "53.5%", top: "33.0%", label: "Poland" },
+  Polish: { left: "53.5%", top: "33.0%", label: "Poland" },
+  Brazil: { left: "35.5%", top: "67.4%", label: "Brazil" },
+  Brazilian: { left: "35.5%", top: "67.4%", label: "Brazil" },
+  Philippines: { left: "83.6%", top: "56.5%", label: "Philippines" },
+  Filipino: { left: "83.6%", top: "56.5%", label: "Philippines" },
+  Bangladesh: { left: "71.2%", top: "50.5%", label: "Bangladesh" },
+  Bangladeshi: { left: "71.2%", top: "50.5%", label: "Bangladesh" },
+  Nepal: { left: "70.5%", top: "48.2%", label: "Nepal" },
+  Nepalese: { left: "70.5%", top: "48.2%", label: "Nepal" },
+  "Sri Lanka": { left: "69.5%", top: "56.0%", label: "Sri Lanka" },
+  SriLankan: { left: "69.5%", top: "56.0%", label: "Sri Lanka" },
+  Romania: { left: "55.2%", top: "37.5%", label: "Romania" },
+  Romanian: { left: "55.2%", top: "37.5%", label: "Romania" },
+  Ukraine: { left: "57.5%", top: "34.0%", label: "Ukraine" },
+  Ukrainian: { left: "57.5%", top: "34.0%", label: "Ukraine" },
+  Vietnam: { left: "77.0%", top: "54.0%", label: "Vietnam" },
+  Vietnamese: { left: "77.0%", top: "54.0%", label: "Vietnam" },
+  Turkey: { left: "57.0%", top: "41.0%", label: "Turkey" },
+  Turkish: { left: "57.0%", top: "41.0%", label: "Turkey" },
+  "South Africa": { left: "54.0%", top: "78.0%", label: "South Africa" },
+  "South African": { left: "54.0%", top: "78.0%", label: "South Africa" },
+  Ghana: { left: "47.5%", top: "58.0%", label: "Ghana" },
+  Ghanaian: { left: "47.5%", top: "58.0%", label: "Ghana" },
+  Kenya: { left: "58.5%", top: "61.0%", label: "Kenya" },
+  Kenyan: { left: "58.5%", top: "61.0%", label: "Kenya" },
+};
+
+const TIME_RANGE_MULTIPLIERS: Record<string, number> = {
+  "5D": 0.17,
+  "2W": 0.47,
+  "1M": 1.0,
+  "6M": 6.0,
+  "1Y": 12.0,
+};
+
+interface NationalityStat {
+  id: string | number;
+  nationality: string;
+  value: number;
+  color?: string;
+}
 
 function getCaseDate(c: any): Date | null {
   const dateStr = c.creation_date || c.createdAt || c.decision?.granted?.visaStartDate;
@@ -35,6 +111,9 @@ export default function InsightsPage() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = React.useState<"3M" | "6M" | "1Y" | "ALL">("6M");
   const [cases, setCases] = React.useState<any[]>([]);
+  const [nationalities, setNationalities] = React.useState<NationalityStat[]>([]);
+  const [originFilter, setOriginFilter] = React.useState("1M");
+  const [hoveredOrigin, setHoveredOrigin] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -42,13 +121,17 @@ export default function InsightsPage() {
     async function fetchData() {
       try {
         setLoading(true);
-        const data = await apiClient.get<any[]>(ENDPOINTS.cases.base);
-        setCases(Array.isArray(data) ? data : []);
+        const [casesData, natData] = await Promise.allSettled([
+          apiClient.get<any[]>(ENDPOINTS.cases.base),
+          apiClient.get<NationalityStat[]>(ENDPOINTS.statistics.nationalities),
+        ]);
+
+        if (casesData.status === "fulfilled") setCases(Array.isArray(casesData.value) ? casesData.value : []);
+        if (natData.status === "fulfilled") setNationalities(natData.value ?? []);
         setError(null);
       } catch (err: any) {
-        console.error("Failed to load insights cases", err);
+        console.error("Failed to load insights data", err);
         setError("Failed to load data. Please try again later.");
-        setCases([]);
       } finally {
         setLoading(false);
       }
@@ -71,6 +154,20 @@ export default function InsightsPage() {
     });
   }, [cases, activeFilter]);
 
+  // Nationalities calculation (aggregate counts unscaled, rounded to integer)
+  const topOrigins = React.useMemo(() => {
+    if (nationalities.length > 0) {
+      return [...nationalities]
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 7)
+        .map((n) => ({
+          name: n.nationality ?? String(n.id),
+          count: Math.round(n.value),
+        }));
+    }
+    return [];
+  }, [nationalities]);
+
   // 1. Total cases & In progress count
   const totalCases = filteredCases.length;
   const inProgressCases = filteredCases.filter(
@@ -87,7 +184,7 @@ export default function InsightsPage() {
   const totalDecisions = approvedCases + refusedCases;
   const approvalRate = totalDecisions > 0 ? Math.round((approvedCases / totalDecisions) * 100) : 0;
 
-  // 3. Avg. Processing Time (creation-to-decision duration using decision timestamp)
+  // 3. Avg. Processing Time
   let avgProcessingDays = 0;
   const completedCases = filteredCases.filter((c) => {
     const creation = getCaseDate(c);
@@ -123,7 +220,7 @@ export default function InsightsPage() {
     (c) => c.migration_stage?.toUpperCase() === "ENTERED" || c.migration_stage?.toUpperCase() === "IN UK"
   ).length;
 
-  // Group cases dynamically by month of creation for the Stacked Bar Chart (keyed by year + month)
+  // Group cases dynamically by month of creation for the Stacked Bar Chart
   const chartData = React.useMemo(() => {
     const now = new Date();
     let countMonths = 6;
@@ -232,7 +329,7 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] select-none bg-[#F7F7F7] min-h-full">
+    <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] select-none bg-[#F7F7F7] min-h-full pb-[80px]">
       {/* Page Header */}
       <div className="bg-white rounded-t-[16px] flex flex-col shrink-0">
         <div className="px-6 md:px-[64px] pt-[40px] pb-[24px] flex flex-col gap-md md:flex-row md:items-center md:justify-between">
@@ -293,7 +390,7 @@ export default function InsightsPage() {
                   <Icon className="size-4 text-[#A4A4A4]" />
                 </div>
                 <div className="flex flex-col mt-auto">
-                  <span className="text-[28px] font-semibold text-[#171717] leading-none tracking-tight">
+                  <span className="text-[28px] font-semibold text-[#171717] leading-none tracking-tight font-aeonik-medium">
                     {m.value}
                   </span>
                   <span className="text-[12px] text-[#5C5C5C] mt-[6px] truncate leading-normal">
@@ -303,6 +400,145 @@ export default function InsightsPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Migrants by Origin Card with Dot-matrix Map (Moved from Dashboard to Insights per Figma spec) */}
+        <div className="flex flex-col gap-[12px] w-full">
+          <div className="flex items-center justify-between w-full h-[30px]">
+            <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
+              Migrants by origin
+            </span>
+          </div>
+
+          <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[20px] flex gap-[24px] items-start h-[520px] w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+            <div className="flex-1 h-full flex flex-col items-center justify-between relative py-[12px]">
+              <div className="w-full flex-1 relative flex items-center justify-center min-h-0">
+                <WorldMapSvg className="w-full h-full text-[#E5E7EB]" />
+                
+                {(() => {
+                  const originsList = topOrigins;
+                  const activeItem = originsList.find((o) => o.name === hoveredOrigin) || originsList[0];
+                  
+                  const getCoords = (name: string) => {
+                    if (!name) return null;
+                    if (COUNTRY_COORDINATES[name]) return COUNTRY_COORDINATES[name];
+                    const lower = name.toLowerCase();
+                    for (const [k, v] of Object.entries(COUNTRY_COORDINATES)) {
+                      if (k.toLowerCase() === lower) return v;
+                    }
+                    return null;
+                  };
+
+                  const activeCoords = activeItem ? getCoords(activeItem.name) : null;
+                  const unmappedOrigins = originsList.filter((o) => !getCoords(o.name));
+
+                  return (
+                    <>
+                      {originsList.map((origin) => {
+                        const coords = getCoords(origin.name);
+                        if (!coords) return null;
+                        const isHovered = hoveredOrigin === origin.name;
+                        const isActive = activeItem?.name === origin.name;
+
+                        return (
+                          <div
+                            key={origin.name}
+                            className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2"
+                            style={{ left: coords.left, top: coords.top }}
+                            onMouseEnter={() => setHoveredOrigin(origin.name)}
+                            onMouseLeave={() => setHoveredOrigin(null)}
+                            onClick={() => router.push(`/migrants?nationality=${encodeURIComponent(origin.name)}`)}
+                          >
+                            <div className={`absolute rounded-full bg-[#7D52F4]/40 transition-all duration-300 ${
+                              isActive || isHovered ? "size-6 animate-ping" : "size-4"
+                            }`} />
+                            <div className={`rounded-full bg-[#7D52F4] border-2 border-white shadow-md transition-all duration-200 ${
+                              isActive || isHovered ? "size-3 scale-125" : "size-2.5"
+                            }`} />
+                          </div>
+                        );
+                      })}
+
+                      {unmappedOrigins.length > 0 && (
+                        <div className="absolute bottom-2 left-2 bg-[#FAF5FF] border border-[#E9D8FD] text-[#6B21A8] text-[11px] font-medium px-2.5 py-1 rounded-[6px] shadow-xs flex items-center gap-1.5 z-10">
+                          <span>Unsupported locations: {unmappedOrigins.map((u) => u.name).join(", ")}</span>
+                        </div>
+                      )}
+
+                      {activeItem && activeCoords && (
+                        <div 
+                          className="absolute flex flex-col items-center -translate-x-1/2 pointer-events-none transition-all duration-200 z-20"
+                          style={{ left: activeCoords.left, top: `calc(${activeCoords.top} - 34px)` }}
+                        >
+                          <div className="bg-[#171717] text-white text-[12px] font-semibold py-1 px-[10px] rounded-[6px] shadow-lg flex items-center gap-[6px] whitespace-nowrap">
+                            <Flag country={activeItem.name} className="size-3.5 rounded-full overflow-hidden border border-white/20 shrink-0" />
+                            <span>{activeCoords.label || activeItem.name}</span>
+                            <span className="text-[#A3A3A3] font-normal">•</span>
+                            <span className="text-[#CAC0FF] font-mono">{activeItem.count}</span>
+                          </div>
+                          <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="flex bg-[#F5F5F5] rounded-[8px] p-0.5 w-[240px] shadow-sm select-none shrink-0 mt-4">
+                {["5D", "2W", "1M", "6M", "1Y"].map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setOriginFilter(filter)}
+                    className={`flex-1 py-1 text-center rounded-[6px] text-[12px] font-semibold transition-all cursor-pointer border-0 ${
+                      originFilter === filter
+                        ? "bg-white text-[#171717] shadow-sm"
+                        : "text-[#7B7B7B] hover:text-[#171717]"
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="w-[280px] h-full shrink-0 border border-[#EBEBEB] bg-[#FAFAFA] rounded-[12px] p-[20px] flex flex-col gap-md">
+              <span className="text-[12px] font-semibold text-[#7B7B7B] tracking-[0.04em] uppercase">
+                TOP ORIGINS
+              </span>
+              <div className="flex flex-col gap-[8px] overflow-y-auto pr-1">
+                {topOrigins.length > 0 ? (
+                  topOrigins.map((origin, idx) => {
+                    const isHovered = hoveredOrigin === origin.name;
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`flex items-center justify-between text-[14px] p-2 rounded-[8px] transition-all cursor-pointer ${
+                          isHovered ? "bg-white shadow-sm border border-[#EBEBEB]" : "hover:bg-white/60"
+                        }`}
+                        onMouseEnter={() => setHoveredOrigin(origin.name)}
+                        onMouseLeave={() => setHoveredOrigin(null)}
+                        onClick={() => router.push(`/migrants?nationality=${encodeURIComponent(origin.name)}`)}
+                      >
+                        <div className="flex items-center gap-[8px]">
+                          <Flag country={origin.name} className="size-5 rounded-full overflow-hidden border border-neutral-100 shrink-0" />
+                          <span className="font-semibold text-[#171717]">{origin.name}</span>
+                        </div>
+                        <span className={`text-[13px] font-semibold size-6 rounded-full flex items-center justify-center transition-colors ${
+                          isHovered ? "bg-[#7D52F4] text-white" : "bg-[#F5F5F5] text-[#5C5C5C]"
+                        }`}>
+                          {origin.count}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="py-8 flex items-center justify-center text-[13px] text-[#A4A4A4] font-medium">
+                    No origin data available
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Widgets Row */}

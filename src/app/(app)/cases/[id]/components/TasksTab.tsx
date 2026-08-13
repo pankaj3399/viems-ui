@@ -11,14 +11,10 @@ import {
   RiUpload2Line,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
 interface TaskItem {
   id: string;
@@ -135,6 +131,41 @@ const initialTasks: TaskItem[] = [
 
 export function TasksTab({ caseId }: { caseId?: string }) {
   const [tasks, setTasks] = React.useState<TaskItem[]>([]);
+
+  React.useEffect(() => {
+    async function fetchTasks() {
+      if (!caseId) {
+        setTasks(initialTasks);
+        return;
+      }
+      try {
+        const res = await apiClient.get<any>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`);
+        const rawTasks = Array.isArray(res) ? res : res?.data || res?.tasks || [];
+        if (Array.isArray(rawTasks) && rawTasks.length > 0) {
+          const validCategories = ["General", "Compliance", "Reporting", "Documents", "Visa & Immigration"];
+          const validStatuses = ["crucial", "completed", "under_review", "general"];
+          const mapped: TaskItem[] = rawTasks.map((t: any, i: number) => {
+            const cat = validCategories.includes(t.category) ? t.category : "General";
+            const st = validStatuses.includes(t.status) ? t.status : (t.isCompleted ? "completed" : "general");
+            return {
+              id: String(t.id || `t-${i}`),
+              category: cat as TaskItem["category"],
+              title: t.title || t.name || "Task",
+              description: t.description || "",
+              status: st as TaskItem["status"],
+              isCompleted: Boolean(t.isCompleted || t.completed || st === "completed"),
+            };
+          });
+          setTasks(mapped);
+        } else {
+          setTasks(initialTasks);
+        }
+      } catch (err) {
+        setTasks(initialTasks);
+      }
+    }
+    fetchTasks();
+  }, [caseId]);
 
   const stats = React.useMemo(() => {
     const total = tasks.length;

@@ -64,13 +64,11 @@ export default function RtwChecksPage() {
   >("ALL");
   const [statusDropdownFilter, setStatusDropdownFilter] = React.useState<string>("All status");
   
-  const [selectedMigrant, setSelectedMigrant] = React.useState("Taylor Johnson");
-  const [selectedCaseId, setSelectedCaseId] = React.useState("#430/2026");
-  const [selectedEntityId, setSelectedEntityId] = React.useState<number | string>("430");
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = React.useState<string | undefined>(
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-  );
-  const [selectedAvatarInitials, setSelectedAvatarInitials] = React.useState("TJ");
+  const [selectedMigrant, setSelectedMigrant] = React.useState("");
+  const [selectedCaseId, setSelectedCaseId] = React.useState("");
+  const [selectedEntityId, setSelectedEntityId] = React.useState<number | string | null>(null);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = React.useState<string | undefined>(undefined);
+  const [selectedAvatarInitials, setSelectedAvatarInitials] = React.useState("");
   const [verifyMode, setVerifyMode] = React.useState<"automatic" | "manual">("automatic");
   const [shareCode, setShareCode] = React.useState("");
   const [dob, setDob] = React.useState("");
@@ -699,7 +697,7 @@ export default function RtwChecksPage() {
             <div className="relative flex items-center">
               <select
                 id="rtw-migrant-select"
-                value={selectedEntityId}
+                value={selectedEntityId ?? ""}
                 onChange={(e) => {
                   const entId = e.target.value;
                   setSelectedEntityId(entId);
@@ -713,6 +711,7 @@ export default function RtwChecksPage() {
                 }}
                 className="w-full h-[38px] px-3 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-medium transition-colors"
               >
+                <option value="" disabled>Select a migrant</option>
                 {rtwChecks.map((item) => (
                   <option key={item.id} value={item.entityId}>{item.name}</option>
                 ))}
@@ -783,7 +782,7 @@ export default function RtwChecksPage() {
 
             <div className="flex items-center justify-between pt-2 border-t border-[#EBEBEB]/60 mt-1">
               <button type="button" className="text-[13px] font-medium text-[#5C5C5C] hover:text-[#171717] underline cursor-pointer">How it works</button>
-              <button type="submit" disabled={isVerifying} className="h-[36px] px-5 rounded-[10px] bg-[#7D52F4] hover:bg-[#6C3FEB] text-white text-[14px] font-medium transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center disabled:opacity-50">
+              <button type="submit" disabled={isVerifying || !selectedEntityId} className="h-[36px] px-5 rounded-[10px] bg-[#7D52F4] hover:bg-[#6C3FEB] text-white text-[14px] font-medium transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center disabled:opacity-50">
                 {isVerifying ? <span>Processing...</span> : <span>{verifyMode === "automatic" ? "Verify share code" : "Save verification"}</span>}
               </button>
             </div>
