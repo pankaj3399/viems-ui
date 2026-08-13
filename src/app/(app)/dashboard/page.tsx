@@ -462,9 +462,11 @@ export default function DashboardPage() {
     return new Date(task.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
 
-  // Calendar dots from backend + newly added events
+  // Calendar dots from BOTH backend calendarData AND user created events list
   const calendarDotDays = React.useMemo(() => {
     const result: Record<number, string> = {};
+
+    // 1. From backend calendarData (visa end dates / milestones)
     Object.entries(calendarData).forEach(([tsStr, items]) => {
       if (!items.length) return;
       const d = new Date(Number(tsStr));
@@ -473,8 +475,21 @@ export default function DashboardPage() {
         result[d.getDate()] = hasVisaEnd ? "bg-[#FB3748]" : "bg-[#7D52F4]";
       }
     });
+
+    // 2. From events list (scheduled events & newly added reminders)
+    events.forEach((evt) => {
+      const d = new Date(evt.date);
+      if (d.getMonth() === displayedMonth.getMonth() && d.getFullYear() === displayedMonth.getFullYear()) {
+        const dayNum = d.getDate();
+        const colorClass = evt.color ?? "bg-[#7D52F4]";
+        if (!result[dayNum] || result[dayNum] !== "bg-[#FB3748]") {
+          result[dayNum] = colorClass;
+        }
+      }
+    });
+
     return result;
-  }, [calendarData, displayedMonth]);
+  }, [calendarData, events, displayedMonth]);
 
   // Upcoming events: sorted by date & filtered by startOfToday or selectedDay
   const upcomingEvents = React.useMemo(() => {
@@ -869,20 +884,24 @@ export default function DashboardPage() {
                       const isToday = isCurrentMonth && d === today.getDate();
                       const isSelected = selectedDay === d;
                       const dotColor = dotMap[d] || null;
+                      const hasEvent = Boolean(dotColor);
 
                       let textColor = "text-[#5C5C5C]";
                       if (isSelected) textColor = "text-white";
                       else if (isToday) textColor = "text-[#7D52F4] font-bold";
+                      else if (hasEvent) textColor = "text-[#171717] font-semibold";
 
                       cells.push(
                         <div key={d} className="flex items-center justify-center h-[40px]">
                           <div
                             onClick={() => setSelectedDay(selectedDay === d ? null : d)}
-                            className={`relative flex items-center justify-center rounded-[8px] cursor-pointer transition-colors ${
+                            className={`relative flex flex-col items-center justify-center rounded-[10px] cursor-pointer transition-all ${
                               isSelected
-                                ? "size-[40px] bg-[#262626]"
+                                ? "size-[40px] bg-[#262626] text-white shadow-sm scale-105"
                                 : isToday
-                                ? "size-[40px] border border-[#7D52F4] bg-[#EFEBFF]/30"
+                                ? "size-[40px] border-2 border-[#7D52F4] bg-[#EFEBFF]/50 text-[#7D52F4] font-bold"
+                                : hasEvent
+                                ? "size-[40px] bg-[#7D52F4]/10 hover:bg-[#7D52F4]/20 border border-[#7D52F4]/30"
                                 : "w-full h-full hover:bg-neutral-100"
                             }`}
                           >
@@ -890,7 +909,11 @@ export default function DashboardPage() {
                               {d}
                             </span>
                             {dotColor && (
-                              <span className={`absolute w-[3px] h-[3px] rounded-full left-1/2 -translate-x-1/2 bottom-[6px] ${dotColor}`} />
+                              <span
+                                className={`absolute bottom-[4px] w-[5px] h-[5px] rounded-full transition-all ${
+                                  isSelected ? "bg-white" : dotColor
+                                }`}
+                              />
                             )}
                           </div>
                         </div>
@@ -1313,15 +1336,14 @@ export default function DashboardPage() {
             // Ignore if backend API endpoint not available in proxy
           }
 
-          // 1. Update events state
+          // 1. Update events state -> automatically triggers re-computation of calendarDotDays!
           setEvents((prev) => [createdEvent, ...prev]);
 
-          // 2. Update calendarData state to show indicator dot on the calendar day cell
+          // 2. Select the event's month & day so it immediately focuses on that day cell!
           const evtDate = new Date(newEvent.date);
           const monthStart = new Date(evtDate.getFullYear(), evtDate.getMonth(), 1);
           const dayNum = evtDate.getDate();
           
-          // Re-trigger calendar month view and select the date
           setDisplayedMonth(monthStart);
           setSelectedDay(dayNum);
         }}
