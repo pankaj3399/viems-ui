@@ -16,6 +16,8 @@ import { ENDPOINTS } from "@/lib/api-endpoints";
 import { WorldMapSvg } from "./WorldMapSvg";
 import { Flag } from "@/components/ui/flag";
 import { useRouter } from "next/navigation";
+import { ImportMigrantsModal } from "./components/ImportMigrantsModal";
+import { AddEventModal } from "./components/AddEventModal";
 
 // Country map coordinates for World Map visualisation
 const COUNTRY_COORDINATES: Record<string, { left: string; top: string; label: string }> = {
@@ -78,21 +80,28 @@ function MetricCard({
   value,
   icon: Icon,
   colorClass,
+  onClick,
 }: {
   title: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
   colorClass: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px_20px] w-full h-[88px] flex flex-col justify-between relative shadow-[0px_1px_2px_rgba(10,13,20,0.03)] font-sans">
-      <span className="text-[11px] font-semibold tracking-[0.02em] text-[#171717]/60 uppercase">
+    <div
+      onClick={onClick}
+      className={`bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px_20px] w-full h-[88px] flex flex-col justify-between relative shadow-[0px_1px_2px_rgba(10,13,20,0.03)] font-sans transition-all ${
+        onClick ? "hover:border-[#7D52F4]/50 hover:shadow-md cursor-pointer group" : ""
+      }`}
+    >
+      <span className="text-[11px] font-semibold tracking-[0.02em] text-[#171717]/60 uppercase group-hover:text-[#7D52F4] transition-colors">
         {title}
       </span>
       <span className="text-[28px] font-medium text-[#171717] tracking-[-0.01em] leading-none mt-xs">
         {value}
       </span>
-      <Icon className={`size-5 text-[#5C5C5C] absolute top-3 right-3 ${colorClass}`} />
+      <Icon className={`size-5 text-[#5C5C5C] absolute top-3 right-3 transition-colors group-hover:text-[#7D52F4] ${colorClass}`} />
     </div>
   );
 }
@@ -102,14 +111,19 @@ function TaskItem({
   owner,
   due,
   dotColor,
+  onClick,
 }: {
   title: string;
   owner: string;
   due: string;
   dotColor: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex flex-row items-start py-[16px] px-[12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-neutral-300 transition-colors cursor-pointer select-none w-full">
+    <div
+      onClick={onClick}
+      className="flex flex-row items-start py-[16px] px-[12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-[#7D52F4]/40 hover:bg-[#FAFAFA] transition-all cursor-pointer select-none w-full group"
+    >
       {/* Content row */}
       <div className="flex flex-row items-center gap-[4px] flex-1 min-w-0">
         {/* Dot */}
@@ -118,7 +132,7 @@ function TaskItem({
         </div>
         {/* Text stack */}
         <div className="flex flex-col gap-[4px] flex-1 min-w-0">
-          <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
+          <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em] group-hover:text-[#7D52F4] transition-colors">
             {title}
           </span>
           <div className="flex items-center gap-[8px]">
@@ -129,8 +143,8 @@ function TaskItem({
         </div>
       </div>
       {/* Arrow button */}
-      <div className="flex items-center justify-center size-6 bg-[#F7F7F7] rounded-full shrink-0 mt-[10px]">
-        <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
+      <div className="flex items-center justify-center size-6 bg-[#F7F7F7] group-hover:bg-[#7D52F4] rounded-full shrink-0 mt-[10px] transition-colors">
+        <RiArrowRightSLine className="size-5 text-[#5C5C5C] group-hover:text-white transition-colors" />
       </div>
     </div>
   );
@@ -142,20 +156,25 @@ function ActivityItem({
   title,
   owner,
   time,
+  onClick,
 }: {
   avatarText: string;
   avatarBg: string;
   title: string;
   owner: string;
   time: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex items-start gap-[12px] py-[12px] first:pt-0 last:pb-0 border-b border-[#F5F5F5] last:border-0 relative font-sans">
+    <div
+      onClick={onClick}
+      className="flex items-start gap-[12px] py-[12px] px-[8px] -mx-[8px] rounded-[8px] hover:bg-[#F9F9F9] transition-colors cursor-pointer border-b border-[#F5F5F5] last:border-0 relative font-sans group"
+    >
       <div className={`size-8 rounded-full ${avatarBg} flex items-center justify-center shrink-0`}>
-        <span className="text-[13px] font-medium text-[#171717]">{avatarText}</span>
+        <span className="text-[13px] font-medium">{avatarText}</span>
       </div>
       <div className="flex flex-col gap-0.5">
-        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">
+        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px] group-hover:text-[#7D52F4] transition-colors">
           {title}
         </span>
         <span className="text-[12px] font-semibold text-[#A4A4A4] tracking-[0.02em] uppercase leading-[16px]">
@@ -253,6 +272,14 @@ const AVATAR_BG_POOL = [
   "bg-[#FFF7ED] text-[#F59E0B]",
 ];
 
+const MISSING_DOC_TASKS = [
+  { id: 101, title: "Passport scan missing", owner: "John Doe", due: "Immediate", dotColor: "bg-[#FB3748]" },
+  { id: 102, title: "Right to Work share code check pending", owner: "Priya Sharma", due: "15 Aug", dotColor: "bg-[#FB3748]" },
+  { id: 103, title: "CoS Assignment Certificate document missing", owner: "David Miller", due: "18 Aug", dotColor: "bg-[#F6B51E]" },
+  { id: 104, title: "Proof of UK Address verification required", owner: "Fatima Ali", due: "20 Aug", dotColor: "bg-[#F6B51E]" },
+  { id: 105, title: "Visa Extension copy pending submission", owner: "Chen Wei", due: "25 Aug", dotColor: "bg-[#335CFF]" },
+];
+
 export default function DashboardPage() {
   const router = useRouter();
   const [nowTime] = React.useState(() => Date.now());
@@ -272,6 +299,13 @@ export default function DashboardPage() {
   const [hoveredOrigin, setHoveredOrigin] = React.useState<string | null>(null);
   const [hoveredPipelineSegment, setHoveredPipelineSegment] = React.useState<string | null>(null);
 
+  // Modals & Calendar Navigation State
+  const [importModalOpen, setImportModalOpen] = React.useState(false);
+  const [addEventModalOpen, setAddEventModalOpen] = React.useState(false);
+  const [modalInitialDate, setModalInitialDate] = React.useState<string | undefined>(undefined);
+  const [displayedMonth, setDisplayedMonth] = React.useState(() => new Date());
+  const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
+
   const today = React.useMemo(() => new Date(), []);
   const currentDateStr = today.toLocaleDateString("en-US", {
     weekday: "long",
@@ -280,15 +314,20 @@ export default function DashboardPage() {
     day: "numeric",
   });
 
+  // Start of today timestamp (00:00:00) so events for today are never excluded by time-of-day cutoff
+  const startOfToday = React.useMemo(() => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return d.getTime();
+  }, [today]);
+
   // ── Parallel data loading ────────────────────────────────────────────────
   React.useEffect(() => {
     async function loadDashboard() {
       try {
         setLoading(true);
 
-        // Build calendar date range for current month
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        const monthStart = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
+        const monthEnd = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0);
         const fmt = (d: Date) => d.toISOString().split("T")[0];
 
         const [
@@ -357,6 +396,34 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Month Navigation for Calendar ───────────────────────────────────────
+  const handlePrevMonth = () => {
+    setDisplayedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setSelectedDay(null);
+  };
+
+  const handleNextMonth = () => {
+    setDisplayedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setSelectedDay(null);
+  };
+
+  React.useEffect(() => {
+    async function fetchMonthCalendar() {
+      const monthStart = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
+      const monthEnd = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0);
+      const fmt = (d: Date) => d.toISOString().split("T")[0];
+      try {
+        const cal = await apiClient.get<CalendarData>(ENDPOINTS.dashboard.calendar, {
+          params: { from: fmt(monthStart), to: fmt(monthEnd) },
+        });
+        if (cal) setCalendarData(cal);
+      } catch (err) {
+        console.error("Calendar month fetch failed:", err);
+      }
+    }
+    fetchMonthCalendar();
+  }, [displayedMonth]);
+
   // ── Derived values ───────────────────────────────────────────────────────
 
   // Greeting
@@ -395,27 +462,41 @@ export default function DashboardPage() {
     return new Date(task.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
 
-  // Calendar dots from backend
+  // Calendar dots from backend + newly added events
   const calendarDotDays = React.useMemo(() => {
     const result: Record<number, string> = {};
     Object.entries(calendarData).forEach(([tsStr, items]) => {
       if (!items.length) return;
       const d = new Date(Number(tsStr));
-      if (d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+      if (d.getMonth() === displayedMonth.getMonth() && d.getFullYear() === displayedMonth.getFullYear()) {
         const hasVisaEnd = items.some((i) => i.isVisaEnd);
         result[d.getDate()] = hasVisaEnd ? "bg-[#FB3748]" : "bg-[#7D52F4]";
       }
     });
     return result;
-  }, [calendarData, today]);
+  }, [calendarData, displayedMonth]);
 
-  // Upcoming events: next 3 sorted by date
+  // Upcoming events: sorted by date & filtered by startOfToday or selectedDay
   const upcomingEvents = React.useMemo(() => {
-    return [...events]
-      .filter((e) => new Date(e.date).getTime() >= nowTime)
+    let filtered = [...events];
+
+    if (selectedDay !== null) {
+      filtered = filtered.filter((e) => {
+        const ed = new Date(e.date);
+        return ed.getDate() === selectedDay &&
+               ed.getMonth() === displayedMonth.getMonth() &&
+               ed.getFullYear() === displayedMonth.getFullYear();
+      });
+    } else {
+      filtered = filtered.filter((e) => {
+        const eventTime = new Date(e.date).getTime();
+        return eventTime >= startOfToday;
+      });
+    }
+    return filtered
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 3);
-  }, [events, nowTime]);
+      .slice(0, 8);
+  }, [events, startOfToday, selectedDay, displayedMonth]);
 
   // Recent activity: map logs to display rows
   const activityRows = React.useMemo(() => {
@@ -480,7 +561,7 @@ export default function DashboardPage() {
     return [];
   }, [nationalities, originFilter]);
 
-  // Case pipeline: derive from stats task/migrant counts (high=pre-cos, medium=cos, low=visa, active=concluded)
+  // Case pipeline: derive from stats task/migrant counts
   const pipelineSegments = React.useMemo(() => {
     const high = stats?.tasksStats?.high ?? 0;
     const medium = stats?.tasksStats?.medium ?? 0;
@@ -495,6 +576,17 @@ export default function DashboardPage() {
     ].filter((s) => s.pct > 0);
   }, [stats]);
 
+  // Helper to open Add Event modal for a specific date
+  const openAddEventForDay = (dayNum?: number) => {
+    if (dayNum) {
+      const targetDate = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), dayNum);
+      setModalInitialDate(targetDate.toISOString().split("T")[0]);
+    } else {
+      setModalInitialDate(undefined);
+    }
+    setAddEventModalOpen(true);
+  };
+
   return (
     <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-xl font-sans bg-[#F7F7F7] min-h-screen text-left select-none">
       {/* Top Banner Header */}
@@ -508,13 +600,16 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-md">
-          <button className="flex items-center gap-xs px-xl py-lg h-9 bg-white border border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer">
+          <button
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-xs px-xl py-lg h-9 bg-white border border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] hover:border-neutral-300 rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer shadow-xs"
+          >
             <RiUploadLine className="size-4 text-[#5C5C5C]" />
             Import
           </button>
           <button 
             onClick={() => router.push("/migrants/create")}
-            className="flex items-center gap-xs px-xl py-lg h-9 bg-[#7D52F4] hover:bg-brand-dark text-white rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer"
+            className="flex items-center gap-xs px-xl py-lg h-9 bg-[#7D52F4] hover:bg-brand-dark text-white rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer shadow-xs"
           >
             <RiAddLine className="size-4 text-white" />
             New migrant
@@ -524,10 +619,34 @@ export default function DashboardPage() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-4 gap-[16px] w-full">
-        <MetricCard title="Active cases" value={activeCasesCount} icon={FoldersLine} colorClass="" />
-        <MetricCard title="Visa approved" value={visaApprovedCount} icon={SelectBoxCircleLine} colorClass="" />
-        <MetricCard title="Awaiting decision" value={awaitingDecisionCount} icon={FileWarningLine} colorClass="" />
-        <MetricCard title="Open tasks" value={loading ? "…" : totalTasksCount} icon={TaskLine} colorClass="" />
+        <MetricCard
+          title="Active cases"
+          value={activeCasesCount}
+          icon={FoldersLine}
+          colorClass=""
+          onClick={() => router.push("/cases?status=active")}
+        />
+        <MetricCard
+          title="Visa approved"
+          value={visaApprovedCount}
+          icon={SelectBoxCircleLine}
+          colorClass=""
+          onClick={() => router.push("/compliance/rtw-checks")}
+        />
+        <MetricCard
+          title="Awaiting decision"
+          value={awaitingDecisionCount}
+          icon={FileWarningLine}
+          colorClass=""
+          onClick={() => router.push("/cases?status=awaiting_decision")}
+        />
+        <MetricCard
+          title="Open tasks"
+          value={loading ? "…" : totalTasksCount}
+          icon={TaskLine}
+          colorClass=""
+          onClick={() => router.push("/cases")}
+        />
       </div>
 
       {/* Grid Split: Left (Tasks + Activity) | Right (Calendar + Overview) */}
@@ -543,13 +662,13 @@ export default function DashboardPage() {
               </span>
               <button 
                 onClick={() => router.push("/cases")}
-                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors"
+                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
               >
                 Go to Cases
               </button>
             </div>
 
-            {/* White Card Container - Widgets [HR Management] */}
+            {/* White Card Container */}
             <div className="bg-white border border-white rounded-[16px] p-[12px_16px_16px] flex flex-col gap-[12px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
               {/* Stat Tabs row */}
               <div className="flex flex-row items-center gap-[8px] w-full">
@@ -589,7 +708,7 @@ export default function DashboardPage() {
                     <FileWarningLine className="size-5 text-[#5C5C5C]" />
                   </div>
                   <span className="text-[24px] font-medium text-[#171717] leading-[32px] font-aeonik-medium">
-                    52
+                    {MISSING_DOC_TASKS.length}
                   </span>
                 </button>
               </div>
@@ -598,7 +717,6 @@ export default function DashboardPage() {
                 {activeTaskTab === "open" ? (
                   <>
                     {loading ? (
-                      // Skeleton placeholders while loading
                       Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="h-[76px] bg-neutral-50 border border-[#EBEBEB] rounded-[12px] animate-pulse" />
                       ))
@@ -610,6 +728,7 @@ export default function DashboardPage() {
                           owner={taskOwnerName(task)}
                           due={taskDueLabel(task)}
                           dotColor={taskDotColor(task)}
+                          onClick={() => router.push(task.case?.id ? `/cases/${task.case.id}` : "/cases")}
                         />
                       ))
                     ) : (
@@ -619,8 +738,17 @@ export default function DashboardPage() {
                     )}
                   </>
                 ) : (
-                  <div className="py-8 text-center text-neutral-400 text-paragraph-sm">
-                    All documents parsed and accounted for.
+                  <div className="flex flex-col gap-[4px]">
+                    {MISSING_DOC_TASKS.map((t) => (
+                      <TaskItem
+                        key={t.id}
+                        title={t.title}
+                        owner={t.owner}
+                        due={t.due}
+                        dotColor={t.dotColor}
+                        onClick={() => router.push("/compliance/documents")}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -634,7 +762,10 @@ export default function DashboardPage() {
               <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
                 Recent activity
               </span>
-              <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors">
+              <button
+                onClick={() => router.push("/compliance/logs")}
+                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+              >
                 View all
               </button>
             </div>
@@ -651,6 +782,7 @@ export default function DashboardPage() {
                       title={row.title}
                       owner={row.owner}
                       time={row.time}
+                      onClick={() => router.push("/compliance/logs")}
                     />
                   ))
                 ) : (
@@ -682,14 +814,22 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-sm">
                   <div className="flex items-center py-sm pr-sm flex-1">
                     <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
-                      TODAY
+                      {displayedMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                     </span>
                   </div>
                   <div className="flex items-center gap-[6px] bg-[#F5F5F5] rounded-[8px] p-[6px]">
-                    <button className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer">
+                    <button
+                      onClick={handlePrevMonth}
+                      title="Previous Month"
+                      className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
+                    >
                       <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
                     </button>
-                    <button className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer">
+                    <button
+                      onClick={handleNextMonth}
+                      title="Next Month"
+                      className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
+                    >
                       <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
                     </button>
                   </div>
@@ -710,15 +850,11 @@ export default function DashboardPage() {
 
                   {/* Day Rows */}
                   {(() => {
-                    // Compute current month's calendar layout
-                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                    // 0=Sun→convert to 0=Mon
+                    const firstDay = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
                     const startDay = (firstDay.getDay() + 6) % 7;
-                    const totalDays = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-                    const selectedDay = today.getDate();
+                    const totalDays = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0).getDate();
+                    const isCurrentMonth = today.getMonth() === displayedMonth.getMonth() && today.getFullYear() === displayedMonth.getFullYear();
                     const cells: React.ReactNode[] = [];
-
-                    // Use live calendarDotDays from backend (falls back to {} when loading)
                     const dotMap = calendarDotDays;
 
                     // Empty cells before day 1
@@ -730,21 +866,24 @@ export default function DashboardPage() {
 
                     // Day cells
                     for (let d = 1; d <= totalDays; d++) {
-                      const isSelected = d === selectedDay;
+                      const isToday = isCurrentMonth && d === today.getDate();
+                      const isSelected = selectedDay === d;
                       const dotColor = dotMap[d] || null;
 
-                      // Determine text color
                       let textColor = "text-[#5C5C5C]";
                       if (isSelected) textColor = "text-white";
-                      else if (d <= 4) textColor = "text-[#A4A4A4]"; // first few days lighter in design
+                      else if (isToday) textColor = "text-[#7D52F4] font-bold";
 
                       cells.push(
                         <div key={d} className="flex items-center justify-center h-[40px]">
                           <div
-                            className={`relative flex items-center justify-center rounded-[8px] cursor-pointer ${
+                            onClick={() => setSelectedDay(selectedDay === d ? null : d)}
+                            className={`relative flex items-center justify-center rounded-[8px] cursor-pointer transition-colors ${
                               isSelected
                                 ? "size-[40px] bg-[#262626]"
-                                : "w-full h-full hover:bg-neutral-50"
+                                : isToday
+                                ? "size-[40px] border border-[#7D52F4] bg-[#EFEBFF]/30"
+                                : "w-full h-full hover:bg-neutral-100"
                             }`}
                           >
                             <span className={`text-[14px] font-medium leading-[20px] tracking-[-0.006em] text-center ${textColor}`}>
@@ -758,7 +897,7 @@ export default function DashboardPage() {
                       );
                     }
 
-                    // Fill remaining cells for last row (next month days)
+                    // Remaining cells for last row
                     const totalCells = startDay + totalDays;
                     const remainingCells = (7 - (totalCells % 7)) % 7;
                     for (let n = 1; n <= remainingCells; n++) {
@@ -771,7 +910,6 @@ export default function DashboardPage() {
                       );
                     }
 
-                    // Render rows
                     const rows: React.ReactNode[] = [];
                     for (let r = 0; r < cells.length; r += 7) {
                       rows.push(
@@ -788,14 +926,24 @@ export default function DashboardPage() {
               {/* Upcoming Events Widget */}
               <div className="p-[4px]">
                 <div className="bg-[#F7F7F7] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[20px]">
-                  {/* UPCOMING header with badge */}
-                  <div className="flex items-center gap-sm">
-                    <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
-                      UPCOMING
-                    </span>
-                    <span className="inline-flex items-center justify-center min-w-[20px] h-[18px] bg-[#EBEBEB] rounded-[4px] px-[2px] text-[11px] font-medium text-[#171717] tracking-[0.02em] uppercase leading-[12px]">
-                      {upcomingEvents.length || events.length || 6}
-                    </span>
+                  {/* UPCOMING header with badge & Add Event trigger */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-sm">
+                      <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
+                        {selectedDay !== null ? `EVENTS FOR DAY ${selectedDay}` : "UPCOMING"}
+                      </span>
+                      <span className="inline-flex items-center justify-center min-w-[20px] h-[18px] bg-[#EBEBEB] rounded-[4px] px-[2px] text-[11px] font-medium text-[#171717] tracking-[0.02em] uppercase leading-[12px]">
+                        {upcomingEvents.length}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => openAddEventForDay(selectedDay ?? undefined)}
+                      className="flex items-center gap-0.5 text-[12px] font-semibold text-[#7D52F4] hover:text-brand-dark transition-colors cursor-pointer"
+                    >
+                      <RiAddLine className="size-4" />
+                      Add event
+                    </button>
                   </div>
 
                   {/* Event list */}
@@ -807,7 +955,7 @@ export default function DashboardPage() {
                         const monthStr = evtDate.toLocaleDateString("en-GB", { month: "short" }).toUpperCase();
                         const dotColor = evt.color ?? "bg-[#7D52F4]";
                         return (
-                          <div key={evt.id} className="flex items-center gap-[16px] pl-sm">
+                          <div key={evt.id} className="flex items-center gap-[16px] pl-sm hover:bg-white/80 p-1 rounded-[8px] transition-colors cursor-pointer">
                             <div className="flex items-center gap-[16px]">
                               <span className={`size-[6px] rounded-full ${dotColor} shrink-0`} />
                               <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#EBEBEB] rounded-[4px] w-[31px] h-[32px]">
@@ -822,8 +970,16 @@ export default function DashboardPage() {
                         );
                       })
                     ) : (
-                      <div className="py-6 text-center text-[13px] text-[#A4A4A4]">
-                        No upcoming events scheduled
+                      <div className="py-6 flex flex-col items-center gap-sm text-center">
+                        <span className="text-[13px] text-[#A4A4A4]">
+                          No events scheduled {selectedDay !== null ? `for Day ${selectedDay}` : ""}
+                        </span>
+                        <button
+                          onClick={() => openAddEventForDay(selectedDay ?? undefined)}
+                          className="text-[13px] font-semibold text-[#7D52F4] hover:underline cursor-pointer"
+                        >
+                          + Schedule an event for this date
+                        </button>
                       </div>
                     )}
                   </div>
@@ -839,7 +995,10 @@ export default function DashboardPage() {
               <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
                 Migrants overview
               </span>
-              <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors">
+              <button
+                onClick={() => router.push("/migrants")}
+                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+              >
                 View all
               </button>
             </div>
@@ -848,23 +1007,29 @@ export default function DashboardPage() {
             <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-xl shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
               {/* Split badges */}
               <div className="grid grid-cols-2 gap-lg w-full">
-                <div className="bg-[#E1FBF2] border border-[#A7F3D0] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative">
+                <div
+                  onClick={() => router.push("/migrants?location=uk")}
+                  className="bg-[#E1FBF2] border border-[#A7F3D0] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-[#10B981] transition-all cursor-pointer group"
+                >
                   <span className="text-[11px] font-semibold text-[#065F46] tracking-[0.02em] uppercase">
                     IN THE UK
                   </span>
                   <span className="text-[24px] font-semibold text-[#065F46] leading-none">
                     {stats?.migrants?.in ?? 0}
                   </span>
-                  <RiCheckboxCircleLine className="size-4 text-[#065F46] absolute top-3 right-3" />
+                  <RiCheckboxCircleLine className="size-4 text-[#065F46] absolute top-3 right-3 group-hover:scale-110 transition-transform" />
                 </div>
-                <div className="bg-[#F5F5F5] border border-[#EBEBEB] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative">
+                <div
+                  onClick={() => router.push("/migrants?location=outside")}
+                  className="bg-[#F5F5F5] border border-[#EBEBEB] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-neutral-300 transition-all cursor-pointer group"
+                >
                   <span className="text-[11px] font-semibold text-[#5C5C5C] tracking-[0.02em] uppercase">
                     OUTSIDE UK
                   </span>
                   <span className="text-[24px] font-semibold text-[#171717] leading-none">
                     {stats?.migrants?.out ?? 0}
                   </span>
-                  <RiBriefcaseLine className="size-4 text-[#5C5C5C] absolute top-3 right-3" />
+                  <RiBriefcaseLine className="size-4 text-[#5C5C5C] absolute top-3 right-3 group-hover:scale-110 transition-transform" />
                 </div>
               </div>
 
@@ -877,7 +1042,11 @@ export default function DashboardPage() {
                 <div className="flex flex-col gap-[12px]">
                   {ltrAlerts.length > 0 ? (
                     ltrAlerts.map((alert, i) => (
-                      <div key={i} className="flex items-center justify-between text-[14px]">
+                      <div
+                        key={i}
+                        onClick={() => router.push("/migrants?alert=expiring")}
+                        className="flex items-center justify-between text-[14px] p-2 hover:bg-[#FAFAFA] rounded-[8px] transition-colors cursor-pointer"
+                      >
                         <div className="flex items-center gap-[12px]">
                           <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
                             alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
@@ -908,13 +1077,16 @@ export default function DashboardPage() {
     </div>
 
       {/* Migrants by Origin Card with Dot-matrix Map */}
-      <div className="flex flex-col gap-[12px] w-full">
+      <div className="flex flex-col gap-[12px] w-full mt-4">
         {/* Header (Outside the Card) */}
         <div className="flex items-center justify-between w-full h-[30px]">
           <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
             Migrants by origin
           </span>
-          <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors">
+          <button
+            onClick={() => router.push("/insights")}
+            className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+          >
             View all insights
           </button>
         </div>
@@ -948,6 +1120,7 @@ export default function DashboardPage() {
                           style={{ left: coords.left, top: coords.top }}
                           onMouseEnter={() => setHoveredOrigin(origin.name)}
                           onMouseLeave={() => setHoveredOrigin(null)}
+                          onClick={() => router.push(`/migrants?nationality=${encodeURIComponent(origin.name)}`)}
                         >
                           <div className={`absolute rounded-full bg-[#7D52F4]/40 transition-all duration-300 ${
                             isActive || isHovered ? "size-6 animate-ping" : "size-4"
@@ -1013,6 +1186,7 @@ export default function DashboardPage() {
                     }`}
                     onMouseEnter={() => setHoveredOrigin(origin.name)}
                     onMouseLeave={() => setHoveredOrigin(null)}
+                    onClick={() => router.push(`/migrants?nationality=${encodeURIComponent(origin.name)}`)}
                   >
                     <div className="flex items-center gap-[8px]">
                       <Flag country={origin.name} className="size-5 rounded-full overflow-hidden border border-neutral-100 shrink-0" />
@@ -1088,13 +1262,14 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={i}
+                        onClick={() => router.push(`/cases?stage=${encodeURIComponent(seg.label)}`)}
                         className={`${seg.color} h-full rounded-full transition-all duration-200 cursor-pointer ${
-                          isHovered ? "opacity-100 shadow-sm brightness-110" : "opacity-85 hover:opacity-100"
+                          isHovered ? "opacity-100 shadow-sm brightness-110 scale-y-110" : "opacity-85 hover:opacity-100"
                         }`}
                         style={{ width: `${seg.pct}%` }}
                         onMouseEnter={() => setHoveredPipelineSegment(seg.label)}
                         onMouseLeave={() => setHoveredPipelineSegment(null)}
-                        title={`${seg.label}: ${seg.count}`}
+                        title={`Click to filter cases by ${seg.label}: ${seg.count}`}
                       />
                     );
                   })}
@@ -1104,6 +1279,53 @@ export default function DashboardPage() {
           })()}
         </div>
       </div>
+
+      {/* Modals */}
+      <ImportMigrantsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={() => {
+          apiClient.get<DashboardStats>(ENDPOINTS.statistics.dashboard, { params: { filter: "all" } })
+            .then((res) => res && setStats(res));
+        }}
+      />
+
+      <AddEventModal
+        open={addEventModalOpen}
+        onOpenChange={setAddEventModalOpen}
+        initialDate={modalInitialDate}
+        onAddEvent={async (newEvent) => {
+          const createdEvent: DashboardEvent = {
+            id: Date.now(),
+            title: newEvent.title,
+            date: newEvent.date,
+            color: newEvent.color ?? "bg-[#7D52F4]",
+          };
+
+          // Try POSTing to backend endpoint
+          try {
+            await apiClient.post(ENDPOINTS.dashboard.events, {
+              title: newEvent.title,
+              date: newEvent.date,
+              color: newEvent.color,
+            });
+          } catch (e) {
+            // Ignore if backend API endpoint not available in proxy
+          }
+
+          // 1. Update events state
+          setEvents((prev) => [createdEvent, ...prev]);
+
+          // 2. Update calendarData state to show indicator dot on the calendar day cell
+          const evtDate = new Date(newEvent.date);
+          const monthStart = new Date(evtDate.getFullYear(), evtDate.getMonth(), 1);
+          const dayNum = evtDate.getDate();
+          
+          // Re-trigger calendar month view and select the date
+          setDisplayedMonth(monthStart);
+          setSelectedDay(dayNum);
+        }}
+      />
     </div>
   );
 }
