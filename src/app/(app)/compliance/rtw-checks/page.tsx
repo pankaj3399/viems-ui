@@ -529,9 +529,9 @@ export default function RtwChecksPage() {
               No RTW checks found matching your search or filters.
             </div>
           ) : (
-            paginatedChecks.map((row) => (
+            paginatedChecks.map((row, idx) => (
               <div
-                key={row.id}
+                key={row.id ? `rtw-${row.id}-${idx}` : `rtw-${row.caseId}-${idx}`}
                 className="bg-white rounded-[16px] h-[72px] px-4 flex items-center justify-between border border-transparent hover:border-[#EBEBEB] hover:shadow-xs transition-all"
               >
                 <div className="w-[100px] font-mono text-[14px] text-[#5C5C5C]">{row.caseId}</div>

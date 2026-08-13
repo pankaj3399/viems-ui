@@ -822,7 +822,7 @@ export default function ComplianceCentrePage() {
             ) : (
               filteredMigrants.map((m, idx) => (
                 <div
-                  key={m.caseId}
+                  key={`migrant-${m.caseId}-${idx}`}
                   className={`grid grid-cols-12 items-center px-6 py-3.5 hover:bg-neutral-50/60 transition-colors ${
                     idx !== filteredMigrants.length - 1 ? "border-b border-[#F5F5F5]" : ""
                   }`}

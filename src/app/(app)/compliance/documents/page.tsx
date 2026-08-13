@@ -453,9 +453,9 @@ export default function ComplianceDocumentsPage() {
                 No document compliance records found matching your filters.
               </div>
             ) : (
-              filteredDocs.map((row) => (
+              filteredDocs.map((row, idx) => (
                 <div
-                  key={row.id}
+                  key={row.id ? `doc-${row.id}-${idx}` : `doc-${row.caseId}-${idx}`}
                   className="flex items-center px-6 py-3.5 hover:bg-[#FAFAFA] transition-colors"
                 >
                   {/* Migrant / Case Column */}

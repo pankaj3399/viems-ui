@@ -270,6 +270,7 @@ export default function DashboardPage() {
   const [activeTaskTab, setActiveTaskTab] = React.useState<"open" | "missing">("open");
   const [originFilter, setOriginFilter] = React.useState("1M");
   const [hoveredOrigin, setHoveredOrigin] = React.useState<string | null>(null);
+  const [hoveredPipelineSegment, setHoveredPipelineSegment] = React.useState<string | null>(null);
 
   const today = React.useMemo(() => new Date(), []);
   const currentDateStr = today.toLocaleDateString("en-US", {
@@ -1040,49 +1041,67 @@ export default function DashboardPage() {
         </div>
 
         {/* White Card Container */}
-        <div className="bg-white border border-[#FFFFFF] rounded-[16px] px-[16px] pt-[12px] pb-[16px] h-[34px] flex items-center w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)] relative">
-          {/* Dynamic tooltip over the largest non-green segment */}
-          {pipelineSegments.length > 0 && (() => {
-            // Show tooltip over the first non-green segment (CoS Management or first)
-            const tipSeg = pipelineSegments.find(s => s.label !== "Active") ?? pipelineSegments[0];
-            // Compute left % = midpoint of that segment
-            let left = 0;
-            for (const s of pipelineSegments) {
-              if (s.label === tipSeg.label) { left += s.pct / 2; break; }
-              left += s.pct;
-            }
-            return (
-              <div
-                className="absolute top-[-36px] flex flex-col items-center -translate-x-1/2 pointer-events-none z-10"
-                style={{ left: `${left}%` }}
-              >
-                <div className="bg-[#171717] text-white text-[11px] font-semibold px-[6px] py-[4px] rounded-[4px] flex items-center gap-[6px] shadow-[0px_12px_24px_rgba(14,18,27,0.06)] uppercase tracking-[0.04em]">
-                  <span className="font-medium text-white leading-4">{tipSeg.label}</span>
-                  <span className="bg-[#333333] px-1 py-0.5 rounded-[4px] text-[10px] font-semibold text-white leading-3">
-                    {tipSeg.count}
-                  </span>
-                </div>
-                <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
-              </div>
-            );
-          })()}
-
-          {/* Segmented Progress Bar */}
-          <div className="flex gap-[2px] w-full h-[6px]">
-            {(pipelineSegments.length > 0 ? pipelineSegments : [
+        <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[20px] flex flex-col w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+          {/* Dynamic Tooltip & Segmented Progress Bar */}
+          {(() => {
+            const segments = pipelineSegments.length > 0 ? pipelineSegments : [
               { color: "bg-[#335CFF]", pct: 26, label: "Pre-CoS", count: 0 },
               { color: "bg-[#7D52F4]", pct: 14.5, label: "CoS Management", count: 0 },
               { color: "bg-[#F6B51E]", pct: 14.5, label: "Visa", count: 0 },
               { color: "bg-[#1FC16B]", pct: 45, label: "Active", count: 0 },
-            ]).map((seg, i) => (
-              <div
-                key={i}
-                className={`${seg.color} h-[6px] rounded-full`}
-                style={{ width: `${seg.pct}%` }}
-                title={`${seg.label}: ${seg.count}`}
-              />
-            ))}
-          </div>
+            ];
+
+            const activeSeg = segments.find(s => s.label === hoveredPipelineSegment)
+              ?? segments.find(s => s.label === "CoS Management")
+              ?? segments.find(s => s.label !== "Active")
+              ?? segments[0];
+
+            let left = 0;
+            for (const s of segments) {
+              if (s.label === activeSeg.label) {
+                left += s.pct / 2;
+                break;
+              }
+              left += s.pct;
+            }
+
+            return (
+              <div className="relative w-full pt-[32px]">
+                {/* Tooltip centered over active/hovered segment */}
+                <div
+                  className="absolute top-0 flex flex-col items-center -translate-x-1/2 pointer-events-none z-10 transition-all duration-200 ease-out"
+                  style={{ left: `${left}%` }}
+                >
+                  <div className="bg-[#171717] text-white text-[11px] font-semibold px-[8px] py-[4px] rounded-[6px] flex items-center gap-[6px] shadow-[0px_8px_16px_rgba(14,18,27,0.12)] uppercase tracking-[0.04em]">
+                    <span className="font-medium text-white leading-4">{activeSeg.label}</span>
+                    <span className="bg-[#333333] px-1.5 py-0.5 rounded-[4px] text-[10px] font-semibold text-white leading-3">
+                      {activeSeg.count}
+                    </span>
+                  </div>
+                  <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
+                </div>
+
+                {/* Segmented Progress Bar */}
+                <div className="flex gap-[3px] w-full h-[8px]">
+                  {segments.map((seg, i) => {
+                    const isHovered = (hoveredPipelineSegment === seg.label) || (!hoveredPipelineSegment && activeSeg.label === seg.label);
+                    return (
+                      <div
+                        key={i}
+                        className={`${seg.color} h-full rounded-full transition-all duration-200 cursor-pointer ${
+                          isHovered ? "opacity-100 shadow-sm brightness-110" : "opacity-85 hover:opacity-100"
+                        }`}
+                        style={{ width: `${seg.pct}%` }}
+                        onMouseEnter={() => setHoveredPipelineSegment(seg.label)}
+                        onMouseLeave={() => setHoveredPipelineSegment(null)}
+                        title={`${seg.label}: ${seg.count}`}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

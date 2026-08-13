@@ -380,12 +380,12 @@ export default function MigrantsPage() {
 
         {/* Table Rows */}
         <div className="flex flex-col gap-[4px] w-full">
-          {currentRows.map((migrant) => {
+          {currentRows.map((migrant, idx) => {
             const badgeStyle = getMigrationBadgeStyle(migrant.migrationColor);
 
             return (
               <div
-                key={migrant.id}
+                key={migrant.id ? `migrant-${migrant.id}-${idx}` : `migrant-${migrant.caseId}-${idx}`}
                 role="button"
                 tabIndex={0}
                 onClick={() => handleRowClick(migrant)}
