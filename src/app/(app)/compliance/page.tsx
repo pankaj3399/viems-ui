@@ -75,82 +75,7 @@ interface TaskItem {
   potentialImpact: string;
 }
 
-const fallbackTasks: TaskItem[] = [
-  {
-    id: "task-1",
-    title: "Complete RTW check",
-    subtitle: "Complete right to work check before employment starts",
-    migrantName: "Alex Marin",
-    caseId: "431/2026",
-    avatarBg: "#EFEBFF",
-    avatarText: "AM",
-    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    status: "NOT UPLOADED",
-    statusType: "neutral",
-    date: "Mar 5, 2026",
-    riskLevel: "HIGH",
-    potentialImpact: "Civil penalty up to GBP £20,000 per illegal worker. Criminal prosecution possible.",
-  },
-  {
-    id: "task-2",
-    title: "Upload Migrant Signed Docs (MSDs)",
-    subtitle: "Provide confirmation of migrant signed docs",
-    migrantName: "Taylor Johnson",
-    caseId: "430/2026",
-    avatarBg: "#171717",
-    avatarText: "TJ",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    status: "UPLOADED",
-    statusType: "success",
-    date: "Mar 5, 2026",
-    riskLevel: "MEDIUM",
-    potentialImpact: "Delay in Home Office audit verification and potential non-compliance warning.",
-  },
-  {
-    id: "task-3",
-    title: "Inform worker of UK employment rights",
-    subtitle: "Provide written confirmation of employment rights and retain record",
-    migrantName: "Gulab Singh Sidhu",
-    caseId: "429/2026",
-    avatarBg: "#EBEBEB",
-    avatarText: "GS",
-    status: "REQUIRED ASAP",
-    statusType: "error",
-    date: "Upload by: Mar 25, 2026",
-    hasWarningIcon: true,
-    riskLevel: "HIGH",
-    potentialImpact: "Mandatory breach notice if not provided within 7 days of employment start date.",
-  },
-  {
-    id: "task-4",
-    title: "Upload promoter payment letter",
-    subtitle: "Request payment letter from promoter and add to case file",
-    migrantName: "Ami Monarch",
-    caseId: "427/2026",
-    avatarBg: "#EBEBEB",
-    avatarText: "AM",
-    status: "UNDER REVIEW",
-    statusType: "warning",
-    date: "Mar 12, 2026",
-    riskLevel: "MEDIUM",
-    potentialImpact: "Required for sponsor license record-keeping compliance audit.",
-  },
-  {
-    id: "task-5",
-    title: "Plan visa renewal",
-    subtitle: "Window for visa renewal approaching. Get started soon.",
-    migrantName: "Wei Chen",
-    caseId: "426/2026",
-    avatarBg: "#171717",
-    avatarText: "WC",
-    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-    status: "UPLOADED",
-    statusType: "success",
-    date: "Apr 01, 2026",
-    riskLevel: "LOW",
-    potentialImpact: "Ensures continuous right to work without gap in legal status.",
-  },
-];
+const fallbackTasks: TaskItem[] = [];
 
 interface MigrantComplianceRow {
   caseId: string;
@@ -164,75 +89,11 @@ interface MigrantComplianceRow {
   docs: string;
 }
 
-const fallbackMigrantsData: MigrantComplianceRow[] = [
-  {
-    caseId: "431/2026",
-    name: "Alex Marin",
-    company: "AX Studios",
-    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    avatarText: "AM",
-    status: "ACTION NEEDED",
-    statusStyle: "bg-[#FFEBEC] text-[#681219]",
-    nextRtw: "18 Nov 2026",
-    docs: "10/12",
-  },
-  {
-    caseId: "430/2026",
-    name: "Taylor Johnson",
-    company: "AX Studios",
-    avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    avatarText: "TJ",
-    status: "COMPLIANT",
-    statusStyle: "bg-[#E3F7EC] text-[#0D6332]",
-    nextRtw: "04 Sep 2026",
-    docs: "12/12",
-  },
-  {
-    caseId: "429/2026",
-    name: "Gulab Singh Sidhu",
-    company: "Inderbir Sidhu",
-    avatarText: "GS",
-    status: "COMPLIANT",
-    statusStyle: "bg-[#E3F7EC] text-[#0D6332]",
-    nextRtw: "22 Jan 2027",
-    docs: "22 Jan 2027",
-  },
-  {
-    caseId: "428/2026",
-    name: "Elena Petrova",
-    company: "Dhira Gill Music Video",
-    avatarText: "EP",
-    status: "COMPLIANT",
-    statusStyle: "bg-[#E3F7EC] text-[#0D6332]",
-    nextRtw: "12 Aug 2026",
-    docs: "12/12",
-  },
-  {
-    caseId: "427/2026",
-    name: "Ami Monarch",
-    company: "Dhira Gill Music Video",
-    avatarText: "AM",
-    status: "ACTION NEEDED",
-    statusStyle: "bg-[#FFEBEC] text-[#681219]",
-    nextRtw: "06 Mar 2027",
-    docs: "12/12",
-  },
-  {
-    caseId: "426/2026",
-    name: "Wei Chen",
-    company: "Anonymous Group",
-    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-    avatarText: "WM",
-    status: "REVIEW",
-    statusStyle: "bg-[#FFFAEB] text-[#624C18]",
-    nextRtw: "28 Oct 2026",
-    docs: "4/12",
-  },
-];
+const fallbackMigrantsData: MigrantComplianceRow[] = [];
 
 export default function ComplianceCentrePage() {
-  const [tasks, setTasks] = React.useState<TaskItem[]>(fallbackTasks);
-  const [migrantsData, setMigrantsData] = React.useState<MigrantComplianceRow[]>(fallbackMigrantsData);
+  const [tasks, setTasks] = React.useState<TaskItem[]>([]);
+  const [migrantsData, setMigrantsData] = React.useState<MigrantComplianceRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedTaskFilter, setSelectedTaskFilter] = React.useState<"ALL" | "HIGH" | "MEDIUM" | "LOW">("ALL");
   const [expandedTaskId, setExpandedTaskId] = React.useState<string | null>("task-1");

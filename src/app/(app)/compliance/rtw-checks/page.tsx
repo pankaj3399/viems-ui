@@ -53,89 +53,10 @@ interface RtwCheckItem {
   daysUntil: number | null;
 }
 
-const fallbackRtwChecks: RtwCheckItem[] = [
-  {
-    id: "1",
-    entityId: "427",
-    caseId: "427/2026",
-    name: "Ami Monarch",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "AM",
-    status: "OVERDUE",
-    lastCheck: "20 Jul 2025",
-    nextCheck: "20 Jul 2026",
-    daysUntil: -3,
-  },
-  {
-    id: "2",
-    entityId: "428",
-    caseId: "428/2026",
-    name: "Elena Petrova",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "EP",
-    status: "OVERDUE",
-    lastCheck: "12 Aug 2025",
-    nextCheck: "12 Aug 2026",
-    daysUntil: -1,
-  },
-  {
-    id: "3",
-    entityId: "431",
-    caseId: "431/2026",
-    name: "Alex Marin",
-    company: "AX Studios",
-    avatarInitials: "AM",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    status: "DUE SOON",
-    lastCheck: "18 Nov 2025",
-    nextCheck: "18 Nov 2026",
-    daysUntil: 4,
-  },
-  {
-    id: "4",
-    entityId: "430",
-    caseId: "430/2026",
-    name: "Taylor Johnson",
-    company: "AX Studios",
-    avatarInitials: "TJ",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    status: "FOLLOW-UP",
-    lastCheck: "04 Sep 2025",
-    nextCheck: "04 Sep 2026",
-    daysUntil: null,
-  },
-  {
-    id: "5",
-    entityId: "426",
-    caseId: "426/2026",
-    name: "Wei Chen",
-    company: "Anonymous Group",
-    avatarInitials: "WC",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    status: "FOLLOW-UP",
-    lastCheck: "28 Oct 2025",
-    nextCheck: "28 Oct 2026",
-    daysUntil: null,
-  },
-  {
-    id: "6",
-    entityId: "429",
-    caseId: "429/2026",
-    name: "Gulab Singh Sidhu",
-    company: "Inderbir Sidhu",
-    avatarInitials: "GS",
-    status: "COMPLIANT",
-    lastCheck: "22 Jan 2025",
-    nextCheck: "22 Jan 2027",
-    daysUntil: null,
-  },
-];
+const fallbackRtwChecks: RtwCheckItem[] = [];
 
 export default function RtwChecksPage() {
-  const [rtwChecks, setRtwChecks] = React.useState<RtwCheckItem[]>(fallbackRtwChecks);
+  const [rtwChecks, setRtwChecks] = React.useState<RtwCheckItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<

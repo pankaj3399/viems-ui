@@ -134,7 +134,7 @@ const initialTasks: TaskItem[] = [
 ];
 
 export function TasksTab({ caseId }: { caseId?: string }) {
-  const [tasks, setTasks] = React.useState<TaskItem[]>(initialTasks);
+  const [tasks, setTasks] = React.useState<TaskItem[]>([]);
 
   const stats = React.useMemo(() => {
     const total = tasks.length;

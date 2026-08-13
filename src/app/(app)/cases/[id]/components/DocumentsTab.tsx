@@ -302,7 +302,7 @@ const defaultDocuments: DocumentItem[] = [
 export function DocumentsTab({ caseId }: { caseId?: string }) {
   const [viewMode, setViewMode] = React.useState<"checklist" | "folders">("checklist");
   const [folders, setFolders] = React.useState<FolderItem[]>(defaultFolders);
-  const [documents, setDocuments] = React.useState<DocumentItem[]>(defaultDocuments);
+  const [documents, setDocuments] = React.useState<DocumentItem[]>([]);
   const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(null);
 
   // Smart Upload Modal State

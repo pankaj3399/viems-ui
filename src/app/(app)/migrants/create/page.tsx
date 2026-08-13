@@ -428,21 +428,6 @@ export default function AddMigrantPage() {
       if (cosTimerRef.current) clearTimeout(cosTimerRef.current);
       cosTimerRef.current = setTimeout(() => {
         setIsCosAiProcessing(false);
-        setForm((prev) => ({
-          ...prev,
-          cosReference: prev.cosReference || "COS2026-00430",
-          employerSponsor: prev.employerSponsor || "Viems Global Ltd",
-          jobTitle: prev.jobTitle || "Senior Software Engineer",
-          startDate: prev.startDate || "15 / 03 / 2026",
-          endDate: prev.endDate || "16 / 03 / 2027",
-          contractType: prev.contractType || "Full-time",
-          hoursPerWeek: prev.hoursPerWeek || "37.5",
-          annualSalary: prev.annualSalary || "65000",
-          workAddressLine1: prev.workAddressLine1 || "Royal Albert Hall",
-          workCity: prev.workCity || "London",
-          workPostCode: prev.workPostCode || "SW7 2AP",
-        }));
-        toast.success("Sample CoS details populated!");
       }, 1200);
     }
   };

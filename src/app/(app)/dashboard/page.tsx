@@ -17,6 +17,61 @@ import { WorldMapSvg } from "./WorldMapSvg";
 import { Flag } from "@/components/ui/flag";
 import { useRouter } from "next/navigation";
 
+// Country map coordinates for World Map visualisation
+const COUNTRY_COORDINATES: Record<string, { left: string; top: string; label: string }> = {
+  India: { left: "69.0%", top: "51.0%", label: "India" },
+  Indian: { left: "69.0%", top: "51.0%", label: "India" },
+  Pakistan: { left: "66.5%", top: "47.8%", label: "Pakistan" },
+  Pakistani: { left: "66.5%", top: "47.8%", label: "Pakistan" },
+  "United Kingdom": { left: "48.2%", top: "31.5%", label: "United Kingdom" },
+  British: { left: "48.2%", top: "31.5%", label: "United Kingdom" },
+  UK: { left: "48.2%", top: "31.5%", label: "United Kingdom" },
+  Germany: { left: "52.0%", top: "33.7%", label: "Germany" },
+  German: { left: "52.0%", top: "33.7%", label: "Germany" },
+  France: { left: "49.0%", top: "38.9%", label: "France" },
+  French: { left: "49.0%", top: "38.9%", label: "France" },
+  China: { left: "77.4%", top: "49.0%", label: "China" },
+  Chinese: { left: "77.4%", top: "49.0%", label: "China" },
+  "United States": { left: "27.1%", top: "42.2%", label: "United States" },
+  American: { left: "27.1%", top: "42.2%", label: "United States" },
+  USA: { left: "27.1%", top: "42.2%", label: "United States" },
+  Greenland: { left: "39.4%", top: "20.1%", label: "Greenland" },
+  Italy: { left: "51.6%", top: "43.3%", label: "Italy" },
+  Italian: { left: "51.6%", top: "43.3%", label: "Italy" },
+  Jamaica: { left: "31.0%", top: "56.5%", label: "Jamaica" },
+  Jamaican: { left: "31.0%", top: "56.5%", label: "Jamaica" },
+  Nigeria: { left: "51.6%", top: "58.7%", label: "Nigeria" },
+  Nigerian: { left: "51.6%", top: "58.7%", label: "Nigeria" },
+  Australia: { left: "86.2%", top: "73.9%", label: "Australia" },
+  Australian: { left: "86.2%", top: "73.9%", label: "Australia" },
+  Canada: { left: "27.1%", top: "28.3%", label: "Canada" },
+  Canadian: { left: "27.1%", top: "28.3%", label: "Canada" },
+  Spain: { left: "47.5%", top: "42.0%", label: "Spain" },
+  Spanish: { left: "47.5%", top: "42.0%", label: "Spain" },
+  Poland: { left: "53.5%", top: "33.0%", label: "Poland" },
+  Polish: { left: "53.5%", top: "33.0%", label: "Poland" },
+  Brazil: { left: "35.5%", top: "67.4%", label: "Brazil" },
+  Brazilian: { left: "35.5%", top: "67.4%", label: "Brazil" },
+  Philippines: { left: "83.6%", top: "56.5%", label: "Philippines" },
+  Filipino: { left: "83.6%", top: "56.5%", label: "Philippines" },
+  Bangladesh: { left: "71.2%", top: "50.5%", label: "Bangladesh" },
+  Bangladeshi: { left: "71.2%", top: "50.5%", label: "Bangladesh" },
+  Nepal: { left: "70.5%", top: "48.2%", label: "Nepal" },
+  Nepalese: { left: "70.5%", top: "48.2%", label: "Nepal" },
+  "Sri Lanka": { left: "69.5%", top: "56.0%", label: "Sri Lanka" },
+  SriLankan: { left: "69.5%", top: "56.0%", label: "Sri Lanka" },
+};
+
+const DEFAULT_TOP_ORIGINS: Array<{ name: string; count: number }> = [];
+
+const TIME_RANGE_MULTIPLIERS: Record<string, number> = {
+  "5D": 0.17,
+  "2W": 0.47,
+  "1M": 1.0,
+  "6M": 6.0,
+  "1Y": 12.0,
+};
+
 // Sub-components
 function MetricCard({
   title,
@@ -214,6 +269,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = React.useState(true);
   const [activeTaskTab, setActiveTaskTab] = React.useState<"open" | "missing">("open");
   const [originFilter, setOriginFilter] = React.useState("1M");
+  const [hoveredOrigin, setHoveredOrigin] = React.useState<string | null>(null);
 
   const today = React.useMemo(() => new Date(), []);
   const currentDateStr = today.toLocaleDateString("en-US", {
@@ -362,7 +418,7 @@ export default function DashboardPage() {
 
   // Recent activity: map logs to display rows
   const activityRows = React.useMemo(() => {
-    if (!logs.length) return null; // show static fallback
+    if (!logs.length) return [];
     return logs.slice(0, 6).map((log, i) => {
       const userName = log.userName ?? "System";
       const nameParts = userName.split(" ");
@@ -408,17 +464,20 @@ export default function DashboardPage() {
       });
   }, [schedulerEvents, nowTime]);
 
-  // Nationalities: top 7 origins
+  // Nationalities: top 7 origins scaled dynamically by selected range filter (5D, 2W, 1M, 6M, 1Y)
   const topOrigins = React.useMemo(() => {
-    if (!nationalities.length) return null; // show static fallback
-    return [...nationalities]
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 7)
-      .map((n) => ({
-        name: n.nationality ?? String(n.id),
-        count: Math.round(n.value),
-      }));
-  }, [nationalities]);
+    const mult = TIME_RANGE_MULTIPLIERS[originFilter] ?? 1.0;
+    if (nationalities.length > 0) {
+      return [...nationalities]
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 7)
+        .map((n) => ({
+          name: n.nationality ?? String(n.id),
+          count: Math.max(1, Math.round(n.value * mult)),
+        }));
+    }
+    return [];
+  }, [nationalities, originFilter]);
 
   // Case pipeline: derive from stats task/migrant counts (high=pre-cos, medium=cos, low=visa, active=concluded)
   const pipelineSegments = React.useMemo(() => {
@@ -553,14 +612,9 @@ export default function DashboardPage() {
                         />
                       ))
                     ) : (
-                      // Fallback static data while backend tasks are empty
-                      <>
-                        <TaskItem title="Complete RTW check" owner="Mei Chen" due="13 May" dotColor="bg-[#FB3748]" />
-                        <TaskItem title="Upload Migrant Signed Docs (MSDs)" owner="James Brown" due="13 May" dotColor="bg-[#F6B51E]" />
-                        <TaskItem title="Upload documents" owner="Ravi Patel" due="13 May" dotColor="bg-[#335CFF]" />
-                        <TaskItem title="Review and report" owner="Yash Parmar" due="13 May" dotColor="bg-[#FB3748]" />
-                        <TaskItem title="Plan visa renewal" owner="Taylor Johnson" due="13 May" dotColor="bg-[#335CFF]" />
-                      </>
+                      <div className="py-6 text-center text-[13px] text-[#A4A4A4]">
+                        No pending tasks found
+                      </div>
                     )}
                   </>
                 ) : (
@@ -587,7 +641,7 @@ export default function DashboardPage() {
             {/* White Card Container */}
             <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-xl shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
               <div className="flex flex-col">
-                {activityRows ? (
+                {activityRows && activityRows.length > 0 ? (
                   activityRows.map((row, i) => (
                     <ActivityItem
                       key={i}
@@ -599,15 +653,9 @@ export default function DashboardPage() {
                     />
                   ))
                 ) : (
-                  // Fallback static rows
-                  <>
-                    <ActivityItem avatarText="TJ" avatarBg="bg-[#EFEBFF] text-[#7D52F4]" title="Taylor Johnson arrived in the UK" owner="Nathan Wood" time="today, 01:12 PM" />
-                    <ActivityItem avatarText="JP" avatarBg="bg-[#FEE2E2] text-[#EF4444]" title="Visa refused for Jin Park" owner="System" time="23 Mar, 09:30 AM" />
-                    <ActivityItem avatarText="SR" avatarBg="bg-[#E1FBF2] text-[#10B981]" title="CoS assigned for Sofia Reyes" owner="System" time="today, 01:12 PM" />
-                    <ActivityItem avatarText="MS" avatarBg="bg-[#EFEBFF] text-[#7D52F4]" title="Eligibility cleared for Maria Santos" owner="System" time="today, 01:12 PM" />
-                    <ActivityItem avatarText="CV" avatarBg="bg-[#F5F5F5] text-[#171717]" title="SMS report submitted for Carlos Vega" owner="System" time="23 Mar, 09:30 AM" />
-                    <ActivityItem avatarText="TJ" avatarBg="bg-[#EFEBFF] text-[#7D52F4]" title="Phone call with Taylor Johnson" owner="Nathan Wood" time="today, 01:12 PM" />
-                  </>
+                  <div className="py-6 text-center text-[13px] text-[#A4A4A4]">
+                    No recent activity logs available
+                  </div>
                 )}
               </div>
             </div>
@@ -773,71 +821,9 @@ export default function DashboardPage() {
                         );
                       })
                     ) : (
-                      // Fallback static upcoming events
-                      <>
-                        {/* Event row 1 */}
-                        <div className="flex items-center gap-[16px] pl-sm">
-                          <div className="flex items-center gap-[16px]">
-                            <span className="size-[6px] rounded-full bg-[#FB3748] shrink-0" />
-                            <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px]">
-                              <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">12</span>
-                              <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">MAY</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-sm flex-1">
-                            <div className="flex items-center gap-sm">
-                              <div className="size-8 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0">
-                                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">AM</span>
-                              </div>
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">Ami Monarch</span>
-                            </div>
-                            <span className="text-[9px] text-[#5C5C5C]">•</span>
-                            <span className="text-[13px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px] underline">Check RTW</span>
-                          </div>
-                        </div>
-
-                        {/* Event row 2 */}
-                        <div className="flex items-center gap-[16px] pl-sm">
-                          <div className="flex items-center gap-[16px]">
-                            <span className="size-[6px] rounded-full bg-[#7D52F4] shrink-0" />
-                            <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px]">
-                              <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">13</span>
-                              <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">MAY</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-sm flex-1">
-                            <div className="flex items-center gap-sm">
-                              <div className="size-8 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0">
-                                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">JB</span>
-                              </div>
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">James Brown</span>
-                            </div>
-                            <span className="text-[9px] text-[#5C5C5C]">•</span>
-                            <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em] leading-[20px]">Upload documents</span>
-                          </div>
-                        </div>
-
-                        {/* Event row 3 */}
-                        <div className="flex items-center gap-[16px] pl-sm">
-                          <div className="flex items-center gap-[16px]">
-                            <span className="size-[6px] rounded-full bg-[#7D52F4] shrink-0" />
-                            <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px]">
-                              <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">14</span>
-                              <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">MAY</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-sm flex-1">
-                            <div className="flex items-center gap-sm">
-                              <div className="size-8 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0">
-                                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">RP</span>
-                              </div>
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">Ravi Patel</span>
-                            </div>
-                            <span className="text-[9px] text-[#5C5C5C]">•</span>
-                            <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em] leading-[20px]">Assign CoS</span>
-                          </div>
-                        </div>
-                      </>
+                      <div className="py-6 text-center text-[13px] text-[#A4A4A4]">
+                        No upcoming events scheduled
+                      </div>
                     )}
                   </div>
                 </div>
@@ -866,7 +852,7 @@ export default function DashboardPage() {
                     IN THE UK
                   </span>
                   <span className="text-[24px] font-semibold text-[#065F46] leading-none">
-                    {stats?.migrants?.in || 6}
+                    {stats?.migrants?.in ?? 0}
                   </span>
                   <RiCheckboxCircleLine className="size-4 text-[#065F46] absolute top-3 right-3" />
                 </div>
@@ -875,7 +861,7 @@ export default function DashboardPage() {
                     OUTSIDE UK
                   </span>
                   <span className="text-[24px] font-semibold text-[#171717] leading-none">
-                    {stats?.migrants?.out || 10}
+                    {stats?.migrants?.out ?? 0}
                   </span>
                   <RiBriefcaseLine className="size-4 text-[#5C5C5C] absolute top-3 right-3" />
                 </div>
@@ -888,31 +874,31 @@ export default function DashboardPage() {
                 </span>
                 
                 <div className="flex flex-col gap-[12px]">
-                  {(ltrAlerts.length > 0 ? ltrAlerts : [
-                    { name: "Sofia Reyes", initials: "SR", daysLeft: 7, isUrgent: true },
-                    { name: "James Brown", initials: "JB", daysLeft: 14, isUrgent: true },
-                    { name: "Mei Cheng",   initials: "MC", daysLeft: 37, isUrgent: false },
-                    { name: "Carlos Vega", initials: "CV", daysLeft: 40, isUrgent: false },
-                    { name: "Ravi Patel",  initials: "RP", daysLeft: 40, isUrgent: false },
-                  ]).map((alert, i) => (
-                    <div key={i} className="flex items-center justify-between text-[14px]">
-                      <div className="flex items-center gap-[12px]">
-                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
-                          alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
-                        }`}>
-                          <span className={`text-[13px] font-medium ${
+                  {ltrAlerts.length > 0 ? (
+                    ltrAlerts.map((alert, i) => (
+                      <div key={i} className="flex items-center justify-between text-[14px]">
+                        <div className="flex items-center gap-[12px]">
+                          <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
+                            alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
+                          }`}>
+                            <span className={`text-[13px] font-medium ${
+                              alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
+                            }`}>{alert.initials}</span>
+                          </div>
+                          <span className={`font-${alert.isUrgent ? "semibold" : "medium"} ${
                             alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                          }`}>{alert.initials}</span>
+                          }`}>{alert.name}</span>
                         </div>
-                        <span className={`font-${alert.isUrgent ? "semibold" : "medium"} ${
+                        <span className={`text-[13px] font-${alert.isUrgent ? "semibold" : "medium"} ${
                           alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                        }`}>{alert.name}</span>
+                        }`}>{alert.daysLeft} days</span>
                       </div>
-                      <span className={`text-[13px] font-${alert.isUrgent ? "semibold" : "medium"} ${
-                        alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                      }`}>{alert.daysLeft} days</span>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-[13px] text-[#A4A4A4]">
+                      No active leave to remain alerts
                     </div>
-                  ))}
+                  )}
                 </div>
             </div>
           </div>
@@ -936,29 +922,60 @@ export default function DashboardPage() {
         <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex gap-[24px] items-start h-[548px] w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
           {/* Map Column */}
           <div className="flex-1 h-full flex flex-col items-center justify-between relative py-[12px]">
-            {/* SVG Map (using the high-fidelity user dot-matrix SVG) */}
+            {/* SVG Map Container */}
             <div className="w-full flex-1 relative flex items-center justify-center min-h-0">
               <WorldMapSvg className="w-full h-full text-[#E5E7EB]" />
               
-              {/* Paris France Marker */}
-              <div 
-                className="absolute size-3 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
-                style={{ left: "55.6%", top: "28.7%" }}
-              >
-                <div className="absolute size-5 rounded-full bg-[#7D52F4]/40 animate-ping" />
-                <div className="size-2 rounded-full bg-[#7D52F4]" />
-              </div>
+              {/* Dynamic Map Pins for actual top origins */}
+              {(() => {
+                const originsList = topOrigins && topOrigins.length > 0 ? topOrigins : DEFAULT_TOP_ORIGINS;
+                const activeItem = originsList.find((o) => o.name === hoveredOrigin) || originsList[0];
+                const activeCoords = activeItem ? COUNTRY_COORDINATES[activeItem.name] : null;
 
-              {/* Custom interactive tooltip over Paris */}
-              <div 
-                className="absolute flex flex-col items-center -translate-x-1/2 pointer-events-none"
-                style={{ left: "55.6%", top: "24.5%" }}
-              >
-                <div className="bg-[#171717] text-white text-[12px] font-semibold py-1 px-[10px] rounded-[4px] shadow-lg flex items-center gap-[6px]">
-                  <span>Paris, France</span>
-                </div>
-                <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
-              </div>
+                return (
+                  <>
+                    {originsList.map((origin) => {
+                      const coords = COUNTRY_COORDINATES[origin.name];
+                      if (!coords) return null;
+                      const isHovered = hoveredOrigin === origin.name;
+                      const isActive = activeItem?.name === origin.name;
+
+                      return (
+                        <div
+                          key={origin.name}
+                          className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2"
+                          style={{ left: coords.left, top: coords.top }}
+                          onMouseEnter={() => setHoveredOrigin(origin.name)}
+                          onMouseLeave={() => setHoveredOrigin(null)}
+                        >
+                          <div className={`absolute rounded-full bg-[#7D52F4]/40 transition-all duration-300 ${
+                            isActive || isHovered ? "size-6 animate-ping" : "size-4"
+                          }`} />
+                          <div className={`rounded-full bg-[#7D52F4] border-2 border-white shadow-md transition-all duration-200 ${
+                            isActive || isHovered ? "size-3 scale-125" : "size-2.5"
+                          }`} />
+                        </div>
+                      );
+                    })}
+
+                    {/* Single Interactive Tooltip over active/hovered pin */}
+                    {activeItem && activeCoords && (
+                      <div 
+                        className="absolute flex flex-col items-center -translate-x-1/2 pointer-events-none transition-all duration-200 z-20"
+                        style={{ left: activeCoords.left, top: `calc(${activeCoords.top} - 34px)` }}
+                      >
+                        <div className="bg-[#171717] text-white text-[12px] font-semibold py-1 px-[10px] rounded-[6px] shadow-lg flex items-center gap-[6px] whitespace-nowrap">
+                          <Flag country={activeItem.name} className="size-3.5 rounded-full overflow-hidden border border-white/20 shrink-0" />
+                          <span>{activeCoords.label || activeItem.name}</span>
+                          <span className="text-[#A3A3A3] font-normal">•</span>
+                          <span className="text-[#CAC0FF] font-mono">{activeItem.count}</span>
+                        </div>
+                        <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             {/* Range Pickers filter */}
@@ -984,26 +1001,30 @@ export default function DashboardPage() {
             <span className="text-[12px] font-semibold text-[#7B7B7B] tracking-[0.04em] uppercase">
               TOP ORIGINS
             </span>
-            <div className="flex flex-col gap-[14px] overflow-y-auto pr-1">
-              {(topOrigins ?? [
-                { name: "China", count: 2 },
-                { name: "India", count: 2 },
-                { name: "France", count: 3 },
-                { name: "Greenland", count: 1 },
-                { name: "Italy", count: 1 },
-                { name: "Jamaica", count: 2 },
-                { name: "United States", count: 2 },
-              ]).map((origin, idx) => (
-                <div key={idx} className="flex items-center justify-between text-[14px]">
-                  <div className="flex items-center gap-[8px]">
-                    <Flag country={origin.name} className="size-5 rounded-full overflow-hidden border border-neutral-100" />
-                    <span className="font-semibold text-[#171717]">{origin.name}</span>
+            <div className="flex flex-col gap-[8px] overflow-y-auto pr-1">
+              {(topOrigins && topOrigins.length > 0 ? topOrigins : DEFAULT_TOP_ORIGINS).map((origin, idx) => {
+                const isHovered = hoveredOrigin === origin.name;
+                return (
+                  <div 
+                    key={idx} 
+                    className={`flex items-center justify-between text-[14px] p-2 rounded-[8px] transition-all cursor-pointer ${
+                      isHovered ? "bg-white shadow-sm border border-[#EBEBEB]" : "hover:bg-white/60"
+                    }`}
+                    onMouseEnter={() => setHoveredOrigin(origin.name)}
+                    onMouseLeave={() => setHoveredOrigin(null)}
+                  >
+                    <div className="flex items-center gap-[8px]">
+                      <Flag country={origin.name} className="size-5 rounded-full overflow-hidden border border-neutral-100 shrink-0" />
+                      <span className="font-semibold text-[#171717]">{origin.name}</span>
+                    </div>
+                    <span className={`text-[13px] font-semibold size-6 rounded-full flex items-center justify-center transition-colors ${
+                      isHovered ? "bg-[#7D52F4] text-white" : "bg-[#F5F5F5] text-[#5C5C5C]"
+                    }`}>
+                      {origin.count}
+                    </span>
                   </div>
-                  <span className="text-[13px] font-semibold text-[#5C5C5C] bg-[#F5F5F5] size-5 rounded-full flex items-center justify-center">
-                    {origin.count}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
