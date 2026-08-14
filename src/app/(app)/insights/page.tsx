@@ -149,7 +149,16 @@ export default function InsightsPage() {
 
         if (casesData.status === "fulfilled") setCases(Array.isArray(casesData.value) ? casesData.value : []);
         if (natData.status === "fulfilled") setNationalities(natData.value ?? []);
-        setError(null);
+
+        if (casesData.status === "rejected" && natData.status === "rejected") {
+          setError("Failed to load insights data. Please try again later.");
+        } else if (casesData.status === "rejected") {
+          setError("Failed to load case insights. Displaying partial data.");
+        } else if (natData.status === "rejected") {
+          setError("Failed to load nationality statistics. Displaying partial data.");
+        } else {
+          setError(null);
+        }
       } catch (err: unknown) {
         console.error("Failed to load insights data", err);
         setError("Failed to load data. Please try again later.");

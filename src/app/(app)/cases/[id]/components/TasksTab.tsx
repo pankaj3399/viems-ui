@@ -129,6 +129,44 @@ const initialTasks: TaskItem[] = [
   },
 ];
 
+interface RawTaskPayload {
+  id?: string | number;
+  title?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  status?: string;
+  isCompleted?: boolean;
+  completed?: boolean;
+}
+
+type TasksApiResponse =
+  | RawTaskPayload[]
+  | { data?: RawTaskPayload[]; tasks?: RawTaskPayload[]; count?: number };
+
+const VALID_CATEGORIES: readonly TaskItem["category"][] = [
+  "General",
+  "Compliance",
+  "Reporting",
+  "Documents",
+  "Visa & Immigration",
+];
+
+const VALID_STATUSES: readonly TaskItem["status"][] = [
+  "crucial",
+  "completed",
+  "under_review",
+  "general",
+];
+
+function isTaskCategory(cat: string): cat is TaskItem["category"] {
+  return (VALID_CATEGORIES as readonly string[]).includes(cat);
+}
+
+function isTaskStatus(st: string): st is TaskItem["status"] {
+  return (VALID_STATUSES as readonly string[]).includes(st);
+}
+
 export function TasksTab({ caseId }: { caseId?: string }) {
   const [tasks, setTasks] = React.useState<TaskItem[]>([]);
   const [error, setError] = React.useState<string | null>(null);
@@ -146,21 +184,27 @@ export function TasksTab({ caseId }: { caseId?: string }) {
       }
       try {
         setError(null);
-        const res = await apiClient.get<any>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`);
-        const rawTasks = Array.isArray(res) ? res : res?.data || res?.tasks || [];
+        const res = await apiClient.get<TasksApiResponse>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`);
+        let rawTasks: RawTaskPayload[] = [];
+        if (Array.isArray(res)) {
+          rawTasks = res;
+        } else if (res && typeof res === "object") {
+          if (Array.isArray(res.data)) rawTasks = res.data;
+          else if (Array.isArray(res.tasks)) rawTasks = res.tasks;
+        }
+
         if (!isCancelled) {
-          if (Array.isArray(rawTasks) && rawTasks.length > 0) {
-            const validCategories = ["General", "Compliance", "Reporting", "Documents", "Visa & Immigration"];
-            const validStatuses = ["crucial", "completed", "under_review", "general"];
-            const mapped: TaskItem[] = rawTasks.map((t: any, i: number) => {
-              const cat = validCategories.includes(t.category) ? t.category : "General";
-              const st = validStatuses.includes(t.status) ? t.status : (t.isCompleted ? "completed" : "general");
+          if (rawTasks.length > 0) {
+            const mapped: TaskItem[] = rawTasks.map((t: RawTaskPayload, i: number) => {
+              const cat: TaskItem["category"] = t.category && isTaskCategory(t.category) ? t.category : "General";
+              const rawStatus = t.status || (t.isCompleted || t.completed ? "completed" : "general");
+              const st: TaskItem["status"] = isTaskStatus(rawStatus) ? rawStatus : (t.isCompleted || t.completed ? "completed" : "general");
               return {
-                id: String(t.id || `t-${i}`),
-                category: cat as TaskItem["category"],
+                id: String(t.id ?? `t-${i}`),
+                category: cat,
                 title: t.title || t.name || "Task",
                 description: t.description || "",
-                status: st as TaskItem["status"],
+                status: st,
                 isCompleted: Boolean(t.isCompleted || t.completed || st === "completed"),
               };
             });

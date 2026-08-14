@@ -73,82 +73,133 @@ export default function MigrantsPage() {
   const [actionModalOpen, setActionModalOpen] = React.useState(false);
   const [selectedActionType, setSelectedActionType] = React.useState<string>("");
 
-  React.useEffect(() => {
-    async function fetchCasesData() {
-      try {
-        setLoading(true);
-        const res = await apiClient.get<any>(ENDPOINTS.cases.base);
-        const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
-        if (rawArr.length > 0) {
-          const sampleCountries = [
-            { code: "US", name: "United States", half: "USA", flag: "🇺🇸" },
-            { code: "CN", name: "China", half: "Chn", flag: "🇨🇳" },
-            { code: "IN", name: "India", half: "Ind", flag: "🇮🇳" },
-            { code: "FR", name: "France", half: "Fra", flag: "🇫🇷" },
-            { code: "ZA", name: "South Africa", half: "SA", flag: "🇿🇦" },
-          ];
+  const [error, setError] = React.useState<string | null>(null);
 
-          const mapped: MigrantRow[] = rawArr.map((c, i) => {
-            const name = formatFullName(c.first_name, c.last_name);
-            const initials = getInitials(name);
-            const caseId = c.caseIdDisplay || c.caseNumber || `43${9 - i}/2026`;
-            
-            const rawVal = c.nationality_value || c.country || c.country_code || c.nationality || c.nationality_code || c.migrant?.user?.personalInfo?.nationalityCode;
-            const defaultCountry = { code: "", name: "Unspecified", half: "—", flag: "🌐" };
-            let countryObj = defaultCountry;
+  const fetchCasesData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiClient.get<any>(ENDPOINTS.cases.base);
+      const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
+      if (rawArr.length > 0) {
+        const sampleCountries = [
+          { code: "US", name: "United States", half: "USA", flag: "🇺🇸" },
+          { code: "CN", name: "China", half: "Chn", flag: "🇨🇳" },
+          { code: "IN", name: "India", half: "Ind", flag: "🇮🇳" },
+          { code: "FR", name: "France", half: "Fra", flag: "🇫🇷" },
+          { code: "ZA", name: "South Africa", half: "SA", flag: "🇿🇦" },
+        ];
 
-            if (rawVal) {
-              const upper = String(rawVal).trim().toUpperCase();
-              if (upper === "US" || upper === "USA" || upper === "UNITED STATES") {
-                countryObj = sampleCountries[0];
-              } else if (upper === "CN" || upper === "CHINA" || upper === "CHINESE") {
-                countryObj = sampleCountries[1];
-              } else if (upper === "IN" || upper === "INDIA" || upper === "INDIAN") {
-                countryObj = sampleCountries[2];
-              } else if (upper === "FR" || upper === "FRANCE" || upper === "FRENCH") {
-                countryObj = sampleCountries[3];
-              } else if (upper === "ZA" || upper === "SOUTH AFRICA") {
-                countryObj = sampleCountries[4];
-              }
+        const mapped: MigrantRow[] = rawArr.map((c, i) => {
+          const name = formatFullName(c.first_name, c.last_name) || c.name || "Unknown Migrant";
+          const initials = getInitials(name) || "—";
+          const caseId = c.caseIdDisplay || c.caseNumber || (c.id ? `CASE-${c.id}` : "Unknown");
+          
+          const rawVal = c.nationality_value || c.country || c.country_code || c.nationality || c.nationality_code || c.migrant?.user?.personalInfo?.nationalityCode;
+          let countryObj = { code: "", name: "Unspecified", half: "—", flag: "🌐" };
+
+          if (rawVal) {
+            const upper = String(rawVal).trim().toUpperCase();
+            if (upper === "US" || upper === "USA" || upper === "UNITED STATES") {
+              countryObj = sampleCountries[0];
+            } else if (upper === "CN" || upper === "CHINA" || upper === "CHINESE") {
+              countryObj = sampleCountries[1];
+            } else if (upper === "IN" || upper === "INDIA" || upper === "INDIAN") {
+              countryObj = sampleCountries[2];
+            } else if (upper === "FR" || upper === "FRANCE" || upper === "FRENCH") {
+              countryObj = sampleCountries[3];
+            } else if (upper === "ZA" || upper === "SOUTH AFRICA") {
+              countryObj = sampleCountries[4];
+            } else {
+              countryObj = { code: upper.slice(0, 2), name: String(rawVal), half: upper.slice(0, 3), flag: "🌐" };
             }
+          }
 
-            let migration = "ACTIVE COMPLIANCE";
-            let migrationColor: MigrantRow["migrationColor"] = "active";
-            const mod = i % 6;
-            if (mod === 0) { migration = "OUTSIDE UK"; migrationColor = "outside"; }
-            else if (mod === 1) { migration = "ARRIVED – RTW PENDING"; migrationColor = "pending"; }
-            else if (mod === 2) { migration = "ACTIVE COMPLIANCE"; migrationColor = "active"; }
-            else if (mod === 3) { migration = "PRE-ARRIVAL"; migrationColor = "pre"; }
-            else if (mod === 4) { migration = "SPONSORSHIP WITHDRAWN"; migrationColor = "withdrawn"; }
-            else { migration = "ARCHIVED"; migrationColor = "archived"; }
+          const rawMigration = (c.migration_stage || c.migration_status || c.migrationStatus || "").toString().trim().toUpperCase();
+          let migration = "ACTIVE COMPLIANCE";
+          let migrationColor: MigrantRow["migrationColor"] = "active";
 
-            return {
-              id: c.id ?? i + 1,
-              caseId,
-              country: countryObj.name,
-              countryCode: countryObj.code,
-              countryHalf: countryObj.half,
-              flag: countryObj.flag,
-              name: name || "Migrant Applicant",
-              group: c.group_name || "AX Studios",
-              avatarText: initials || "MA",
-              status: c.case_status || "Visa Approved",
-              migration,
-              migrationColor,
-              action: mod === 1 ? "Check RTW" : mod === 3 ? "Schedule RTW check" : mod === 4 ? "Review and report" : "No action required",
-              actionColor: mod === 1 || mod === 4 ? "red" : mod === 3 ? "yellow" : "gray",
-            };
-          });
-          setMigrants(mapped);
-        }
-      } catch (err) {
-        console.error("Failed to fetch cases for migrants table:", err);
-      } finally {
-        setLoading(false);
+          if (rawMigration.includes("OUTSIDE")) {
+            migration = "OUTSIDE UK";
+            migrationColor = "outside";
+          } else if (rawMigration.includes("PENDING") || rawMigration.includes("RTW")) {
+            migration = "ARRIVED – RTW PENDING";
+            migrationColor = "pending";
+          } else if (rawMigration.includes("ACTIVE") || rawMigration.includes("COMPLIANCE")) {
+            migration = "ACTIVE COMPLIANCE";
+            migrationColor = "active";
+          } else if (rawMigration.includes("PRE")) {
+            migration = "PRE-ARRIVAL";
+            migrationColor = "pre";
+          } else if (rawMigration.includes("WITHDRAWN")) {
+            migration = "SPONSORSHIP WITHDRAWN";
+            migrationColor = "withdrawn";
+          } else if (rawMigration.includes("ARCHIVED") || rawMigration.includes("CLOSED")) {
+            migration = "ARCHIVED";
+            migrationColor = "archived";
+          } else if (rawMigration) {
+            migration = rawMigration;
+            migrationColor = "active";
+          }
+
+          const rawAction = (c.action || c.pending_action || c.required_action || "").toString().trim();
+          let action = "No action required";
+          let actionColor: MigrantRow["actionColor"] = "gray";
+
+          if (rawAction) {
+            action = rawAction;
+            const upperAct = rawAction.toUpperCase();
+            if (upperAct.includes("CHECK") || upperAct.includes("REPORT") || upperAct.includes("REVIEW")) {
+              actionColor = "red";
+            } else if (upperAct.includes("SCHEDULE")) {
+              actionColor = "yellow";
+            } else {
+              actionColor = "blue";
+            }
+          } else if (migrationColor === "pending") {
+            action = "Check RTW";
+            actionColor = "red";
+          } else if (migrationColor === "pre") {
+            action = "Schedule RTW check";
+            actionColor = "yellow";
+          } else if (migrationColor === "withdrawn") {
+            action = "Review and report";
+            actionColor = "red";
+          }
+
+          return {
+            id: c.id ?? i + 1,
+            caseId,
+            country: countryObj.name,
+            countryCode: countryObj.code,
+            countryHalf: countryObj.half,
+            flag: countryObj.flag,
+            name,
+            group: c.group_name || c.group || "—",
+            avatarText: initials,
+            status: c.case_status || c.status || "—",
+            migration,
+            migrationColor,
+            action,
+            actionColor,
+          };
+        });
+        setMigrants(mapped);
+      } else {
+        setMigrants([]);
       }
+    } catch (err) {
+      console.error("Failed to fetch cases for migrants table:", err);
+      setMigrants([]);
+      setError("Failed to load migrant records.");
+    } finally {
+      setLoading(false);
     }
-    fetchCasesData();
   }, []);
+
+  React.useEffect(() => {
+    fetchCasesData();
+  }, [fetchCasesData]);
 
   const availableCountries = React.useMemo(() => {
     const map = new Map<string, { code: string; label: string; flag: string; count: number }>();
@@ -404,7 +455,18 @@ export default function MigrantsPage() {
 
             {/* Table Rows */}
             <div className="flex flex-col gap-[4px] w-full">
-              {filteredMigrants.length === 0 ? (
+              {error ? (
+                <div className="bg-white border border-[#FECDCA] rounded-[12px] p-8 text-center flex flex-col items-center justify-center gap-xs">
+                  <span className="text-[14px] font-semibold text-[#FB3748]">{error}</span>
+                  <button
+                    type="button"
+                    onClick={fetchCasesData}
+                    className="mt-2 text-[13px] font-medium text-[#7D52F4] hover:underline cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : filteredMigrants.length === 0 ? (
                 <div className="bg-white border border-[#EBEBEB] rounded-[12px] p-8 text-center text-[14px] text-[#5C5C5C]">
                   No migrants match your search or filter criteria.
                 </div>

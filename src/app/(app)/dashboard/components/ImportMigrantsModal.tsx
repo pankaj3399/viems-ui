@@ -32,11 +32,20 @@ export function ImportMigrantsModal({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
+
+  const isValidFileType = (file: File) => {
+    const name = file.name.toLowerCase();
+    return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > MAX_FILE_SIZE) {
+      if (!isValidFileType(file)) {
+        setUploadError("Invalid file type. Please upload a .csv, .xlsx, or .xls file.");
+        setSelectedFile(null);
+      } else if (file.size > MAX_FILE_SIZE) {
         setUploadError("File size exceeds the 10MB limit.");
         setSelectedFile(null);
       } else {
@@ -56,7 +65,10 @@ export function ImportMigrantsModal({
     e.preventDefault();
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      if (file.size > MAX_FILE_SIZE) {
+      if (!isValidFileType(file)) {
+        setUploadError("Invalid file type. Please upload a .csv, .xlsx, or .xls file.");
+        setSelectedFile(null);
+      } else if (file.size > MAX_FILE_SIZE) {
         setUploadError("File size exceeds the 10MB limit.");
         setSelectedFile(null);
       } else {
@@ -76,30 +88,17 @@ export function ImportMigrantsModal({
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      let success = false;
-      try {
-        await apiClient.post(`${ENDPOINTS.migrants.base}/import`, formData);
-        success = true;
-      } catch (err1) {
-        try {
-          await apiClient.post(`${ENDPOINTS.files.base}/upload/migrants/1`, formData);
-          success = true;
-        } catch (err2) {
-          throw err2;
-        }
-      }
+      await apiClient.post(`${ENDPOINTS.migrants.base}/import`, formData);
 
-      if (success) {
-        setIsUploading(false);
-        setUploadSuccess(true);
-        if (onSuccess) onSuccess();
+      setIsUploading(false);
+      setUploadSuccess(true);
+      if (onSuccess) onSuccess();
 
-        setTimeout(() => {
-          onOpenChange(false);
-          setSelectedFile(null);
-          setUploadSuccess(false);
-        }, 1000);
-      }
+      setTimeout(() => {
+        onOpenChange(false);
+        setSelectedFile(null);
+        setUploadSuccess(false);
+      }, 1000);
     } catch (err: any) {
       console.error("Import upload failed:", err);
       setIsUploading(false);

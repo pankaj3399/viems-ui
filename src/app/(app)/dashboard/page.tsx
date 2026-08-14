@@ -148,6 +148,16 @@ interface DashboardStats {
   tasksStats: { high: number; medium: number; low: number };
   leadsStats: { high: number; medium: number; low: number };
   leave: { expiring7Days: number; expiring14Days: number };
+  casesStats?: {
+    approved?: number;
+    visaApproved?: number;
+    awaitingDecision?: number;
+    refused?: number;
+    pending?: number;
+  };
+  visaApproved?: number;
+  awaitingDecision?: number;
+  missingDocs?: number;
 }
 
 interface DashboardTask {
@@ -408,11 +418,28 @@ export default function DashboardPage() {
     return firstName ? `${salutation}, ${firstName}` : salutation;
   }, [firstName, today]);
 
-  const activeCasesCount   = stats?.migrants?.active ?? 0;
-  const visaApprovedCount  = stats?.leave?.expiring14Days ?? 0;
-  const awaitingDecisionCount = stats?.migrants?.out ?? 0;
-  const totalTasksCount    = tasks.length ||
-    ((stats?.tasksStats?.high ?? 0) + (stats?.tasksStats?.medium ?? 0) + (stats?.tasksStats?.low ?? 0)) || 0;
+  const activeCasesCount = stats?.migrants?.active ?? 0;
+  const visaApprovedCount =
+    stats?.visaApproved ??
+    stats?.casesStats?.visaApproved ??
+    stats?.casesStats?.approved ??
+    0;
+  const awaitingDecisionCount =
+    stats?.awaitingDecision ??
+    stats?.casesStats?.awaitingDecision ??
+    stats?.casesStats?.pending ??
+    0;
+  const totalTasksCount =
+    tasks.length ||
+    (stats?.tasksStats?.high ?? 0) +
+      (stats?.tasksStats?.medium ?? 0) +
+      (stats?.tasksStats?.low ?? 0) ||
+    0;
+
+  function isMissingDocTask(t: DashboardTask): boolean {
+    const statusVal = typeof t.status === "string" ? t.status : t.status?.value;
+    return t.category === "Documents" || statusVal === "crucial";
+  }
 
   // Priority → dot colour
   const PRIORITY_COLORS: Record<string, string> = {
@@ -495,6 +522,7 @@ export default function DashboardPage() {
 
   // Recent activity: map logs to display rows
   const activityRows = React.useMemo(() => {
+    const TIME_ZONE = "Europe/London";
     if (logs.length > 0) {
       return logs.slice(0, 6).map((log, i) => {
         const userName = log.userName ?? "System";
@@ -506,9 +534,21 @@ export default function DashboardPage() {
         const d = log.creationDate ? new Date(log.creationDate) : null;
         let timeStr = "RECENT";
         if (d && !isNaN(d.getTime())) {
-          const isTodayLog = d.toDateString() === today.toDateString();
-          const timeFormatted = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-          timeStr = isTodayLog ? `TODAY, ${timeFormatted}` : `${d.getDate()} ${MONTH_NAMES_SHORT[d.getMonth()]}, ${timeFormatted}`;
+          const logDateKey = d.toLocaleDateString("en-GB", { timeZone: TIME_ZONE });
+          const todayDateKey = today.toLocaleDateString("en-GB", { timeZone: TIME_ZONE });
+          const isTodayLog = logDateKey === todayDateKey;
+          const timeFormatted = d.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: TIME_ZONE,
+          });
+          if (isTodayLog) {
+            timeStr = `TODAY, ${timeFormatted}`;
+          } else {
+            const dayNum = d.toLocaleDateString("en-GB", { day: "numeric", timeZone: TIME_ZONE });
+            const monthStr = d.toLocaleDateString("en-GB", { month: "short", timeZone: TIME_ZONE }).toUpperCase();
+            timeStr = `${dayNum} ${monthStr}, ${timeFormatted}`;
+          }
         }
         return { id: log.id, initials, avatarBg, title: `${log.action} for ${log.entityName}`, owner: userName, time: timeStr };
       });
@@ -623,7 +663,7 @@ export default function DashboardPage() {
           title="AWAITING DECISION"
           value={awaitingDecisionCount}
           icon={FileWarningLine}
-          onClick={() => router.push("/cases?status=awaiting_decision")}
+          onClick={() => router.push("/cases?status=awaiting_ukvi_decision")}
         />
         <MetricCard
           title="OPEN TASKS"
@@ -689,7 +729,7 @@ export default function DashboardPage() {
                     <FileWarningLine className="size-5 text-[#5C5C5C]" />
                   </div>
                   <span className="text-[24px] font-medium text-[#171717] leading-[32px] font-aeonik-medium">
-                    {loading ? "…" : tasks.filter((t) => (typeof t.status === "string" ? t.status : t.status?.value) === "crucial" || t.category === "Documents").length}
+                    {loading ? "…" : tasks.filter(isMissingDocTask).length}
                   </span>
                 </button>
               </div>
@@ -720,8 +760,8 @@ export default function DashboardPage() {
                   </>
                 ) : (
                   <div className="flex flex-col gap-[8px]">
-                    {tasks.filter((t) => t.category === "Documents").length > 0 ? (
-                      tasks.filter((t) => t.category === "Documents").map((task) => (
+                    {tasks.filter(isMissingDocTask).length > 0 ? (
+                      tasks.filter(isMissingDocTask).map((task) => (
                         <TaskItem
                           key={task.id}
                           title={task.title}
@@ -1162,18 +1202,11 @@ export default function DashboardPage() {
         onOpenChange={setAddEventModalOpen}
         initialDate={modalInitialDate}
         onAddEvent={async (newEvent) => {
-          const createdEvent: DashboardEvent = {
-            id: Date.now(),
-            title: newEvent.title,
-            migrantName: newEvent.title,
-            actionText: "Scheduled Event",
-            date: newEvent.date,
-            color: newEvent.color ?? "bg-[#7D52F4]",
-          };
+          let backendId: number | undefined;
 
           // 1. Post to NestJS TypeORM DB backend
           try {
-            await apiClient.post(ENDPOINTS.dashboard.events, {
+            const res = await apiClient.post<any>(ENDPOINTS.dashboard.events, {
               title: newEvent.title,
               notes: newEvent.title,
               date: newEvent.date,
@@ -1184,18 +1217,34 @@ export default function DashboardPage() {
               employees: "[]",
               clients: "[]",
             });
+            if (res && typeof res === "object" && typeof res.id === "number") {
+              backendId = res.id;
+            } else if (res && typeof res === "object" && res.data && typeof res.data.id === "number") {
+              backendId = res.data.id;
+            }
           } catch (e) {
             console.error("Backend event post failed, saving locally:", e);
           }
 
-          // 2. Persist to local state & localStorage so it persists permanently across reloads
-          const nextEvents = [createdEvent, ...events];
-          try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextEvents));
-          } catch (err) {
-            console.error("localStorage save failed:", err);
-          }
-          setEvents(nextEvents);
+          const createdEvent: DashboardEvent = {
+            id: backendId ?? Date.now(),
+            title: newEvent.title,
+            migrantName: newEvent.title,
+            actionText: "Scheduled Event",
+            date: newEvent.date,
+            color: newEvent.color ?? "bg-[#7D52F4]",
+          };
+
+          // 2. Persist to local state & localStorage through functional update
+          setEvents((prev) => {
+            const nextEvents = [createdEvent, ...prev.filter((e) => e.id !== createdEvent.id)];
+            try {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextEvents));
+            } catch (err) {
+              console.error("localStorage save failed:", err);
+            }
+            return nextEvents;
+          });
 
           const parts = parseLocalDateParts(newEvent.date);
           const monthStart = new Date(parts.year, parts.month, 1);
