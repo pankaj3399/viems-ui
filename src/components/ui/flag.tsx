@@ -1,143 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { getCountryInfo } from "@/lib/country";
 
 export interface FlagProps extends React.SVGProps<SVGSVGElement> {
   country: string;
 }
 
-function normalizeCountryCode(country: string): string {
-  if (!country) return "";
-  const clean = country.trim().toLowerCase();
-
-  // US variants
-  if (
-    clean === "us" ||
-    clean === "usa" ||
-    clean === "united states" ||
-    clean === "united states of america" ||
-    clean === "american"
-  ) {
-    return "US";
-  }
-
-  // India variants
-  if (
-    clean === "in" ||
-    clean === "ind" ||
-    clean === "india" ||
-    clean === "indian"
-  ) {
-    return "IN";
-  }
-
-  // China variants
-  if (
-    clean === "cn" ||
-    clean === "chn" ||
-    clean === "china" ||
-    clean === "chinese"
-  ) {
-    return "CN";
-  }
-
-  // France variants
-  if (
-    clean === "fr" ||
-    clean === "fra" ||
-    clean === "france" ||
-    clean === "french"
-  ) {
-    return "FR";
-  }
-
-  // South Africa variants
-  if (
-    clean === "za" ||
-    clean === "sa" ||
-    clean === "south africa" ||
-    clean === "south african"
-  ) {
-    return "ZA";
-  }
-
-  // Italy variants
-  if (
-    clean === "it" ||
-    clean === "ita" ||
-    clean === "italy" ||
-    clean === "italian"
-  ) {
-    return "IT";
-  }
-
-  // Greenland variants
-  if (
-    clean === "gl" ||
-    clean === "grl" ||
-    clean === "greenland" ||
-    clean === "greenlandic"
-  ) {
-    return "GL";
-  }
-
-  // Jamaica variants
-  if (
-    clean === "jm" ||
-    clean === "jam" ||
-    clean === "jamaica" ||
-    clean === "jamaican"
-  ) {
-    return "JM";
-  }
-
-  // UK variants
-  if (
-    clean === "gb" ||
-    clean === "gbr" ||
-    clean === "uk" ||
-    clean === "united kingdom" ||
-    clean === "britain" ||
-    clean === "british"
-  ) {
-    return "GB";
-  }
-
-  // Pakistan variants
-  if (
-    clean === "pk" ||
-    clean === "pak" ||
-    clean === "pakistan" ||
-    clean === "pakistani"
-  ) {
-    return "PK";
-  }
-
-  // Germany variants
-  if (
-    clean === "de" ||
-    clean === "deu" ||
-    clean === "germany" ||
-    clean === "german"
-  ) {
-    return "DE";
-  }
-
-  // Nepal variants
-  if (
-    clean === "np" ||
-    clean === "npl" ||
-    clean === "nepal" ||
-    clean === "nepalese"
-  ) {
-    return "NP";
-  }
-
-  return country.toUpperCase();
-}
-
 export function Flag({ country, className = "", ...props }: FlagProps) {
-  const code = normalizeCountryCode(country);
+  const info = getCountryInfo(country);
+  const code = info.code;
 
   const baseClass = "size-5 rounded-full overflow-hidden border border-neutral-100 shadow-x-small shrink-0 object-cover";
   const finalClass = className ? `${baseClass} ${className}` : baseClass;
@@ -273,11 +145,67 @@ export function Flag({ country, className = "", ...props }: FlagProps) {
     case "NP":
       return (
         <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
-          <rect width="24" height="24" fill="#DC143C" />
-          <polygon points="2,2 2,13 18,13" fill="#DC143C" stroke="#002868" strokeWidth="1.5" />
-          <polygon points="2,11 2,22 20,22" fill="#DC143C" stroke="#002868" strokeWidth="1.5" />
+          <rect width="24" height="24" fill="#FFFFFF" />
+          <polygon points="2,2 2,13 18,13" fill="#DC143C" stroke="#002868" strokeWidth="1.2" />
+          <polygon points="2,11 2,22 20,22" fill="#DC143C" stroke="#002868" strokeWidth="1.2" />
           <circle cx="7" cy="17" r="2.5" fill="#FFFFFF" />
           <path d="M 5,6 A 2.5,2.5 0 0,0 9.5,8 A 2,2 0 0,1 5,6 Z" fill="#FFFFFF" />
+        </svg>
+      );
+
+    case "ES":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="24" height="6" fill="#AA151B" />
+          <rect y="6" width="24" height="12" fill="#F1BF00" />
+          <rect y="18" width="24" height="6" fill="#AA151B" />
+          <circle cx="6" cy="12" r="2" fill="#AA151B" />
+        </svg>
+      );
+
+    case "CA":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="6" height="24" fill="#FF0000" />
+          <rect x="6" width="12" height="24" fill="#FFFFFF" />
+          <rect x="18" width="6" height="24" fill="#FF0000" />
+          <polygon points="12,6 13,9 15,8 14,11 16,12 14,13 15,16 13,15 12,18 11,15 9,16 10,13 8,12 10,11 9,8 11,9" fill="#FF0000" />
+        </svg>
+      );
+
+    case "BR":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="24" height="24" fill="#009B3A" />
+          <polygon points="12,3 22,12 12,21 2,12" fill="#FED100" />
+          <circle cx="12" cy="12" r="4.5" fill="#002776" />
+          <path d="M 8,12 A 4.5,4.5 0 0,1 16,11" stroke="#FFFFFF" strokeWidth="0.8" fill="none" />
+        </svg>
+      );
+
+    case "NG":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="8" height="24" fill="#008751" />
+          <rect x="8" width="8" height="24" fill="#FFFFFF" />
+          <rect x="16" width="8" height="24" fill="#008751" />
+        </svg>
+      );
+
+    case "JP":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="24" height="24" fill="#FFFFFF" />
+          <circle cx="12" cy="12" r="5" fill="#BC002D" />
+        </svg>
+      );
+
+    case "IE":
+      return (
+        <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
+          <rect width="8" height="24" fill="#169B62" />
+          <rect x="8" width="8" height="24" fill="#FFFFFF" />
+          <rect x="16" width="8" height="24" fill="#FF883E" />
         </svg>
       );
 

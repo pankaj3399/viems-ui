@@ -4,6 +4,8 @@ import * as React from "react";
 import {
   RiSearchLine,
   RiFilterLine,
+  RiArrowUpSLine,
+  RiArrowDownSLine,
   RiExpandUpDownFill,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
@@ -24,6 +26,8 @@ interface TravelHistoryTabProps {
 
 export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [sortField, setSortField] = React.useState<keyof TravelHistoryRow | null>(null);
+  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc");
   const [records, setRecords] = React.useState<TravelHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -57,8 +61,22 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
     };
   }, [migrant?.id]);
 
+  const handleSort = (field: keyof TravelHistoryRow) => {
+    if (sortField === field) {
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else {
+        setSortField(null);
+        setSortDirection("asc");
+      }
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
   const filteredRecords = React.useMemo(() => {
-    return records.filter((item) => {
+    const list = records.filter((item) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -71,7 +89,28 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
       }
       return true;
     });
-  }, [records, searchQuery]);
+
+    if (!sortField) return list;
+
+    return [...list].sort((a, b) => {
+      const valA = (a[sortField] || "").toString().toLowerCase();
+      const valB = (b[sortField] || "").toString().toLowerCase();
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [records, searchQuery, sortField, sortDirection]);
+
+  const renderSortIcon = (field: keyof TravelHistoryRow) => {
+    if (sortField === field) {
+      return sortDirection === "asc" ? (
+        <RiArrowUpSLine className="size-3.5 text-[#171717]" />
+      ) : (
+        <RiArrowDownSLine className="size-3.5 text-[#171717]" />
+      );
+    }
+    return <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />;
+  };
 
   return (
     <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">
@@ -84,7 +123,7 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
+            placeholder="Search travel history..."
             className="w-full bg-transparent text-[14px] font-normal text-[#171717] placeholder:text-[#A4A4A4] border-0 outline-none leading-[20px]"
           />
         </div>
@@ -92,7 +131,11 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
         {/* Filter Button */}
         <button
           type="button"
-          onClick={() => setSearchQuery("")}
+          onClick={() => {
+            setSearchQuery("");
+            setSortField(null);
+            setSortDirection("asc");
+          }}
           aria-label="Reset filter"
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filter"
@@ -108,22 +151,38 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
           {/* Badge spacer column */}
           <div className="w-[48px] shrink-0" />
 
-          <div className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+          <button
+            type="button"
+            onClick={() => handleSort("date")}
+            className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>DATE</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("date")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("port")}
+            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>PORT</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("port")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("routeFlight")}
+            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>ROUTE/FLIGHT</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[132px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("routeFlight")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("method")}
+            className="w-[132px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>METHOD</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
+            {renderSortIcon("method")}
+          </button>
         </div>
 
         {/* Table Rows */}

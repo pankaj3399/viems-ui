@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { formatFullName, getInitials } from "@/lib/utils";
+import { getCountryInfo } from "@/lib/country";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { CaseHeader } from "../../cases/[id]/components/CaseHeader";
 import { ProfileCard, MigrationStatusCard, PersonalDetailsCard } from "../../cases/[id]/components/OverviewCards";
@@ -79,6 +80,19 @@ function mapBackendMigrantToDetail(c: any) {
   const rawExpiryDate = activePassport.expired_passport_date || m.expiredPassportDate || activePassport.expiredPassportDate || "2027-11-22";
   const passportExpiryDate = rawExpiryDate ? (isNaN(new Date(rawExpiryDate).getTime()) ? rawExpiryDate : new Date(rawExpiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "22 Nov 2027";
 
+  const rawNationality =
+    m.nationality_value ||
+    m.nationality?.value ||
+    m.nationality?.name ||
+    m.nationality?.title ||
+    pInfo.nationality?.name ||
+    pInfo.nationality?.value ||
+    pInfo.nationalityCode ||
+    (typeof m.nationality === "string" ? m.nationality : "") ||
+    c.nationality_value ||
+    "";
+  const { code: nationalityCode, full: nationalityFull, flag: nationalityFlag } = getCountryInfo(rawNationality);
+
   return {
     id: c.id || 1,
     name,
@@ -96,9 +110,9 @@ function mapBackendMigrantToDetail(c: any) {
       gender: genderDisplay,
       dob: dobDisplay,
       maritalStatus: "Married",
-      nationality: "United States",
-      nationalityCode: "US",
-      nationalityFlag: "🇺🇸",
+      nationality: nationalityFull,
+      nationalityCode: nationalityCode,
+      nationalityFlag: nationalityFlag,
       employer: c.group_name || "AX Studios",
       jobTitle: "Creative Worker",
       address: ["742 Evergreen Terrace", "Los Angeles, CA 90026"],
@@ -259,10 +273,27 @@ export default function MigrantDetailPage() {
               <div className="flex flex-col gap-xs w-full">
                 <div className="flex items-center justify-between">
                   <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Case status</h2>
-                  <span className="inline-flex items-center gap-xs h-4 px-2 bg-[#E3F7EC] text-[#0B4627] rounded-full text-[11px] font-medium uppercase tracking-[0.02em]">
-                    <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-                    VISA APPROVED
-                  </span>
+                  {(() => {
+                    const norm = (migrant.approvalStatus || "").toLowerCase().replace(/_/g, " ").trim();
+                    let bg = "bg-[#FFFAEB] text-[#855B00]";
+                    let dot = "bg-[#F6B51E]";
+                    if (norm.includes("approved") || norm.includes("assigned") || norm.includes("granted") || norm.includes("cleared")) {
+                      bg = "bg-[#E3F7EC] text-[#0B4627]";
+                      dot = "bg-[#1FC16B]";
+                    } else if (norm.includes("refused") || norm.includes("ineligible") || norm.includes("risk")) {
+                      bg = "bg-[#FFEBEC] text-[#681219]";
+                      dot = "bg-[#FB3748]";
+                    } else if (norm.includes("withdrawn") || norm.includes("closed") || norm.includes("draft") || norm.includes("archived")) {
+                      bg = "bg-[#F5F5F5] text-[#5C5C5C]";
+                      dot = "bg-[#7B7B7B]";
+                    }
+                    return (
+                      <span className={`inline-flex items-center gap-xs h-4 px-2 ${bg} rounded-full text-[11px] font-medium uppercase tracking-[0.02em]`}>
+                        <span className={`size-1.5 rounded-full ${dot}`} />
+                        {migrant.approvalStatus || "DRAFT"}
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-3 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
                   <div className="flex items-center justify-between">
@@ -443,9 +474,27 @@ export default function MigrantDetailPage() {
         open={isChangeStatusOpen}
         onOpenChange={setIsChangeStatusOpen}
         currentStatus={migrant.approvalStatus}
-        onApply={(newStatus: string) => {
-          setMigrant((prev: any) => ({ ...prev, approvalStatus: newStatus }));
-          toast.success("Migrant status updated");
+        onApply={async (newStatus: string) => {
+          try {
+            if (id) {
+              try {
+                await apiClient.patch(ENDPOINTS.cases.byId(id), {
+                  case_status: newStatus,
+                  status: newStatus,
+                });
+              } catch {
+                await apiClient.patch(ENDPOINTS.migrants.byId(id), {
+                  case_status: newStatus,
+                  status: newStatus,
+                });
+              }
+            }
+            toast.success("Migrant status updated successfully");
+            loadMigrantDetail();
+          } catch (err: any) {
+            console.error("Failed to update status:", err);
+            toast.error(err?.message || "Failed to update status");
+          }
         }}
       />
       <AddNoteModal
