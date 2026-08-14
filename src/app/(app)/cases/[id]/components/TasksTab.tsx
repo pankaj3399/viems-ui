@@ -131,40 +131,56 @@ const initialTasks: TaskItem[] = [
 
 export function TasksTab({ caseId }: { caseId?: string }) {
   const [tasks, setTasks] = React.useState<TaskItem[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    let isCancelled = false;
+
     async function fetchTasks() {
       if (!caseId) {
-        setTasks(initialTasks);
+        if (!isCancelled) {
+          setTasks([]);
+          setError(null);
+        }
         return;
       }
       try {
+        setError(null);
         const res = await apiClient.get<any>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`);
         const rawTasks = Array.isArray(res) ? res : res?.data || res?.tasks || [];
-        if (Array.isArray(rawTasks) && rawTasks.length > 0) {
-          const validCategories = ["General", "Compliance", "Reporting", "Documents", "Visa & Immigration"];
-          const validStatuses = ["crucial", "completed", "under_review", "general"];
-          const mapped: TaskItem[] = rawTasks.map((t: any, i: number) => {
-            const cat = validCategories.includes(t.category) ? t.category : "General";
-            const st = validStatuses.includes(t.status) ? t.status : (t.isCompleted ? "completed" : "general");
-            return {
-              id: String(t.id || `t-${i}`),
-              category: cat as TaskItem["category"],
-              title: t.title || t.name || "Task",
-              description: t.description || "",
-              status: st as TaskItem["status"],
-              isCompleted: Boolean(t.isCompleted || t.completed || st === "completed"),
-            };
-          });
-          setTasks(mapped);
-        } else {
-          setTasks(initialTasks);
+        if (!isCancelled) {
+          if (Array.isArray(rawTasks) && rawTasks.length > 0) {
+            const validCategories = ["General", "Compliance", "Reporting", "Documents", "Visa & Immigration"];
+            const validStatuses = ["crucial", "completed", "under_review", "general"];
+            const mapped: TaskItem[] = rawTasks.map((t: any, i: number) => {
+              const cat = validCategories.includes(t.category) ? t.category : "General";
+              const st = validStatuses.includes(t.status) ? t.status : (t.isCompleted ? "completed" : "general");
+              return {
+                id: String(t.id || `t-${i}`),
+                category: cat as TaskItem["category"],
+                title: t.title || t.name || "Task",
+                description: t.description || "",
+                status: st as TaskItem["status"],
+                isCompleted: Boolean(t.isCompleted || t.completed || st === "completed"),
+              };
+            });
+            setTasks(mapped);
+          } else {
+            setTasks([]);
+          }
         }
       } catch (err) {
-        setTasks(initialTasks);
+        if (!isCancelled) {
+          setTasks([]);
+          setError("Failed to load tasks for this case.");
+        }
       }
     }
+
     fetchTasks();
+    return () => {
+      isCancelled = true;
+    };
   }, [caseId]);
 
   const stats = React.useMemo(() => {
@@ -210,7 +226,12 @@ export function TasksTab({ caseId }: { caseId?: string }) {
 
   return (
     <div className="w-full flex flex-col gap-8 font-sans select-none animate-fade-in text-left">
-      
+      {error && (
+        <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-4 text-[14px] text-[#FB3748] flex items-center justify-between">
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* ─── Top 4 Stat Summary Cards (Exact Figma Spec Frame 107) ─────────── */}
       <div className="flex items-center gap-2 w-full">
         {/* TOTAL TASKS */}

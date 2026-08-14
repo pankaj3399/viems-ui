@@ -47,9 +47,10 @@ function MetricCard({
   onClick?: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className={`bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px_20px] w-full h-[88px] flex flex-col justify-between relative shadow-[0px_1px_2px_rgba(10,13,20,0.03)] font-sans transition-all ${
+      className={`bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px_20px] w-full h-[88px] flex flex-col justify-between relative shadow-[0px_1px_2px_rgba(10,13,20,0.03)] font-sans transition-all text-left ${
         onClick ? "hover:border-[#7D52F4]/50 hover:shadow-md cursor-pointer group" : ""
       }`}
     >
@@ -60,7 +61,7 @@ function MetricCard({
         {value}
       </span>
       <Icon className={`size-5 text-[#5C5C5C] absolute top-3 right-3 transition-colors group-hover:text-[#7D52F4] ${colorClass ?? ""}`} />
-    </div>
+    </button>
   );
 }
 
@@ -78,9 +79,10 @@ function TaskItem({
   onClick?: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className="flex flex-row items-center py-[16px] px-[12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-[#7D52F4]/40 hover:bg-[#FAFAFA] transition-all cursor-pointer select-none w-full group"
+      className="flex flex-row items-center py-[16px] px-[12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-[#7D52F4]/40 hover:bg-[#FAFAFA] transition-all cursor-pointer select-none w-full group text-left"
     >
       <div className="flex flex-row items-center gap-[12px] flex-1 min-w-0">
         <div className="flex items-center justify-center p-[4px] shrink-0">
@@ -100,7 +102,7 @@ function TaskItem({
       <div className="flex items-center justify-center size-6 bg-[#F7F7F7] group-hover:bg-[#7D52F4] rounded-full shrink-0 transition-colors">
         <RiArrowRightSLine className="size-5 text-[#5C5C5C] group-hover:text-white transition-colors" />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -120,9 +122,10 @@ function ActivityItem({
   onClick?: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className="flex items-start gap-[12px] py-[12px] px-[8px] -mx-[8px] rounded-[8px] hover:bg-[#F9F9F9] transition-colors cursor-pointer border-b border-[#F5F5F5] last:border-0 relative font-sans group"
+      className="flex items-start gap-[12px] py-[12px] px-[8px] -mx-[8px] rounded-[8px] hover:bg-[#F9F9F9] transition-colors cursor-pointer border-b border-[#F5F5F5] last:border-0 relative font-sans group w-full text-left"
     >
       <div className={`size-8 rounded-full ${avatarBg} flex items-center justify-center shrink-0`}>
         <span className="text-[13px] font-medium">{avatarText}</span>
@@ -135,7 +138,7 @@ function ActivityItem({
           <span className="text-[#7B7B7B] font-normal lowercase first-letter:uppercase">{owner}</span> • {time}
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -150,7 +153,7 @@ interface DashboardStats {
 interface DashboardTask {
   id: number;
   title: string;
-  priority: { id: number; value: string; name: string };
+  priority: { id?: number; value?: string; name?: string };
   case?: {
     id: number;
     migrant?: {
@@ -158,7 +161,8 @@ interface DashboardTask {
     };
   };
   dueDate?: string;
-  status?: { value: string };
+  status?: { value?: string } | string;
+  category?: string;
 }
 
 interface DashboardEvent {
@@ -223,14 +227,6 @@ const AVATAR_BG_POOL = [
   "bg-[#E1FBF2] text-[#10B981]",
   "bg-[#F5F5F5] text-[#171717]",
   "bg-[#FFF7ED] text-[#F59E0B]",
-];
-
-const MISSING_DOC_TASKS = [
-  { id: 101, title: "Complete RTW check", owner: "Mei Chen", due: "13 May", dotColor: "bg-[#FB3748]" },
-  { id: 102, title: "Upload Migrant Signed Docs (MSDs)", owner: "James Brown", due: "13 May", dotColor: "bg-[#F6B51E]" },
-  { id: 103, title: "Upload documents", owner: "Ravi Patel", due: "13 May", dotColor: "bg-[#335CFF]" },
-  { id: 104, title: "Review and report", owner: "Yash Parmar", due: "13 May", dotColor: "bg-[#FB3748]" },
-  { id: 105, title: "Plan visa renewal", owner: "Taylor Johnson", due: "13 May", dotColor: "bg-[#335CFF]" },
 ];
 
 const LOCAL_STORAGE_KEY = "viems_persisted_events";
@@ -305,7 +301,12 @@ export default function DashboardPage() {
 
         const monthStart = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
         const monthEnd = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0);
-        const fmt = (d: Date) => d.toISOString().split("T")[0];
+        const fmt = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        };
 
         const [
           statsData, tasksData, calData, eventsData,
@@ -379,7 +380,12 @@ export default function DashboardPage() {
     async function fetchMonthCalendar() {
       const monthStart = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
       const monthEnd = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0);
-      const fmt = (d: Date) => d.toISOString().split("T")[0];
+      const fmt = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
       try {
         const cal = await apiClient.get<CalendarData>(ENDPOINTS.dashboard.calendar, {
           params: { from: fmt(monthStart), to: fmt(monthEnd) },
@@ -402,11 +408,11 @@ export default function DashboardPage() {
     return firstName ? `${salutation}, ${firstName}` : salutation;
   }, [firstName, today]);
 
-  const activeCasesCount   = stats?.migrants?.active ?? "13";
-  const visaApprovedCount  = stats?.leave?.expiring14Days ?? "6";
-  const awaitingDecisionCount = stats?.migrants?.out ?? "2";
+  const activeCasesCount   = stats?.migrants?.active ?? 0;
+  const visaApprovedCount  = stats?.leave?.expiring14Days ?? 0;
+  const awaitingDecisionCount = stats?.migrants?.out ?? 0;
   const totalTasksCount    = tasks.length ||
-    ((stats?.tasksStats?.high ?? 0) + (stats?.tasksStats?.medium ?? 0) + (stats?.tasksStats?.low ?? 0)) || 24;
+    ((stats?.tasksStats?.high ?? 0) + (stats?.tasksStats?.medium ?? 0) + (stats?.tasksStats?.low ?? 0)) || 0;
 
   // Priority → dot colour
   const PRIORITY_COLORS: Record<string, string> = {
@@ -421,12 +427,12 @@ export default function DashboardPage() {
 
   function taskOwnerName(task: DashboardTask): string {
     const pi = task.case?.migrant?.user?.personalInfo;
-    if (!pi) return "Mei Chen";
+    if (!pi) return "Unassigned";
     return formatFullName(pi.firstName, pi.lastName);
   }
 
   function taskDueLabel(task: DashboardTask): string {
-    if (!task.dueDate) return "13 May";
+    if (!task.dueDate) return "No due date";
     return new Date(task.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
 
@@ -498,31 +504,22 @@ export default function DashboardPage() {
           : userName.slice(0, 2).toUpperCase();
         const avatarBg = AVATAR_BG_POOL[i % AVATAR_BG_POOL.length];
         const d = log.creationDate ? new Date(log.creationDate) : null;
-        const timeLabel = d && !isNaN(d.getTime())
-          ? d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-          : "TODAY, 01:12 PM";
-        const actionText = log.action ? log.action.charAt(0).toUpperCase() + log.action.slice(1) : "Activity updated";
-        const entityStr = log.entityName ? ` — ${log.entityName}` : "";
-        const idStr = log.entityIdentifier ? ` #${log.entityIdentifier}` : "";
-        const title = `${actionText}${entityStr}${idStr}`;
-        return { initials, avatarBg, title, owner: userName, time: timeLabel };
+        let timeStr = "RECENT";
+        if (d && !isNaN(d.getTime())) {
+          const isTodayLog = d.toDateString() === today.toDateString();
+          const timeFormatted = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+          timeStr = isTodayLog ? `TODAY, ${timeFormatted}` : `${d.getDate()} ${MONTH_NAMES_SHORT[d.getMonth()]}, ${timeFormatted}`;
+        }
+        return { id: log.id, initials, avatarBg, title: `${log.action} for ${log.entityName}`, owner: userName, time: timeStr };
       });
     }
-    // Default seed rows matching Figma layout
-    return [
-      { initials: "TJ", avatarBg: "bg-[#EFEBFF] text-[#7D52F4]", title: "Taylor Johnson arrived in the UK", owner: "Nathan Wood", time: "TODAY, 01:12 PM" },
-      { initials: "JP", avatarBg: "bg-[#FEE2E2] text-[#EF4444]", title: "Visa refused for Jin Park", owner: "System", time: "23 MAR, 09:30 AM" },
-      { initials: "SR", avatarBg: "bg-[#E1FBF2] text-[#10B981]", title: "CoS assigned for Sofia Reyes", owner: "System", time: "TODAY, 01:12 PM" },
-      { initials: "MS", avatarBg: "bg-[#F5F5F5] text-[#171717]", title: "Eligibility cleared for Maria Santos", owner: "System", time: "TODAY, 01:12 PM" },
-      { initials: "CV", avatarBg: "bg-[#FFF7ED] text-[#F59E0B]", title: "SMS report submitted for Carlos Vega", owner: "System", time: "23 MAR, 09:30 AM" },
-      { initials: "TJ", avatarBg: "bg-[#EFEBFF] text-[#7D52F4]", title: "Phone call with Taylor Johnson", owner: "Nathan Wood", time: "TODAY, 01:12 PM" },
-    ];
-  }, [logs]);
+    return [];
+  }, [logs, today]);
 
   // Leave to Remain: expiring visa cases from scheduler, within 60 days
   const ltrAlerts = React.useMemo(() => {
     if (schedulerEvents.length > 0) {
-      const nowTime = Date.now();
+      const nowTime = today.getTime();
       return schedulerEvents
         .filter((e) => {
           const end = new Date(e.workEndDate ?? e.workStartDate ?? 0).getTime();
@@ -543,26 +540,19 @@ export default function DashboardPage() {
             ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
             : nameParts[0].slice(0, 2).toUpperCase();
           const isUrgent = daysLeft <= 14;
-          return { name: e.migrantName ?? "Unknown", initials, daysLeft, isUrgent };
+          return { id: e.id || e.migrantName, name: e.migrantName ?? "Unknown", initials, daysLeft, isUrgent };
         });
     }
-    // Default seed rows matching Figma layout
-    return [
-      { name: "Sofia Reyez", initials: "SR", daysLeft: 7, isUrgent: true },
-      { name: "James Brown", initials: "JB", daysLeft: 14, isUrgent: true },
-      { name: "Mei Cheng", initials: "MC", daysLeft: 37, isUrgent: false },
-      { name: "Carlos Vega", initials: "CV", daysLeft: 40, isUrgent: false },
-      { name: "Ravi Patel", initials: "RP", daysLeft: 40, isUrgent: false },
-    ];
-  }, [schedulerEvents]);
+    return [];
+  }, [schedulerEvents, today]);
 
   // Case pipeline: derive from stats task/migrant counts
   const pipelineSegments = React.useMemo(() => {
-    const high = stats?.tasksStats?.high ?? 26;
-    const medium = stats?.tasksStats?.medium ?? 14.5;
-    const low = stats?.tasksStats?.low ?? 14.5;
-    const active = stats?.migrants?.active ?? 45;
-    const total = high + medium + low + active || 100;
+    const high = stats?.tasksStats?.high ?? 0;
+    const medium = stats?.tasksStats?.medium ?? 0;
+    const low = stats?.tasksStats?.low ?? 0;
+    const active = stats?.migrants?.active ?? 0;
+    const total = high + medium + low + active || 1;
     return [
       { color: "bg-[#335CFF]", pct: (high / total) * 100, label: "PRE-COS", count: high },
       { color: "bg-[#7D52F4]", pct: (medium / total) * 100, label: "COS MANAGEMENT", count: 3 },
@@ -699,7 +689,7 @@ export default function DashboardPage() {
                     <FileWarningLine className="size-5 text-[#5C5C5C]" />
                   </div>
                   <span className="text-[24px] font-medium text-[#171717] leading-[32px] font-aeonik-medium">
-                    52
+                    {loading ? "…" : tasks.filter((t) => (typeof t.status === "string" ? t.status : t.status?.value) === "crucial" || t.category === "Documents").length}
                   </span>
                 </button>
               </div>
@@ -723,30 +713,29 @@ export default function DashboardPage() {
                         />
                       ))
                     ) : (
-                      MISSING_DOC_TASKS.map((t) => (
-                        <TaskItem
-                          key={t.id}
-                          title={t.title}
-                          owner={t.owner}
-                          due={t.due}
-                          dotColor={t.dotColor}
-                          onClick={() => router.push("/cases")}
-                        />
-                      ))
+                      <div className="py-8 text-center text-[13px] text-[#A4A4A4] font-medium">
+                        No open tasks
+                      </div>
                     )}
                   </>
                 ) : (
                   <div className="flex flex-col gap-[8px]">
-                    {MISSING_DOC_TASKS.map((t) => (
-                      <TaskItem
-                        key={t.id}
-                        title={t.title}
-                        owner={t.owner}
-                        due={t.due}
-                        dotColor={t.dotColor}
-                        onClick={() => router.push("/compliance/documents")}
-                      />
-                    ))}
+                    {tasks.filter((t) => t.category === "Documents").length > 0 ? (
+                      tasks.filter((t) => t.category === "Documents").map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          title={task.title}
+                          owner={taskOwnerName(task)}
+                          due={taskDueLabel(task)}
+                          dotColor={taskDotColor(task)}
+                          onClick={() => router.push(task.case?.id ? `/cases/${task.case.id}` : "/cases")}
+                        />
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-[13px] text-[#A4A4A4] font-medium">
+                        No missing document tasks
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -760,6 +749,7 @@ export default function DashboardPage() {
                 Recent activity
               </span>
               <button
+                type="button"
                 onClick={() => router.push("/compliance/logs")}
                 className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
               >
@@ -769,17 +759,23 @@ export default function DashboardPage() {
 
             <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-xl shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
               <div className="flex flex-col">
-                {activityRows.map((row, i) => (
-                  <ActivityItem
-                    key={i}
-                    avatarText={row.initials}
-                    avatarBg={row.avatarBg}
-                    title={row.title}
-                    owner={row.owner}
-                    time={row.time}
-                    onClick={() => router.push("/compliance/logs")}
-                  />
-                ))}
+                {activityRows.length > 0 ? (
+                  activityRows.map((row, i) => (
+                    <ActivityItem
+                      key={row.id || `${row.title}-${i}`}
+                      avatarText={row.initials}
+                      avatarBg={row.avatarBg}
+                      title={row.title}
+                      owner={row.owner}
+                      time={row.time}
+                      onClick={() => router.push("/compliance/logs")}
+                    />
+                  ))
+                ) : (
+                  <div className="py-8 text-center text-[13px] text-[#A4A4A4] font-medium">
+                    No recent activity
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -801,11 +797,12 @@ export default function DashboardPage() {
                 <div className="flex items-center gap-sm">
                   <div className="flex items-center py-sm pr-sm flex-1">
                     <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
-                      {displayedMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                      {`${MONTH_NAMES_SHORT[displayedMonth.getMonth()]} ${displayedMonth.getFullYear()}`}
                     </span>
                   </div>
                   <div className="flex items-center gap-[6px] bg-[#F5F5F5] rounded-[8px] p-[6px]">
                     <button
+                      type="button"
                       onClick={handlePrevMonth}
                       title="Previous Month"
                       className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
@@ -813,6 +810,7 @@ export default function DashboardPage() {
                       <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
                     </button>
                     <button
+                      type="button"
                       onClick={handleNextMonth}
                       title="Next Month"
                       className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
@@ -861,7 +859,8 @@ export default function DashboardPage() {
 
                       cells.push(
                         <div key={d} className="flex items-center justify-center h-[40px]">
-                          <div
+                          <button
+                            type="button"
                             onClick={() => setSelectedDay(selectedDay === d ? null : d)}
                             className={`relative flex flex-col items-center justify-center rounded-[10px] cursor-pointer transition-all ${
                               isSelected
@@ -883,7 +882,7 @@ export default function DashboardPage() {
                                 }`}
                               />
                             )}
-                          </div>
+                          </button>
                         </div>
                       );
                     }
@@ -949,10 +948,11 @@ export default function DashboardPage() {
                         const initials = evt.initials || migrantName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
                         return (
-                          <div
+                          <button
                             key={evt.id}
+                            type="button"
                             onClick={() => router.push(evt.caseId ? `/cases?caseId=${evt.caseId}` : "/cases")}
-                            className="flex items-center gap-[12px] py-1.5 px-2 hover:bg-white rounded-[8px] transition-all cursor-pointer group"
+                            className="flex items-center gap-[12px] py-1.5 px-2 hover:bg-white rounded-[8px] transition-all cursor-pointer group text-left w-full border-0 bg-transparent"
                           >
                             <span className={`size-[6px] rounded-full ${dotColor} shrink-0`} />
 
@@ -974,7 +974,7 @@ export default function DashboardPage() {
                                 {actionLabel}
                               </span>
                             </div>
-                          </div>
+                          </button>
                         );
                       })
                     ) : (
@@ -1012,30 +1012,32 @@ export default function DashboardPage() {
 
             <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-xl shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
               <div className="grid grid-cols-2 gap-lg w-full">
-                <div
+                <button
+                  type="button"
                   onClick={() => router.push("/migrants?location=uk")}
-                  className="bg-[#E3F7EC] border border-[#A7F3D0] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-[#10B981] transition-all cursor-pointer group"
+                  className="bg-[#E3F7EC] border border-[#A7F3D0] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-[#10B981] transition-all cursor-pointer group text-left"
                 >
                   <span className="text-[11px] font-semibold text-[#0B4627] tracking-[0.02em] uppercase">
                     IN THE UK
                   </span>
                   <span className="text-[24px] font-semibold text-[#0B4627] leading-none font-aeonik-medium">
-                    {stats?.migrants?.in ?? 6}
+                    {stats?.migrants?.in ?? 0}
                   </span>
                   <RiCheckboxCircleLine className="size-4 text-[#0B4627] absolute top-3 right-3 group-hover:scale-110 transition-transform" />
-                </div>
-                <div
+                </button>
+                <button
+                  type="button"
                   onClick={() => router.push("/migrants?location=outside")}
-                  className="bg-[#F7F7F7] border border-[#EBEBEB] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-neutral-300 transition-all cursor-pointer group"
+                  className="bg-[#F7F7F7] border border-[#EBEBEB] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-neutral-300 transition-all cursor-pointer group text-left"
                 >
                   <span className="text-[11px] font-semibold text-[#5C5C5C] tracking-[0.02em] uppercase">
                     OUTSIDE UK
                   </span>
                   <span className="text-[24px] font-semibold text-[#171717] leading-none font-aeonik-medium">
-                    {stats?.migrants?.out ?? 10}
+                    {stats?.migrants?.out ?? 0}
                   </span>
                   <RiBriefcaseLine className="size-4 text-[#5C5C5C] absolute top-3 right-3 group-hover:scale-110 transition-transform" />
-                </div>
+                </button>
               </div>
 
               <div className="flex flex-col gap-lg border-t border-[#EBEBEB] pt-[16px]">
@@ -1044,29 +1046,36 @@ export default function DashboardPage() {
                 </span>
                 
                 <div className="flex flex-col gap-[12px]">
-                  {ltrAlerts.map((alert, i) => (
-                    <div
-                      key={i}
-                      onClick={() => router.push("/migrants?alert=expiring")}
-                      className="flex items-center justify-between text-[14px] p-2 hover:bg-[#FAFAFA] rounded-[8px] transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-[12px]">
-                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
-                          alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
-                        }`}>
-                          <span className={`text-[13px] font-medium ${
+                  {ltrAlerts.length > 0 ? (
+                    ltrAlerts.map((alert) => (
+                      <button
+                        key={alert.id || alert.name}
+                        type="button"
+                        onClick={() => router.push("/migrants?alert=expiring")}
+                        className="flex items-center justify-between text-[14px] p-2 hover:bg-[#FAFAFA] rounded-[8px] transition-colors cursor-pointer text-left w-full border-0 bg-transparent"
+                      >
+                        <div className="flex items-center gap-[12px]">
+                          <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
+                            alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
+                          }`}>
+                            <span className={`text-[13px] font-medium ${
+                              alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
+                            }`}>{alert.initials}</span>
+                          </div>
+                          <span className={`font-${alert.isUrgent ? "semibold" : "medium"} ${
                             alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                          }`}>{alert.initials}</span>
+                          }`}>{alert.name}</span>
                         </div>
-                        <span className={`font-${alert.isUrgent ? "semibold" : "medium"} ${
+                        <span className={`text-[13px] font-${alert.isUrgent ? "semibold" : "medium"} ${
                           alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                        }`}>{alert.name}</span>
-                      </div>
-                      <span className={`text-[13px] font-${alert.isUrgent ? "semibold" : "medium"} ${
-                        alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                      }`}>{alert.daysLeft} days</span>
+                        }`}>{alert.daysLeft} days</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-[13px] text-[#A4A4A4] font-medium">
+                      No expiring leave to remain alerts
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -1180,15 +1189,13 @@ export default function DashboardPage() {
           }
 
           // 2. Persist to local state & localStorage so it persists permanently across reloads
-          setEvents((prev) => {
-            const nextEvents = [createdEvent, ...prev];
-            try {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextEvents));
-            } catch (err) {
-              console.error("localStorage save failed:", err);
-            }
-            return nextEvents;
-          });
+          const nextEvents = [createdEvent, ...events];
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextEvents));
+          } catch (err) {
+            console.error("localStorage save failed:", err);
+          }
+          setEvents(nextEvents);
 
           const parts = parseLocalDateParts(newEvent.date);
           const monthStart = new Date(parts.year, parts.month, 1);

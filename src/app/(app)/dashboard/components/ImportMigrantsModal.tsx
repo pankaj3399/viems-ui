@@ -28,13 +28,24 @@ export function ImportMigrantsModal({
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadSuccess, setUploadSuccess] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-      setUploadSuccess(false);
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError("File size exceeds the 10MB limit.");
+        setSelectedFile(null);
+      } else {
+        setSelectedFile(file);
+        setUploadSuccess(false);
+        setUploadError(null);
+      }
     }
+    if (e.target) e.target.value = "";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -43,45 +54,57 @@ export function ImportMigrantsModal({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-      setUploadSuccess(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      if (file.size > MAX_FILE_SIZE) {
+        setUploadError("File size exceeds the 10MB limit.");
+        setSelectedFile(null);
+      } else {
+        setSelectedFile(file);
+        setUploadSuccess(false);
+        setUploadError(null);
+      }
     }
   };
 
   const handleImport = async () => {
     if (!selectedFile) return;
     setIsUploading(true);
+    setUploadError(null);
 
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      // Upload file to NestJS backend files endpoint
-      await apiClient.post(`${ENDPOINTS.files.base}/upload/migrants/1`, formData).catch(() => {
-        // Fallback endpoint
-        return apiClient.post(`${ENDPOINTS.migrants.base}/import`, formData).catch(() => null);
-      });
+      let success = false;
+      try {
+        await apiClient.post(`${ENDPOINTS.migrants.base}/import`, formData);
+        success = true;
+      } catch (err1) {
+        try {
+          await apiClient.post(`${ENDPOINTS.files.base}/upload/migrants/1`, formData);
+          success = true;
+        } catch (err2) {
+          throw err2;
+        }
+      }
 
-      setIsUploading(false);
-      setUploadSuccess(true);
-      if (onSuccess) onSuccess();
+      if (success) {
+        setIsUploading(false);
+        setUploadSuccess(true);
+        if (onSuccess) onSuccess();
 
-      setTimeout(() => {
-        onOpenChange(false);
-        setSelectedFile(null);
-        setUploadSuccess(false);
-      }, 1000);
-    } catch (err) {
+        setTimeout(() => {
+          onOpenChange(false);
+          setSelectedFile(null);
+          setUploadSuccess(false);
+        }, 1000);
+      }
+    } catch (err: any) {
       console.error("Import upload failed:", err);
       setIsUploading(false);
-      setUploadSuccess(true);
-      if (onSuccess) onSuccess();
-      setTimeout(() => {
-        onOpenChange(false);
-        setSelectedFile(null);
-        setUploadSuccess(false);
-      }, 1000);
+      setUploadSuccess(false);
+      setUploadError(err?.message || "Failed to import file. Please try again.");
     }
   };
 
@@ -96,6 +119,12 @@ export function ImportMigrantsModal({
         </DialogHeader>
 
         <div className="py-md flex flex-col gap-lg font-sans">
+          {uploadError && (
+            <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-3 text-[13px] text-[#FB3748]">
+              {uploadError}
+            </div>
+          )}
+
           <input
             type="file"
             ref={fileInputRef}
@@ -104,11 +133,12 @@ export function ImportMigrantsModal({
             className="hidden"
           />
 
-          <div
+          <button
+            type="button"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-[12px] p-2xl flex flex-col items-center justify-center gap-md cursor-pointer transition-colors ${
+            className={`w-full border-2 border-dashed rounded-[12px] p-2xl flex flex-col items-center justify-center gap-md cursor-pointer transition-colors ${
               selectedFile
                 ? "border-brand-medium bg-brand-light/30"
                 : "border-[#EBEBEB] hover:border-brand-medium bg-[#FAFAFA]"
@@ -142,7 +172,7 @@ export function ImportMigrantsModal({
                 </div>
               </>
             )}
-          </div>
+          </button>
 
           {uploadSuccess && (
             <div className="flex items-center gap-xs p-md bg-[#E1FBF2] text-[#065F46] rounded-[8px] text-[13px] font-medium">

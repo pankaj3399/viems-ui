@@ -417,9 +417,17 @@ export default function MigrantsPage() {
                       key={migrant.id ? `migrant-${migrant.id}-${idx}` : `migrant-${migrant.caseId}-${idx}`}
                       role="button"
                       tabIndex={0}
-                      onClick={() => handleRowClick(migrant)}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("[role='menu']")) {
+                          return;
+                        }
+                        handleRowClick(migrant);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
+                          if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("[role='menu']")) {
+                            return;
+                          }
                           e.preventDefault();
                           handleRowClick(migrant);
                         }

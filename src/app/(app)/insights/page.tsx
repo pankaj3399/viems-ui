@@ -85,13 +85,35 @@ const COUNTRY_COORDINATES: Record<string, { left: string; top: string; label: st
   Kenyan: { left: "58.5%", top: "61.0%", label: "Kenya" },
 };
 
-const TIME_RANGE_MULTIPLIERS: Record<string, number> = {
-  "5D": 0.17,
-  "2W": 0.47,
-  "1M": 1.0,
-  "6M": 6.0,
-  "1Y": 12.0,
-};
+const LOWER_COUNTRY_COORDINATES: Record<string, { left: string; top: string; label: string }> = Object.entries(COUNTRY_COORDINATES).reduce(
+  (acc, [k, v]) => {
+    acc[k.toLowerCase()] = v;
+    return acc;
+  },
+  {} as Record<string, { left: string; top: string; label: string }>
+);
+
+function getCoords(name: string): { left: string; top: string; label: string } | null {
+  if (!name) return null;
+  if (COUNTRY_COORDINATES[name]) return COUNTRY_COORDINATES[name];
+  return LOWER_COUNTRY_COORDINATES[name.toLowerCase()] ?? null;
+}
+
+interface CaseItem {
+  id?: number | string;
+  creation_date?: string;
+  createdAt?: string;
+  case_status?: string;
+  is_active?: boolean;
+  migration_stage?: string;
+  files?: any[];
+  decision?: {
+    decisionDate?: string;
+    date?: string;
+    granted?: { visaStartDate?: string };
+  };
+  decision_date?: string;
+}
 
 interface NationalityStat {
   id: string | number;
@@ -110,9 +132,8 @@ function getCaseDate(c: any): Date | null {
 export default function InsightsPage() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = React.useState<"3M" | "6M" | "1Y" | "ALL">("6M");
-  const [cases, setCases] = React.useState<any[]>([]);
+  const [cases, setCases] = React.useState<CaseItem[]>([]);
   const [nationalities, setNationalities] = React.useState<NationalityStat[]>([]);
-  const [originFilter, setOriginFilter] = React.useState("1M");
   const [hoveredOrigin, setHoveredOrigin] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -122,14 +143,14 @@ export default function InsightsPage() {
       try {
         setLoading(true);
         const [casesData, natData] = await Promise.allSettled([
-          apiClient.get<any[]>(ENDPOINTS.cases.base),
+          apiClient.get<CaseItem[]>(ENDPOINTS.cases.base),
           apiClient.get<NationalityStat[]>(ENDPOINTS.statistics.nationalities),
         ]);
 
         if (casesData.status === "fulfilled") setCases(Array.isArray(casesData.value) ? casesData.value : []);
         if (natData.status === "fulfilled") setNationalities(natData.value ?? []);
         setError(null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Failed to load insights data", err);
         setError("Failed to load data. Please try again later.");
       } finally {
@@ -197,7 +218,7 @@ export default function InsightsPage() {
   if (completedCases.length > 0) {
     const totalDays = completedCases.reduce((sum, c) => {
       const creation = getCaseDate(c)!;
-      const decisionDateStr = c.decision?.decisionDate || c.decision?.date || c.decision_date || c.decision?.granted?.visaStartDate;
+      const decisionDateStr = c.decision?.decisionDate || c.decision?.date || c.decision_date || c.decision?.granted?.visaStartDate || "";
       const decisionDate = new Date(decisionDateStr);
       const diff = Math.max(0, Math.round((decisionDate.getTime() - creation.getTime()) / (1000 * 60 * 60 * 24)));
       return sum + diff;
@@ -418,17 +439,6 @@ export default function InsightsPage() {
                 {(() => {
                   const originsList = topOrigins;
                   const activeItem = originsList.find((o) => o.name === hoveredOrigin) || originsList[0];
-                  
-                  const getCoords = (name: string) => {
-                    if (!name) return null;
-                    if (COUNTRY_COORDINATES[name]) return COUNTRY_COORDINATES[name];
-                    const lower = name.toLowerCase();
-                    for (const [k, v] of Object.entries(COUNTRY_COORDINATES)) {
-                      if (k.toLowerCase() === lower) return v;
-                    }
-                    return null;
-                  };
-
                   const activeCoords = activeItem ? getCoords(activeItem.name) : null;
                   const unmappedOrigins = originsList.filter((o) => !getCoords(o.name));
 
@@ -441,9 +451,11 @@ export default function InsightsPage() {
                         const isActive = activeItem?.name === origin.name;
 
                         return (
-                          <div
+                          <button
                             key={origin.name}
-                            className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2"
+                            type="button"
+                            aria-label={`${origin.name}: ${origin.count} cases`}
+                            className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2 border-0 bg-transparent"
                             style={{ left: coords.left, top: coords.top }}
                             onMouseEnter={() => setHoveredOrigin(origin.name)}
                             onMouseLeave={() => setHoveredOrigin(null)}
@@ -455,7 +467,7 @@ export default function InsightsPage() {
                             <div className={`rounded-full bg-[#7D52F4] border-2 border-white shadow-md transition-all duration-200 ${
                               isActive || isHovered ? "size-3 scale-125" : "size-2.5"
                             }`} />
-                          </div>
+                          </button>
                         );
                       })}
 
@@ -483,22 +495,6 @@ export default function InsightsPage() {
                   );
                 })()}
               </div>
-
-              <div className="flex bg-[#F5F5F5] rounded-[8px] p-0.5 w-[240px] shadow-sm select-none shrink-0 mt-4">
-                {["5D", "2W", "1M", "6M", "1Y"].map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => setOriginFilter(filter)}
-                    className={`flex-1 py-1 text-center rounded-[6px] text-[12px] font-semibold transition-all cursor-pointer border-0 ${
-                      originFilter === filter
-                        ? "bg-white text-[#171717] shadow-sm"
-                        : "text-[#7B7B7B] hover:text-[#171717]"
-                    }`}
-                  >
-                    {filter}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="w-[280px] h-full shrink-0 border border-[#EBEBEB] bg-[#FAFAFA] rounded-[12px] p-[20px] flex flex-col gap-md">
@@ -507,11 +503,11 @@ export default function InsightsPage() {
               </span>
               <div className="flex flex-col gap-[8px] overflow-y-auto pr-1">
                 {topOrigins.length > 0 ? (
-                  topOrigins.map((origin, idx) => {
+                  topOrigins.map((origin) => {
                     const isHovered = hoveredOrigin === origin.name;
                     return (
                       <div 
-                        key={idx} 
+                        key={origin.name} 
                         className={`flex items-center justify-between text-[14px] p-2 rounded-[8px] transition-all cursor-pointer ${
                           isHovered ? "bg-white shadow-sm border border-[#EBEBEB]" : "hover:bg-white/60"
                         }`}

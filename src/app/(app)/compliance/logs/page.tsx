@@ -29,67 +29,9 @@ interface LogEntry {
   ipAddress?: string;
 }
 
-const FALLBACK_LOGS: LogEntry[] = [
-  {
-    id: 1,
-    userName: "Sarah Connor",
-    userEmail: "sarah.connor@example.com",
-    action: "Updated RTW status",
-    entityName: "Migrant Profile",
-    entityIdentifier: "MIG-9042",
-    creationDate: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    newValue: "Verified",
-    oldValue: "Pending Check",
-  },
-  {
-    id: 2,
-    userName: "Alex Mercer",
-    userEmail: "alex.mercer@example.com",
-    action: "Uploaded document",
-    entityName: "Passport Scan",
-    entityIdentifier: "DOC-3321",
-    creationDate: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    newValue: "passport_v2.pdf",
-  },
-  {
-    id: 3,
-    userName: "David Miller",
-    userEmail: "david.miller@example.com",
-    action: "Assigned CoS",
-    entityName: "Sponsorship Case",
-    entityIdentifier: "COS-88219",
-    creationDate: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    newValue: "Assigned",
-    oldValue: "Draft",
-  },
-  {
-    id: 4,
-    userName: "Elena Rostova",
-    userEmail: "elena.r@example.com",
-    action: "Created new migrant",
-    entityName: "John Smith",
-    entityIdentifier: "MIG-1002",
-    creationDate: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-  },
-  {
-    id: 5,
-    userName: "System Compliance",
-    action: "Automated Check",
-    entityName: "Visa Expiry Alert",
-    entityIdentifier: "SYS-402",
-    creationDate: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-    newValue: "14 Days Remaining Alert Triggered",
-  },
-  {
-    id: 6,
-    userName: "Priya Sharma",
-    userEmail: "priya.s@example.com",
-    action: "Exported audit report",
-    entityName: "Compliance Report",
-    entityIdentifier: "REP-2026-08",
-    creationDate: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-  },
-];
+type LogsResponse =
+  | LogEntry[]
+  | { logs?: LogEntry[]; data?: LogEntry[]; count?: number };
 
 const ACTION_COLORS: Record<string, { bg: string; text: string }> = {
   created: { bg: "bg-[#E1FBF2]", text: "text-[#065F46]" },
@@ -104,13 +46,15 @@ export default function ActivityLogsPage() {
   const router = useRouter();
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [actionFilter, setActionFilter] = React.useState<string>("all");
 
   const fetchLogs = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<{ logs: LogEntry[]; count: number } | LogEntry[]>(
+      setError(null);
+      const res = await apiClient.get<LogsResponse>(
         ENDPOINTS.logs.base,
         { params: { take: "50", sort_by: "date.desc" } }
       );
@@ -118,16 +62,16 @@ export default function ActivityLogsPage() {
       let loaded: LogEntry[] = [];
       if (Array.isArray(res)) {
         loaded = res;
-      } else if (res && Array.isArray((res as any).logs)) {
-        loaded = (res as any).logs;
-      } else if (res && Array.isArray((res as any).data)) {
-        loaded = (res as any).data;
+      } else if (res && typeof res === "object") {
+        if (Array.isArray(res.logs)) loaded = res.logs;
+        else if (Array.isArray(res.data)) loaded = res.data;
       }
 
-      setLogs(loaded.length > 0 ? loaded : FALLBACK_LOGS);
-    } catch (err) {
+      setLogs(loaded);
+    } catch (err: unknown) {
       console.error("Failed to fetch logs:", err);
-      setLogs(FALLBACK_LOGS);
+      setLogs([]);
+      setError("Failed to load audit activity logs.");
     } finally {
       setLoading(false);
     }
@@ -312,7 +256,7 @@ export default function ActivityLogsPage() {
                         {log.newValue && (
                           <>
                             <span>•</span>
-                            <span className="text-[#171717]">"{log.newValue}"</span>
+                            <span className="text-[#171717]">{`"${log.newValue}"`}</span>
                           </>
                         )}
                       </div>
@@ -325,6 +269,18 @@ export default function ActivityLogsPage() {
                 </div>
               );
             })
+          ) : error ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-xs text-center">
+              <RiInformationLine className="size-8 text-[#FB3748]" />
+              <span className="text-[14px] font-semibold text-[#171717]">{error}</span>
+              <button
+                type="button"
+                onClick={fetchLogs}
+                className="mt-2 text-[13px] font-medium text-[#7D52F4] hover:underline cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
           ) : (
             <div className="py-12 flex flex-col items-center justify-center gap-xs text-center">
               <RiInformationLine className="size-8 text-[#A4A4A4]" />

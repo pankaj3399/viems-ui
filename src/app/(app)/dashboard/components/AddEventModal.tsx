@@ -18,6 +18,13 @@ interface AddEventModalProps {
   onAddEvent?: (event: { title: string; date: string; color?: string }) => void;
 }
 
+function formatLocalDate(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function AddEventModal({
   open,
   onOpenChange,
@@ -25,14 +32,14 @@ export function AddEventModal({
   onAddEvent,
 }: AddEventModalProps) {
   const [title, setTitle] = React.useState("");
-  const [date, setDate] = React.useState(() => initialDate || new Date().toISOString().split("T")[0]);
+  const [date, setDate] = React.useState(() => initialDate || formatLocalDate());
   const [color, setColor] = React.useState("bg-[#7D52F4]");
 
   React.useEffect(() => {
     if (initialDate) {
       setDate(initialDate);
     } else {
-      setDate(new Date().toISOString().split("T")[0]);
+      setDate(formatLocalDate());
     }
   }, [initialDate, open]);
 
@@ -40,18 +47,15 @@ export function AddEventModal({
     e.preventDefault();
     if (!title.trim()) return;
 
-    // Build event date at 12:00 PM local time to prevent midnight UTC cutoff/timezone issues
-    const [y, m, d] = date.split("-").map(Number);
-    const eventDate = new Date(y, m - 1, d, 12, 0, 0);
-
     if (onAddEvent) {
       onAddEvent({
         title: title.trim(),
-        date: eventDate.toISOString(),
+        date,
         color,
       });
     }
     setTitle("");
+    setColor("bg-[#7D52F4]");
     onOpenChange(false);
   };
 
@@ -67,8 +71,9 @@ export function AddEventModal({
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-lg py-md font-sans">
           <div className="flex flex-col gap-xs">
-            <label className="text-[13px] font-semibold text-[#171717]">Event Title</label>
+            <label htmlFor="add-event-title" className="text-[13px] font-semibold text-[#171717]">Event Title</label>
             <input
+              id="add-event-title"
               type="text"
               required
               placeholder="e.g. Right to Work Check Audit"
@@ -79,8 +84,9 @@ export function AddEventModal({
           </div>
 
           <div className="flex flex-col gap-xs">
-            <label className="text-[13px] font-semibold text-[#171717]">Date</label>
+            <label htmlFor="add-event-date" className="text-[13px] font-semibold text-[#171717]">Date</label>
             <input
+              id="add-event-date"
               type="date"
               required
               value={date}
@@ -90,8 +96,8 @@ export function AddEventModal({
           </div>
 
           <div className="flex flex-col gap-xs">
-            <label className="text-[13px] font-semibold text-[#171717]">Tag Color</label>
-            <div className="flex items-center gap-md pt-xs">
+            <label id="add-event-color-label" className="text-[13px] font-semibold text-[#171717]">Tag Color</label>
+            <div role="group" aria-labelledby="add-event-color-label" className="flex items-center gap-md pt-xs">
               {[
                 { name: "Purple", class: "bg-[#7D52F4]" },
                 { name: "Red", class: "bg-[#FB3748]" },
@@ -102,6 +108,8 @@ export function AddEventModal({
                 <button
                   key={c.class}
                   type="button"
+                  aria-label={c.name}
+                  aria-pressed={color === c.class}
                   onClick={() => setColor(c.class)}
                   className={`size-6 rounded-full ${c.class} transition-transform ${
                     color === c.class ? "scale-125 ring-2 ring-offset-2 ring-neutral-800" : "hover:scale-110"
