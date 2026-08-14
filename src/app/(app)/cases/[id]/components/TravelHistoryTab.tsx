@@ -4,17 +4,16 @@ import * as React from "react";
 import {
   RiSearchLine,
   RiFilterLine,
-  RiArrowUpSLine,
-  RiArrowDownSLine,
-  RiExpandUpDownFill,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface TravelHistoryRow {
   id: number;
   direction: "IN" | "OUT";
   date: string;
+  dateValue: number;
   port: string;
   routeFlight: string;
   method: string;
@@ -26,8 +25,7 @@ interface TravelHistoryTabProps {
 
 export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [sortField, setSortField] = React.useState<keyof TravelHistoryRow | null>(null);
-  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc");
+  const { sortField, sortDirection, setSortField, setSortDirection, handleSort, renderSortIcon } = useTableSort<TravelHistoryRow>();
   const [records, setRecords] = React.useState<TravelHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -39,14 +37,20 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
         setLoading(true);
         const res = await apiClient.get<any>(ENDPOINTS.migrants.travelHistory(migrant.id));
         if (active && Array.isArray(res)) {
-          const mapped: TravelHistoryRow[] = res.map((r: any, idx: number) => ({
-            id: r.id || idx + 1,
-            direction: (r.direction || r.type || "IN").toUpperCase() === "OUT" ? "OUT" : "IN",
-            date: r.date || r.travelDate || "—",
-            port: r.port || r.location || "—",
-            routeFlight: r.routeFlight || r.flightNumber || "—",
-            method: r.method || r.transport || "—",
-          }));
+          const mapped: TravelHistoryRow[] = res.map((r: any, idx: number) => {
+            const rawDate = r.date || r.travelDate || "";
+            const d = rawDate ? new Date(rawDate) : null;
+            const dateValue = d && !isNaN(d.getTime()) ? d.getTime() : 0;
+            return {
+              id: r.id || idx + 1,
+              direction: (r.direction || r.type || "IN").toUpperCase() === "OUT" ? "OUT" : "IN",
+              date: r.date || r.travelDate || "—",
+              dateValue,
+              port: r.port || r.location || "—",
+              routeFlight: r.routeFlight || r.flightNumber || "—",
+              method: r.method || r.transport || "—",
+            };
+          });
           setRecords(mapped);
         }
       } catch (err) {
@@ -60,20 +64,6 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
       active = false;
     };
   }, [migrant?.id]);
-
-  const handleSort = (field: keyof TravelHistoryRow) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else {
-        setSortField(null);
-        setSortDirection("asc");
-      }
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
 
   const filteredRecords = React.useMemo(() => {
     const list = records.filter((item) => {
@@ -93,6 +83,11 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
     if (!sortField) return list;
 
     return [...list].sort((a, b) => {
+      if (sortField === "date") {
+        return sortDirection === "asc"
+          ? a.dateValue - b.dateValue
+          : b.dateValue - a.dateValue;
+      }
       const valA = (a[sortField] || "").toString().toLowerCase();
       const valB = (b[sortField] || "").toString().toLowerCase();
       if (valA < valB) return sortDirection === "asc" ? -1 : 1;
@@ -100,17 +95,6 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
       return 0;
     });
   }, [records, searchQuery, sortField, sortDirection]);
-
-  const renderSortIcon = (field: keyof TravelHistoryRow) => {
-    if (sortField === field) {
-      return sortDirection === "asc" ? (
-        <RiArrowUpSLine className="size-3.5 text-[#171717]" />
-      ) : (
-        <RiArrowDownSLine className="size-3.5 text-[#171717]" />
-      );
-    }
-    return <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />;
-  };
 
   return (
     <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">

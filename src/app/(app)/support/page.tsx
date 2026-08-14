@@ -161,7 +161,7 @@ export default function SupportPage() {
                 How do I initiate a Right to Work check for a new applicant?
               </h4>
               <p className="text-[13px] text-[#5C5C5C] leading-[20px]">
-                Navigate to the Compliance section, select "RTW Checks", and click "New Check" to generate a shareable verification link for the migrant.
+                Navigate to the Compliance section, select &quot;RTW Checks&quot;, and click &quot;New Check&quot; to generate a shareable verification link for the migrant.
               </p>
             </div>
 
@@ -179,7 +179,7 @@ export default function SupportPage() {
                 How can I invite team members to my organization workspace?
               </h4>
               <p className="text-[13px] text-[#5C5C5C] leading-[20px]">
-                Go to Settings &gt; Team &amp; Roles and click "Invite member" to assign Admin, Case Manager, or Viewer privileges.
+                Go to Settings &gt; Team &amp; Roles and click &quot;Invite member&quot; to assign Admin, Case Manager, or Viewer privileges.
               </p>
             </div>
           </div>

@@ -1,24 +1,25 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   RiSearchLine,
   RiFilterLine,
-  RiArrowDownSLine,
   RiArrowLeftSLine,
   RiArrowRightSLine,
-  RiArrowUpSLine,
+  RiArrowDownSLine,
   RiMore2Line,
   RiAddLine,
   RiUploadLine,
-  RiExpandUpDownFill,
   RiUserLine,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName, getInitials } from "@/lib/utils";
+import { formatFullName, getInitials, getStatusBadgeStyle } from "@/lib/utils";
 import { getCountryInfo } from "@/lib/country";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { useTableSort } from "@/hooks/useTableSort";
 import { toast } from "sonner";
 import { CountryFilterDropdown } from "../cases/components/CountryFilterDropdown";
 import { StatusFilterDropdown } from "../cases/components/StatusFilterDropdown";
@@ -50,7 +51,7 @@ interface MigrantRow {
   avatarUrl?: string;
   status: string;
   migration: string;
-  migrationColor: "outside" | "pending" | "active" | "pre" | "withdrawn" | "archived";
+  migrationColor: "outside" | "pending" | "active" | "pre" | "withdrawn" | "archived" | "unknown";
   action: string;
   actionColor: "blue" | "red" | "yellow" | "gray";
 }
@@ -67,8 +68,7 @@ export default function MigrantsPage() {
   const [countryFilter, setCountryFilter] = React.useState<string | null>(initialNationality);
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
   const [needsActionOnly, setNeedsActionOnly] = React.useState(false);
-  const [sortField, setSortField] = React.useState<keyof MigrantRow | null>(null);
-  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc");
+  const { sortField, sortDirection, setSortField, setSortDirection, handleSort, renderSortIcon } = useTableSort<MigrantRow>();
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
   const [loading, setLoading] = React.useState(false);
@@ -81,7 +81,6 @@ export default function MigrantsPage() {
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [actionModalOpen, setActionModalOpen] = React.useState(false);
   const [importModalOpen, setImportModalOpen] = React.useState(false);
-  const [selectedActionType, setSelectedActionType] = React.useState<string>("");
 
   const [error, setError] = React.useState<string | null>(null);
 
@@ -164,20 +163,11 @@ export default function MigrantsPage() {
               migration = "PRE-ARRIVAL";
               migrationColor = "pre";
             } else if (normStatus.includes("approved") || normStatus.includes("assigned") || normStatus.includes("granted")) {
-              const mod = (c.id || i) % 3;
-              if (mod === 0) {
-                migration = "ACTIVE COMPLIANCE";
-                migrationColor = "active";
-              } else if (mod === 1) {
-                migration = "ARRIVED – RTW PENDING";
-                migrationColor = "pending";
-              } else {
-                migration = "OUTSIDE UK";
-                migrationColor = "outside";
-              }
+              migration = "UNKNOWN";
+              migrationColor = "archived";
             } else {
-              migration = "OUTSIDE UK";
-              migrationColor = "outside";
+              migration = "UNKNOWN";
+              migrationColor = "archived";
             }
           }
 
@@ -276,30 +266,13 @@ export default function MigrantsPage() {
     setCurrentPage(1);
   }, [countryFilter, statusFilter, needsActionOnly, searchQuery, sortField, sortDirection]);
 
-  const handleSort = (field: keyof MigrantRow) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else {
-        setSortField(null);
-        setSortDirection("asc");
-      }
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
   const filteredMigrants = React.useMemo(() => {
     const list = migrants.filter((m) => {
       if (countryFilter) {
         const cf = countryFilter.toLowerCase().trim();
         const matches =
           m.countryCode.toLowerCase() === cf ||
-          m.country.toLowerCase() === cf ||
-          m.country.toLowerCase().includes(cf) ||
-          cf.includes(m.country.toLowerCase()) ||
-          cf.includes(m.countryCode.toLowerCase());
+          m.country.toLowerCase().includes(cf);
         if (!matches) return false;
       }
       if (statusFilter && m.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
@@ -357,26 +330,6 @@ export default function MigrantsPage() {
     }
   };
 
-  const getVisaStatusBadgeStyle = (statusStr: string) => {
-    const norm = (statusStr || "").toLowerCase().replace(/_/g, " ").trim();
-    if (norm.includes("approved") || norm.includes("assigned") || norm.includes("granted") || norm.includes("cleared")) {
-      return { bg: "bg-[#E3F7EC]", text: "text-[#0B4627]", dot: "bg-[#1FC16B]" };
-    }
-    if (norm.includes("refused") || norm.includes("ineligible") || norm.includes("risk")) {
-      return { bg: "bg-[#FFEBEC]", text: "text-[#681219]", dot: "bg-[#FB3748]" };
-    }
-    if (norm.includes("pending") || norm.includes("awaiting") || norm.includes("requested") || norm.includes("decision") || norm.includes("biometrics") || norm.includes("interview")) {
-      return { bg: "bg-[#FFFAEB]", text: "text-[#855B00]", dot: "bg-[#F6B51E]" };
-    }
-    if (norm.includes("draft") || norm.includes("progress") || norm.includes("assessment") || norm.includes("submission")) {
-      return { bg: "bg-[#EFEBFF]", text: "text-[#351A75]", dot: "bg-[#7D52F4]" };
-    }
-    if (norm.includes("withdrawn") || norm.includes("closed") || norm.includes("done") || norm.includes("archived")) {
-      return { bg: "bg-[#F5F5F5]", text: "text-[#5C5C5C]", dot: "bg-[#7B7B7B]" };
-    }
-    return { bg: "bg-[#F5F5F5]", text: "text-[#5C5C5C]", dot: "bg-[#7B7B7B]" };
-  };
-
   const getMigrationBadgeStyle = (type: MigrantRow["migrationColor"]) => {
     switch (type) {
       case "pending":
@@ -388,22 +341,11 @@ export default function MigrantsPage() {
       case "withdrawn":
         return { dot: "bg-[#FB3748]", text: "text-[#681219]" };
       case "archived":
-        return { dot: "bg-[#7B7B7B]", text: "text-[#7B7B7B]" };
+      case "unknown":
       case "outside":
       default:
         return { dot: "bg-[#7B7B7B]", text: "text-[#7B7B7B]" };
     }
-  };
-
-  const renderSortIcon = (field: keyof MigrantRow) => {
-    if (sortField === field) {
-      return sortDirection === "asc" ? (
-        <RiArrowUpSLine className="size-3.5 text-[#171717]" />
-      ) : (
-        <RiArrowDownSLine className="size-3.5 text-[#171717]" />
-      );
-    }
-    return <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />;
   };
 
   return (
@@ -677,7 +619,6 @@ export default function MigrantsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRow(migrant);
-                              setSelectedActionType("check_rtw");
                               setActionModalOpen(true);
                             }}
                             className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
@@ -690,7 +631,6 @@ export default function MigrantsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRow(migrant);
-                              setSelectedActionType("schedule_rtw");
                               setActionModalOpen(true);
                             }}
                             className="px-[8px] py-[2px] bg-[#FFFAEB] text-[#855B00] hover:bg-[#FFEFC2] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
@@ -703,7 +643,6 @@ export default function MigrantsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRow(migrant);
-                              setSelectedActionType("review_report");
                               setActionModalOpen(true);
                             }}
                             className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
@@ -720,7 +659,7 @@ export default function MigrantsPage() {
                       {/* Visa Status */}
                       <div className="w-[160px] flex items-center">
                         {(() => {
-                          const statusStyle = getVisaStatusBadgeStyle(migrant.status);
+                          const statusStyle = getStatusBadgeStyle(migrant.status);
                           return (
                             <div className={`inline-flex items-center gap-1.5 px-[8px] py-[2px] ${statusStyle.bg} ${statusStyle.text} rounded-full text-[12px] font-medium`}>
                               <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />
@@ -745,7 +684,6 @@ export default function MigrantsPage() {
                         <CaseRowMenu
                           onResolve={() => {
                             setSelectedRow(migrant);
-                            setSelectedActionType(migrant.action || "Check RTW");
                             setActionModalOpen(true);
                           }}
                           onChangeStatus={() => { setSelectedRow(migrant); setStatusModalOpen(true); }}
@@ -785,21 +723,21 @@ export default function MigrantsPage() {
                 disabled={currentPage === 1}
                 className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
               >
-                <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
+                ‹
               </button>
 
-              {pageNumbers.map((pNum) => (
+              {pageNumbers.map((p) => (
                 <button
-                  key={pNum}
+                  key={p}
                   type="button"
-                  onClick={() => setCurrentPage(pNum)}
-                  className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
-                    currentPage === pNum
+                  onClick={() => setCurrentPage(p)}
+                  className={`size-8 rounded-[8px] text-[13px] font-medium flex items-center justify-center transition-colors cursor-pointer border-0 ${
+                    currentPage === p
                       ? "bg-[#171717] text-white"
-                      : "bg-transparent text-[#5C5C5C] hover:bg-neutral-200"
+                      : "text-[#5C5C5C] hover:bg-neutral-200"
                   }`}
                 >
-                  {pNum}
+                  {p}
                 </button>
               ))}
 
@@ -809,7 +747,7 @@ export default function MigrantsPage() {
                 disabled={currentPage === totalPages}
                 className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
               >
-                <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
+                ›
               </button>
               <button
                 type="button"
@@ -821,23 +759,23 @@ export default function MigrantsPage() {
               </button>
             </div>
 
-            {/* Right Items per Page */}
+            {/* Right Per-Page Selector */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer outline-none hover:text-[#171717] hover:bg-neutral-50 transition-colors">
+              <DropdownMenuTrigger className="flex items-center gap-2 h-8 px-3 rounded-[8px] border border-[#EBEBEB] bg-white text-[13px] text-[#171717] hover:bg-neutral-50 transition-colors outline-none cursor-pointer">
                 <span>{itemsPerPage} / page</span>
-                <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
+                <RiArrowDownSLine className="size-4 text-[#5C5C5C]" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {[10, 25, 50].map((val) => (
+              <DropdownMenuContent align="end" className="w-[120px]">
+                {[10, 20, 50, 100].map((size) => (
                   <DropdownMenuItem
-                    key={val}
+                    key={size}
                     onClick={() => {
-                      setItemsPerPage(val);
+                      setItemsPerPage(size);
                       setCurrentPage(1);
                     }}
-                    className="cursor-pointer text-[13px]"
+                    className="text-[13px] cursor-pointer"
                   >
-                    {val} / page
+                    {size} / page
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -855,21 +793,34 @@ export default function MigrantsPage() {
             currentStatus={selectedRow.status}
             onApply={async (newStatus: string) => {
               try {
-                if (selectedRow.id) {
-                  try {
-                    await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
-                      case_status: newStatus,
-                      status: newStatus,
-                    });
-                  } catch {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
+                    case_status: newStatus,
+                    status: newStatus,
+                  });
+                  success = true;
+                } catch (caseErr: any) {
+                  console.error("Initial case status update failed:", caseErr);
+                  const statusCode = caseErr?.status || caseErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
                     await apiClient.patch(ENDPOINTS.migrants.byId(selectedRow.id), {
                       case_status: newStatus,
                       status: newStatus,
                     });
+                    success = true;
+                  } else {
+                    throw caseErr;
                   }
                 }
-                toast.success("Case status updated successfully");
-                fetchCasesData();
+                if (success) {
+                  toast.success("Case status updated successfully");
+                  fetchCasesData();
+                }
               } catch (err: any) {
                 console.error("Failed to update status in backend:", err);
                 toast.error(err?.message || "Failed to update case status");
@@ -886,22 +837,35 @@ export default function MigrantsPage() {
             }}
             onConfirm={async (reason: string, customText?: string) => {
               try {
-                if (selectedRow.id) {
-                  try {
-                    await apiClient.patch(`${ENDPOINTS.migrants.base}/credibility/${selectedRow.id}`, {
-                      refusalReason: reason,
-                      customReason: customText,
-                      refusalDate: new Date().toISOString(),
-                    });
-                  } catch {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.patch(`${ENDPOINTS.migrants.base}/credibility/${selectedRow.id}`, {
+                    refusalReason: reason,
+                    customReason: customText,
+                    refusalDate: new Date().toISOString(),
+                  });
+                  success = true;
+                } catch (refErr: any) {
+                  console.error("Initial migrant credibility update failed:", refErr);
+                  const statusCode = refErr?.status || refErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
                     await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
                       outcome: "Refused",
                       case_status: "Visa Refused",
                     });
+                    success = true;
+                  } else {
+                    throw refErr;
                   }
                 }
-                toast.success("Case marked as visa refused");
-                fetchCasesData();
+                if (success) {
+                  toast.success("Case marked as visa refused");
+                  fetchCasesData();
+                }
               } catch (err: any) {
                 console.error("Failed to mark visa refused:", err);
                 toast.error(err?.message || "Failed to mark visa as refused");
@@ -918,19 +882,32 @@ export default function MigrantsPage() {
             }}
             onConfirm={async () => {
               try {
-                if (selectedRow.id) {
-                  try {
-                    await apiClient.delete(ENDPOINTS.cases.toArchive, {
-                      data: { data: [{ id: selectedRow.id }] },
-                    });
-                  } catch {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.delete(ENDPOINTS.cases.toArchive, {
+                    data: { data: [{ id: selectedRow.id }] },
+                  });
+                  success = true;
+                } catch (archErr: any) {
+                  console.error("Initial case archive failed:", archErr);
+                  const statusCode = archErr?.status || archErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
                     await apiClient.delete(`${ENDPOINTS.migrants.base}/to-archive`, {
                       data: { data: [{ id: selectedRow.id }] },
                     });
+                    success = true;
+                  } else {
+                    throw archErr;
                   }
                 }
-                toast.success("Case archived successfully");
-                fetchCasesData();
+                if (success) {
+                  toast.success("Case archived successfully");
+                  fetchCasesData();
+                }
               } catch (err: any) {
                 console.error("Failed to archive case:", err);
                 toast.error(err?.message || "Failed to archive case");
@@ -947,19 +924,32 @@ export default function MigrantsPage() {
             }}
             onConfirm={async () => {
               try {
-                if (selectedRow.id) {
-                  try {
-                    await apiClient.delete(ENDPOINTS.cases.archive, {
-                      data: { data: [{ id: selectedRow.id }] },
-                    });
-                  } catch {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.delete(ENDPOINTS.cases.archive, {
+                    data: { data: [{ id: selectedRow.id }] },
+                  });
+                  success = true;
+                } catch (delErr: any) {
+                  console.error("Initial case delete failed:", delErr);
+                  const statusCode = delErr?.status || delErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
                     await apiClient.delete(`${ENDPOINTS.migrants.base}/archive`, {
                       data: { data: [{ id: selectedRow.id }] },
                     });
+                    success = true;
+                  } else {
+                    throw delErr;
                   }
                 }
-                toast.success("Case deleted successfully");
-                fetchCasesData();
+                if (success) {
+                  toast.success("Case deleted successfully");
+                  fetchCasesData();
+                }
               } catch (err: any) {
                 console.error("Failed to delete case:", err);
                 toast.error(err?.message || "Failed to delete case");

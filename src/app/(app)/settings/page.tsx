@@ -101,6 +101,35 @@ export default function SettingsPage() {
           setDateFormat(df);
           setLanguage(lg);
 
+          // Load & validate notification preferences if present
+          if (res.digestFrequency && ["Real-time", "Daily", "Weekly", "Off"].includes(res.digestFrequency)) {
+            setDigestFrequency(res.digestFrequency);
+          }
+          if (Array.isArray(res.notifMentions) && res.notifMentions.length === 2) {
+            setNotifMentions([Boolean(res.notifMentions[0]), Boolean(res.notifMentions[1])]);
+          }
+          if (Array.isArray(res.notifStatusChanges) && res.notifStatusChanges.length === 2) {
+            setNotifStatusChanges([Boolean(res.notifStatusChanges[0]), Boolean(res.notifStatusChanges[1])]);
+          }
+          if (Array.isArray(res.notifUrgentAlerts) && res.notifUrgentAlerts.length === 2) {
+            setNotifUrgentAlerts([Boolean(res.notifUrgentAlerts[0]), Boolean(res.notifUrgentAlerts[1])]);
+          }
+          if (Array.isArray(res.notifExpiryWarnings) && res.notifExpiryWarnings.length === 2) {
+            setNotifExpiryWarnings([Boolean(res.notifExpiryWarnings[0]), Boolean(res.notifExpiryWarnings[1])]);
+          }
+          if (Array.isArray(res.notifMigrantActions) && res.notifMigrantActions.length === 2) {
+            setNotifMigrantActions([Boolean(res.notifMigrantActions[0]), Boolean(res.notifMigrantActions[1])]);
+          }
+          if (Array.isArray(res.notifDocUploads) && res.notifDocUploads.length === 2) {
+            setNotifDocUploads([Boolean(res.notifDocUploads[0]), Boolean(res.notifDocUploads[1])]);
+          }
+          if (Array.isArray(res.notifReminders) && res.notifReminders.length === 2) {
+            setNotifReminders([Boolean(res.notifReminders[0]), Boolean(res.notifReminders[1])]);
+          }
+          if (Array.isArray(res.notifSystem) && res.notifSystem.length === 2) {
+            setNotifSystem([Boolean(res.notifSystem[0]), Boolean(res.notifSystem[1])]);
+          }
+
           setProfileSnapshot({
             firstName: fn,
             lastName: ln,
@@ -601,6 +630,7 @@ export default function SettingsPage() {
                           key={freq}
                           type="button"
                           id={`digest-freq-${freq.toLowerCase()}`}
+                          aria-pressed={digestFrequency === freq}
                           onClick={() => setDigestFrequency(freq)}
                           className={`px-4 py-2 rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer ${
                             digestFrequency === freq

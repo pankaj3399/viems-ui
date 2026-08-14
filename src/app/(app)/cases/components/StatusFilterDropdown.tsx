@@ -41,6 +41,9 @@ export function StatusFilterDropdown({
 
   const getDotColor = (status: string) => {
     const color = statusColors[status] || "#7D52F4";
+    if (color.startsWith("#")) {
+      return color;
+    }
     switch (color) {
       case "warning":
         return "#F6B51E";

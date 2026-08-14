@@ -63,7 +63,6 @@ export const COUNTRY_DATA: Record<string, CountryInfo> = {
   french: { code: "FR", full: "France", nationality: "French", half: "Fra", flag: "🇫🇷" },
 
   za: { code: "ZA", full: "South Africa", nationality: "South African", half: "SA", flag: "🇿🇦" },
-  sa: { code: "ZA", full: "South Africa", nationality: "South African", half: "SA", flag: "🇿🇦" },
   "south africa": { code: "ZA", full: "South Africa", nationality: "South African", half: "SA", flag: "🇿🇦" },
   "south african": { code: "ZA", full: "South Africa", nationality: "South African", half: "SA", flag: "🇿🇦" },
 
@@ -280,23 +279,21 @@ export const COUNTRY_DATA: Record<string, CountryInfo> = {
   chilean: { code: "CL", full: "Chile", nationality: "Chilean", half: "Chl", flag: "🇨🇱" },
 };
 
-export const FLAG_UNICODE_MAP: Record<string, string> = {
-  US: "🇺🇸", GB: "🇬🇧", IN: "🇮🇳", NP: "🇳🇵", DE: "🇩🇪", PK: "🇵🇰",
-  CN: "🇨🇳", FR: "🇫🇷", ZA: "🇿🇦", IT: "🇮🇹", GL: "🇬🇱", JM: "🇯🇲",
-  ES: "🇪🇸", CA: "🇨🇦", AU: "🇦🇺", BR: "🇧🇷", NG: "🇳🇬", GH: "🇬🇭",
-  BD: "🇧🇩", PH: "🇵🇭", JP: "🇯🇵", IE: "🇮🇪", PL: "🇵🇱", NL: "🇳🇱",
-  PT: "🇵🇹", RO: "🇷🇴", TR: "🇹🇷", UA: "🇺🇦", SE: "🇸🇪", NO: "🇳🇴",
-  DK: "🇩🇰", FI: "🇫🇮", GR: "🇬🇷", CH: "🇨🇭", AT: "🇦🇹", BE: "🇧🇪",
-  NZ: "🇳🇿", KE: "🇰🇪", ZW: "🇿🇼", EG: "🇪🇬", LK: "🇱🇰", VN: "🇻🇳",
-  TH: "🇹🇭", ID: "🇮🇩", MY: "🇲🇾", SG: "🇸🇬", KR: "🇰🇷", MX: "🇲🇽",
-  AR: "🇦🇷", CO: "🇨🇴", CL: "🇨🇱",
-};
+export const FLAG_UNICODE_MAP: Record<string, string> = Object.values(COUNTRY_DATA).reduce(
+  (acc, item) => {
+    if (item.code && item.flag) {
+      acc[item.code] = item.flag;
+    }
+    return acc;
+  },
+  {} as Record<string, string>
+);
 
 /**
  * Extracts and normalizes country/nationality information from any raw value.
  * Accepts strings (e.g. "nepalese", "germany", "PK", "US"), or objects (from API payloads).
  */
-export function getCountryInfo(raw?: any): CountryInfo {
+export function getCountryInfo(raw?: unknown): CountryInfo {
   if (!raw) {
     return { code: "UN", full: "Unknown", name: "Unknown", nationality: "Unknown", half: "UNK", flag: "🌐" };
   }
@@ -304,8 +301,9 @@ export function getCountryInfo(raw?: any): CountryInfo {
   let str = "";
   if (typeof raw === "string") {
     str = raw;
-  } else if (typeof raw === "object") {
-    str = raw.value || raw.name || raw.title || raw.code || raw.country || "";
+  } else if (typeof raw === "object" && raw !== null) {
+    const obj = raw as Record<string, unknown>;
+    str = String(obj.value || obj.name || obj.title || obj.code || obj.country || "");
   }
 
   const clean = str.trim().toLowerCase().replace(/[_\-]+/g, " ");
@@ -327,7 +325,7 @@ export function getCountryInfo(raw?: any): CountryInfo {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 
-  const code = (clean.length === 2 ? clean : clean.slice(0, 2)).toUpperCase();
+  const code = clean.length === 2 ? clean.toUpperCase() : "UN";
   const half = full.length > 3 ? full.slice(0, 3).toUpperCase() : full.toUpperCase();
   const flag = FLAG_UNICODE_MAP[code] || "🌐";
 

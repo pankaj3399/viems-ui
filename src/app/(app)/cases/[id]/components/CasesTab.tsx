@@ -4,18 +4,17 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   RiSearchLine,
-  RiArrowDownSLine,
-  RiArrowUpSLine,
-  RiExpandUpDownFill,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { StatusFilterDropdown } from "../../components/StatusFilterDropdown";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface CaseHistoryRow {
   id: string;
   caseId: string;
   date: string;
+  dateValue: number;
   visaType: string;
   group: string;
   status: string;
@@ -33,8 +32,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
-  const [sortField, setSortField] = React.useState<keyof CaseHistoryRow | null>(null);
-  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc");
+  const { sortField, sortDirection, setSortField, setSortDirection, handleSort, renderSortIcon } = useTableSort<CaseHistoryRow>();
   const [casesList, setCasesList] = React.useState<CaseHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -43,20 +41,15 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
 
   React.useEffect(() => {
     async function fetchCases() {
+      if (!resolvedMigrantId) return;
       try {
         setLoading(true);
         let casesData: any[] = [];
-
-        if (resolvedMigrantId) {
-          // Fetch only this migrant's cases from the migrant endpoint
-          const migrantRes = await apiClient.get<any>(ENDPOINTS.migrants.byId(resolvedMigrantId));
-          // The migrant response includes a nested `cases` array
-          const migrantCases = migrantRes?.cases || migrantRes?.data?.cases;
-          if (Array.isArray(migrantCases)) {
-            casesData = migrantCases;
-          }
-        } else {
-          // Fallback: fetch all cases (should not happen in migrant context)
+        try {
+          const res = await apiClient.get<any>(ENDPOINTS.migrants.byId(resolvedMigrantId));
+          const mCases = res?.cases || res?.data?.cases;
+          casesData = Array.isArray(mCases) ? mCases : (Array.isArray(res) ? res : res?.data || []);
+        } catch {
           const res = await apiClient.get<any>(ENDPOINTS.cases.base);
           casesData = Array.isArray(res) ? res : res?.data || res?.cases || [];
         }
@@ -66,10 +59,14 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             const rawStatus = c.case_status || c.status || "PENDING";
             const isAppr = rawStatus.toUpperCase().includes("APPROVED");
             const isEntered = Boolean(c.flightEntered?.isEntered);
+            const dateStr = c.created_at || c.creation_date;
+            const dateObj = dateStr ? new Date(dateStr) : null;
+            const dateValue = dateObj && !isNaN(dateObj.getTime()) ? dateObj.getTime() : 0;
             return {
               id: String(c.id || ""),
               caseId: c.caseIdDisplay || c.caseNumber || (c.id ? `#${c.id}` : "—"),
-              date: c.created_at || c.creation_date ? new Date(c.created_at || c.creation_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              date: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              dateValue,
               visaType: c.job_title || c.visaType || c.personal?.jobTitle || "—",
               group: c.group_name || c.personal?.groupName || "—",
               status: rawStatus.toUpperCase(),
@@ -104,20 +101,6 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
     }));
   }, [casesList]);
 
-  const handleSort = (field: keyof CaseHistoryRow) => {
-    if (sortField === field) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else {
-        setSortField(null);
-        setSortDirection("asc");
-      }
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-  };
-
   const filteredCases = React.useMemo(() => {
     const list = casesList.filter((item) => {
       if (searchQuery.trim()) {
@@ -140,6 +123,11 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
     if (!sortField) return list;
 
     return [...list].sort((a, b) => {
+      if (sortField === "date") {
+        return sortDirection === "asc"
+          ? a.dateValue - b.dateValue
+          : b.dateValue - a.dateValue;
+      }
       const valA = (a[sortField] || "").toString().toLowerCase();
       const valB = (b[sortField] || "").toString().toLowerCase();
       if (valA < valB) return sortDirection === "asc" ? -1 : 1;
@@ -147,17 +135,6 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
       return 0;
     });
   }, [casesList, searchQuery, statusFilter, sortField, sortDirection]);
-
-  const renderSortIcon = (field: keyof CaseHistoryRow) => {
-    if (sortField === field) {
-      return sortDirection === "asc" ? (
-        <RiArrowUpSLine className="size-3.5 text-[#171717]" />
-      ) : (
-        <RiArrowDownSLine className="size-3.5 text-[#171717]" />
-      );
-    }
-    return <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />;
-  };
 
   return (
     <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">

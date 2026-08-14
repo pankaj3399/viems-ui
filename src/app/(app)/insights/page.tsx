@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { getCountryInfo } from "@/lib/country";
 import { WorldMapSvg } from "../dashboard/WorldMapSvg";
 import { Flag } from "@/components/ui/flag";
 
@@ -99,6 +100,14 @@ function getCoords(name: string): { left: string; top: string; label: string } |
   return LOWER_COUNTRY_COORDINATES[name.toLowerCase()] ?? null;
 }
 
+interface CaseFileItem {
+  id?: string | number;
+  name?: string;
+  url?: string;
+  size?: number;
+  type?: string;
+}
+
 interface CaseItem {
   id?: number | string;
   first_name?: string;
@@ -121,7 +130,7 @@ interface CaseItem {
   country?: string;
   refusalDate?: string;
   refusal_date?: string;
-  files?: any[];
+  files?: CaseFileItem[];
   decision?: {
     decisionDate?: string;
     date?: string;
@@ -138,26 +147,41 @@ interface NationalityStat {
   color?: string;
 }
 
-function getCaseDate(c: any): Date | null {
+function getCaseCreationDate(c: CaseItem): Date | null {
   if (!c) return null;
-  const dateStr =
-    c.creation_date ||
-    c.createdAt ||
-    c.created_at ||
-    c.workStartDate ||
-    c.work_start_date ||
-    c.visaEndDate ||
-    c.refusalDate ||
-    c.refusal_date ||
-    c.decision_date ||
-    c.decisionDate ||
-    c.decision?.decisionDate ||
-    c.decision?.date ||
-    c.decision?.granted?.visaStartDate;
+  const candidates = [c.creation_date, c.createdAt, c.created_at];
+  for (const dateStr of candidates) {
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
+}
 
-  if (dateStr) {
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) return d;
+function getCaseDate(c: CaseItem): Date | null {
+  if (!c) return null;
+  const candidates = [
+    c.creation_date,
+    c.createdAt,
+    c.created_at,
+    c.workStartDate,
+    c.work_start_date,
+    c.visaEndDate,
+    c.refusalDate,
+    c.refusal_date,
+    c.decision_date,
+    c.decisionDate,
+    c.decision?.decisionDate,
+    c.decision?.date,
+    c.decision?.granted?.visaStartDate,
+  ];
+
+  for (const dateStr of candidates) {
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) return d;
+    }
   }
 
   if (c.relatedYear) {
@@ -192,15 +216,15 @@ export default function InsightsPage() {
     try {
       setLoading(true);
       const [casesData, natData] = await Promise.allSettled([
-        apiClient.get<any>(ENDPOINTS.cases.base),
+        apiClient.get<CaseItem[] | { data: CaseItem[] }>(ENDPOINTS.cases.base),
         apiClient.get<NationalityStat[]>(ENDPOINTS.statistics.nationalities),
       ]);
 
       if (casesData.status === "fulfilled") {
         const val = casesData.value;
-        const rawArr = Array.isArray(val)
+        const rawArr: CaseItem[] = Array.isArray(val)
           ? val
-          : val?.data && Array.isArray(val.data)
+          : val && typeof val === "object" && "data" in val && Array.isArray(val.data)
           ? val.data
           : [];
         setCases(rawArr);
@@ -278,10 +302,14 @@ export default function InsightsPage() {
     // Fallback calculate from cases if nationalities endpoint has not aggregated yet
     if (cases.length > 0) {
       const natCounts: Record<string, number> = {};
-      cases.forEach((c: any) => {
-        const nat = c.nationality_value || c.nationality_title || c.country;
-        if (nat) {
-          natCounts[nat] = (natCounts[nat] || 0) + 1;
+      cases.forEach((c: CaseItem) => {
+        const rawNat = c.nationality_value || c.nationality_title || c.country;
+        if (rawNat) {
+          const info = getCountryInfo(rawNat);
+          const canonical = info.code !== "UN" ? info.full : (typeof rawNat === "string" ? rawNat.trim() : "");
+          if (canonical) {
+            natCounts[canonical] = (natCounts[canonical] || 0) + 1;
+          }
         }
       });
       return Object.entries(natCounts)
@@ -331,7 +359,7 @@ export default function InsightsPage() {
   // 3. Avg. Processing Time
   let avgProcessingDays = 0;
   const completedCases = filteredCases.filter((c) => {
-    const creation = getCaseDate(c);
+    const creation = getCaseCreationDate(c);
     const decisionDateStr =
       c.decision?.decisionDate ||
       c.decision?.date ||
@@ -346,7 +374,7 @@ export default function InsightsPage() {
 
   if (completedCases.length > 0) {
     const totalDays = completedCases.reduce((sum, c) => {
-      const creation = getCaseDate(c)!;
+      const creation = getCaseCreationDate(c)!;
       const decisionDateStr =
         c.decision?.decisionDate ||
         c.decision?.date ||
