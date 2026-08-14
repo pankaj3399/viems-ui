@@ -79,11 +79,10 @@ export function EditContactDetailsModal({
             setEmergencyEmail(parsed.email || "");
             setEmergencyPhone(parsed.phone || "");
           } else {
-            // Preset values from mockup
-            setEmergencyName("Morgan Johnson");
-            setEmergencyRelationship("Spouse");
-            setEmergencyEmail("morgan.j@email.com");
-            setEmergencyPhone("+1 (555) 012-3456");
+            setEmergencyName("");
+            setEmergencyRelationship("");
+            setEmergencyEmail("");
+            setEmergencyPhone("");
           }
         }
       } catch (err) {

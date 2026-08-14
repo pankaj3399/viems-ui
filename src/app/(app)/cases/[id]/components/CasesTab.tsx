@@ -182,9 +182,9 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
 
         {/* Table Rows */}
         <div className="flex flex-col gap-[4px] w-full">
-          {filteredCases.map((row) => (
+          {filteredCases.map((row, idx) => (
             <div
-              key={row.id || row.caseId}
+              key={row.id ? `casetab-${row.id}-${idx}` : `casetab-${row.caseId}-${idx}`}
               role="button"
               tabIndex={0}
               onClick={() => router.push(`/cases/${row.id}`)}

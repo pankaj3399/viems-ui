@@ -11,14 +11,10 @@ import {
   RiUpload2Line,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
 interface TaskItem {
   id: string;
@@ -133,8 +129,103 @@ const initialTasks: TaskItem[] = [
   },
 ];
 
+interface RawTaskPayload {
+  id?: string | number;
+  title?: string;
+  name?: string;
+  description?: string;
+  category?: string;
+  status?: string;
+  isCompleted?: boolean;
+  completed?: boolean;
+}
+
+type TasksApiResponse =
+  | RawTaskPayload[]
+  | { data?: RawTaskPayload[]; tasks?: RawTaskPayload[]; count?: number };
+
+const VALID_CATEGORIES: readonly TaskItem["category"][] = [
+  "General",
+  "Compliance",
+  "Reporting",
+  "Documents",
+  "Visa & Immigration",
+];
+
+const VALID_STATUSES: readonly TaskItem["status"][] = [
+  "crucial",
+  "completed",
+  "under_review",
+  "general",
+];
+
+function isTaskCategory(cat: string): cat is TaskItem["category"] {
+  return (VALID_CATEGORIES as readonly string[]).includes(cat);
+}
+
+function isTaskStatus(st: string): st is TaskItem["status"] {
+  return (VALID_STATUSES as readonly string[]).includes(st);
+}
+
 export function TasksTab({ caseId }: { caseId?: string }) {
-  const [tasks, setTasks] = React.useState<TaskItem[]>(initialTasks);
+  const [tasks, setTasks] = React.useState<TaskItem[]>([]);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchTasks() {
+      if (!caseId) {
+        if (!isCancelled) {
+          setTasks([]);
+          setError(null);
+        }
+        return;
+      }
+      try {
+        setError(null);
+        const res = await apiClient.get<TasksApiResponse>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`);
+        let rawTasks: RawTaskPayload[] = [];
+        if (Array.isArray(res)) {
+          rawTasks = res;
+        } else if (res && typeof res === "object") {
+          if (Array.isArray(res.data)) rawTasks = res.data;
+          else if (Array.isArray(res.tasks)) rawTasks = res.tasks;
+        }
+
+        if (!isCancelled) {
+          if (rawTasks.length > 0) {
+            const mapped: TaskItem[] = rawTasks.map((t: RawTaskPayload, i: number) => {
+              const cat: TaskItem["category"] = t.category && isTaskCategory(t.category) ? t.category : "General";
+              const rawStatus = t.status || (t.isCompleted || t.completed ? "completed" : "general");
+              const st: TaskItem["status"] = isTaskStatus(rawStatus) ? rawStatus : (t.isCompleted || t.completed ? "completed" : "general");
+              return {
+                id: String(t.id ?? `t-${i}`),
+                category: cat,
+                title: t.title || t.name || "Task",
+                description: t.description || "",
+                status: st,
+                isCompleted: Boolean(t.isCompleted || t.completed || st === "completed"),
+              };
+            });
+            setTasks(mapped);
+          } else {
+            setTasks([]);
+          }
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setTasks([]);
+          setError("Failed to load tasks for this case.");
+        }
+      }
+    }
+
+    fetchTasks();
+    return () => {
+      isCancelled = true;
+    };
+  }, [caseId]);
 
   const stats = React.useMemo(() => {
     const total = tasks.length;
@@ -179,7 +270,12 @@ export function TasksTab({ caseId }: { caseId?: string }) {
 
   return (
     <div className="w-full flex flex-col gap-8 font-sans select-none animate-fade-in text-left">
-      
+      {error && (
+        <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-4 text-[14px] text-[#FB3748] flex items-center justify-between">
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* ─── Top 4 Stat Summary Cards (Exact Figma Spec Frame 107) ─────────── */}
       <div className="flex items-center gap-2 w-full">
         {/* TOTAL TASKS */}

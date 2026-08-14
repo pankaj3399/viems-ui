@@ -1659,9 +1659,9 @@ export default function CasesPage() {
 
                 {activeTab === "refusals" ? (
                   <div className="flex flex-col gap-sm select-none">
-                    {paginatedCases.map((row) => (
+                    {paginatedCases.map((row, idx) => (
                       <div
-                        key={row.caseId}
+                        key={row.id ? `case-refusal-${row.id}` : `case-refusal-${row.caseId}-${idx}`}
                         role="button"
                         tabIndex={0}
                         onClick={() => router.push(`/cases/${row.id}`)}
@@ -1797,9 +1797,9 @@ export default function CasesPage() {
                     </div>
                   ) : (
                     <div className="flex flex-col gap-sm select-none">
-                      {paginatedGroups.map((group) => (
+                      {paginatedGroups.map((group, idx) => (
                         <div
-                          key={group.groupName}
+                          key={`${group.groupName}-${idx}`}
                           role="button"
                           tabIndex={0}
                           onClick={() => {
@@ -1846,9 +1846,9 @@ export default function CasesPage() {
                   )
                 ) : (
                   <div className="flex flex-col gap-sm">
-                    {paginatedCases.map((row) => (
+                    {paginatedCases.map((row, idx) => (
                       <div
-                        key={row.caseId}
+                        key={row.id ? `case-row-${row.id}` : `case-row-${row.caseId}-${idx}`}
                         role="button"
                         tabIndex={0}
                         onClick={() => router.push(`/cases/${row.id}`)}

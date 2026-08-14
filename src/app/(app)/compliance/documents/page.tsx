@@ -113,89 +113,10 @@ interface MigrantDocItem {
   uploadedDate: string;
 }
 
-const fallbackMigrantDocs: MigrantDocItem[] = [
-  {
-    id: "1",
-    entityId: "427",
-    caseId: "427/2026",
-    name: "Ami Monarch",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "AM",
-    documentType: "Passport",
-    status: "MISSING",
-    expiryDate: "06 Mar 2027",
-    uploadedDate: "—",
-  },
-  {
-    id: "2",
-    entityId: "431",
-    caseId: "431/2026",
-    name: "Alex Marin",
-    company: "AX Studios",
-    avatarInitials: "AM",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    documentType: "Payslip",
-    status: "REVIEW",
-    expiryDate: "18 Nov 2026",
-    uploadedDate: "18 Nov 2026",
-  },
-  {
-    id: "3",
-    entityId: "426",
-    caseId: "426/2026",
-    name: "Wei Chen",
-    company: "Anonymous Group",
-    avatarInitials: "WC",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    documentType: "Proof of Address",
-    status: "REVIEW",
-    expiryDate: "28 Oct 2026",
-    uploadedDate: "28 Oct 2026",
-  },
-  {
-    id: "4",
-    entityId: "430",
-    caseId: "430/2026",
-    name: "Taylor Johnson",
-    company: "AX Studios",
-    avatarInitials: "TJ",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    documentType: "Passport",
-    status: "VERIFIED",
-    expiryDate: "04 Sep 2026",
-    uploadedDate: "04 Sep 2026",
-  },
-  {
-    id: "5",
-    entityId: "429",
-    caseId: "429/2026",
-    name: "Gulab Singh Sidhu",
-    company: "Inderbir Sidhu",
-    avatarInitials: "GS",
-    documentType: "Passport",
-    status: "VERIFIED",
-    expiryDate: "22 Jan 2027",
-    uploadedDate: "22 Jan 2027",
-  },
-  {
-    id: "6",
-    entityId: "428",
-    caseId: "428/2026",
-    name: "Elena Petrova",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "EP",
-    documentType: "CoS",
-    status: "VERIFIED",
-    expiryDate: "12 Aug 2026",
-    uploadedDate: "12 Aug 2026",
-  },
-];
+const fallbackMigrantDocs: MigrantDocItem[] = [];
 
 export default function ComplianceDocumentsPage() {
-  const [migrantDocs, setMigrantDocs] = React.useState<MigrantDocItem[]>(fallbackMigrantDocs);
+  const [migrantDocs, setMigrantDocs] = React.useState<MigrantDocItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusDropdownFilter, setStatusDropdownFilter] = React.useState<string>("All status");
@@ -532,9 +453,9 @@ export default function ComplianceDocumentsPage() {
                 No document compliance records found matching your filters.
               </div>
             ) : (
-              filteredDocs.map((row) => (
+              filteredDocs.map((row, idx) => (
                 <div
-                  key={row.id}
+                  key={row.id ? `doc-${row.id}-${idx}` : `doc-${row.caseId}-${idx}`}
                   className="flex items-center px-6 py-3.5 hover:bg-[#FAFAFA] transition-colors"
                 >
                   {/* Migrant / Case Column */}

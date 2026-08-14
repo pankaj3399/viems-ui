@@ -35,96 +35,7 @@ interface PageNotificationItem {
   category: "mentions" | "tasks" | "cases" | "messages" | "documents";
 }
 
-const ALL_NOTIFICATIONS: PageNotificationItem[] = [
-  {
-    id: "1",
-    group: "TODAY",
-    icon: RiAtLine,
-    title: "Sarah Kim mentioned you in a note",
-    description: "“@Alex Marin can you chase Berklee for the qualification docs?”",
-    time: "10 min ago",
-    caseRef: "#430/2026",
-    isUnread: true,
-    category: "mentions",
-  },
-  {
-    id: "2",
-    group: "YESTERDAY",
-    icon: RiFocus2Line,
-    title: "RTW check overdue",
-    description: "The 27d deadline has passed. Complete the digital share code to avoid penalties.",
-    time: "Yesterday",
-    caseRef: "#430/2026",
-    isUnread: false,
-    category: "tasks",
-  },
-  {
-    id: "3",
-    group: "YESTERDAY",
-    icon: RiRecordCircleLine,
-    title: "Case status changed: Taylor Johnson",
-    description: "#430/2026 moved from Awaiting UKVI Decision to Visa Refused.",
-    time: "Yesterday",
-    caseRef: "#430/2026",
-    isUnread: true,
-    category: "cases",
-  },
-  {
-    id: "4",
-    group: "YESTERDAY",
-    icon: RiFileListLine,
-    title: "Details completed: Sofia Reyez",
-    description: "The migrant has submitted their personal information.",
-    time: "2d ago",
-    caseRef: "#430/2026",
-    isUnread: true,
-    category: "documents",
-  },
-  {
-    id: "5",
-    group: "21 MAY 2026",
-    icon: RiFileListLine,
-    title: "Details completed: Sofia Reyez",
-    description: "The migrant has submitted their personal information.",
-    time: "2d ago",
-    caseRef: "#430/2026",
-    isUnread: false,
-    category: "documents",
-  },
-  {
-    id: "6",
-    group: "21 MAY 2026",
-    icon: RiChatSmile2Line,
-    title: "New message from Live Nation UK",
-    description: "“Hi Alex, please find attached the updated event schedule for Amara Osei’s tour dates.”",
-    time: "3d ago",
-    caseRef: "#430/2026",
-    isUnread: false,
-    category: "messages",
-  },
-  {
-    id: "7",
-    group: "21 MAY 2026",
-    icon: RiFileUploadLine,
-    title: "Document uploaded: Carlos Vega",
-    description: "Flight booking confirmation uploaded to #430/2026. AI extracted 4 fields.",
-    time: "3d ago",
-    caseRef: "#430/2026",
-    isUnread: false,
-    category: "documents",
-  },
-  {
-    id: "8",
-    group: "21 MAY 2026",
-    icon: RiFileChartLine,
-    title: "SMS report due in 3 days",
-    description: "Reportable event for Carlos Vega: Address change. Log in on SMS by 27 Mar 2026.",
-    time: "3d ago",
-    caseRef: "#430/2026",
-    isUnread: false,
-    category: "tasks",
-  },
-];
+const ALL_NOTIFICATIONS: PageNotificationItem[] = [];
 
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
@@ -181,7 +92,7 @@ function getCategoryForLog(entityName?: string, action?: string): "mentions" | "
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const [items, setItems] = React.useState<PageNotificationItem[]>(ALL_NOTIFICATIONS);
+  const [items, setItems] = React.useState<PageNotificationItem[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filterCategory, setFilterCategory] = React.useState<string>("all");
   const [unreadOnly, setUnreadOnly] = React.useState(false);

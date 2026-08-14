@@ -53,89 +53,10 @@ interface RtwCheckItem {
   daysUntil: number | null;
 }
 
-const fallbackRtwChecks: RtwCheckItem[] = [
-  {
-    id: "1",
-    entityId: "427",
-    caseId: "427/2026",
-    name: "Ami Monarch",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "AM",
-    status: "OVERDUE",
-    lastCheck: "20 Jul 2025",
-    nextCheck: "20 Jul 2026",
-    daysUntil: -3,
-  },
-  {
-    id: "2",
-    entityId: "428",
-    caseId: "428/2026",
-    name: "Elena Petrova",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "EP",
-    status: "OVERDUE",
-    lastCheck: "12 Aug 2025",
-    nextCheck: "12 Aug 2026",
-    daysUntil: -1,
-  },
-  {
-    id: "3",
-    entityId: "431",
-    caseId: "431/2026",
-    name: "Alex Marin",
-    company: "AX Studios",
-    avatarInitials: "AM",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    status: "DUE SOON",
-    lastCheck: "18 Nov 2025",
-    nextCheck: "18 Nov 2026",
-    daysUntil: 4,
-  },
-  {
-    id: "4",
-    entityId: "430",
-    caseId: "430/2026",
-    name: "Taylor Johnson",
-    company: "AX Studios",
-    avatarInitials: "TJ",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    status: "FOLLOW-UP",
-    lastCheck: "04 Sep 2025",
-    nextCheck: "04 Sep 2026",
-    daysUntil: null,
-  },
-  {
-    id: "5",
-    entityId: "426",
-    caseId: "426/2026",
-    name: "Wei Chen",
-    company: "Anonymous Group",
-    avatarInitials: "WC",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    status: "FOLLOW-UP",
-    lastCheck: "28 Oct 2025",
-    nextCheck: "28 Oct 2026",
-    daysUntil: null,
-  },
-  {
-    id: "6",
-    entityId: "429",
-    caseId: "429/2026",
-    name: "Gulab Singh Sidhu",
-    company: "Inderbir Sidhu",
-    avatarInitials: "GS",
-    status: "COMPLIANT",
-    lastCheck: "22 Jan 2025",
-    nextCheck: "22 Jan 2027",
-    daysUntil: null,
-  },
-];
+const fallbackRtwChecks: RtwCheckItem[] = [];
 
 export default function RtwChecksPage() {
-  const [rtwChecks, setRtwChecks] = React.useState<RtwCheckItem[]>(fallbackRtwChecks);
+  const [rtwChecks, setRtwChecks] = React.useState<RtwCheckItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [activeTab, setActiveTab] = React.useState<
@@ -143,13 +64,11 @@ export default function RtwChecksPage() {
   >("ALL");
   const [statusDropdownFilter, setStatusDropdownFilter] = React.useState<string>("All status");
   
-  const [selectedMigrant, setSelectedMigrant] = React.useState("Taylor Johnson");
-  const [selectedCaseId, setSelectedCaseId] = React.useState("#430/2026");
-  const [selectedEntityId, setSelectedEntityId] = React.useState<number | string>("430");
-  const [selectedAvatarUrl, setSelectedAvatarUrl] = React.useState<string | undefined>(
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-  );
-  const [selectedAvatarInitials, setSelectedAvatarInitials] = React.useState("TJ");
+  const [selectedMigrant, setSelectedMigrant] = React.useState("");
+  const [selectedCaseId, setSelectedCaseId] = React.useState("");
+  const [selectedEntityId, setSelectedEntityId] = React.useState<number | string | null>(null);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = React.useState<string | undefined>(undefined);
+  const [selectedAvatarInitials, setSelectedAvatarInitials] = React.useState("");
   const [verifyMode, setVerifyMode] = React.useState<"automatic" | "manual">("automatic");
   const [shareCode, setShareCode] = React.useState("");
   const [dob, setDob] = React.useState("");
@@ -608,9 +527,9 @@ export default function RtwChecksPage() {
               No RTW checks found matching your search or filters.
             </div>
           ) : (
-            paginatedChecks.map((row) => (
+            paginatedChecks.map((row, idx) => (
               <div
-                key={row.id}
+                key={row.id ? `rtw-${row.id}-${idx}` : `rtw-${row.caseId}-${idx}`}
                 className="bg-white rounded-[16px] h-[72px] px-4 flex items-center justify-between border border-transparent hover:border-[#EBEBEB] hover:shadow-xs transition-all"
               >
                 <div className="w-[100px] font-mono text-[14px] text-[#5C5C5C]">{row.caseId}</div>
@@ -778,7 +697,7 @@ export default function RtwChecksPage() {
             <div className="relative flex items-center">
               <select
                 id="rtw-migrant-select"
-                value={selectedEntityId}
+                value={selectedEntityId ?? ""}
                 onChange={(e) => {
                   const entId = e.target.value;
                   setSelectedEntityId(entId);
@@ -792,6 +711,7 @@ export default function RtwChecksPage() {
                 }}
                 className="w-full h-[38px] px-3 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-medium transition-colors"
               >
+                <option value="" disabled>Select a migrant</option>
                 {rtwChecks.map((item) => (
                   <option key={item.id} value={item.entityId}>{item.name}</option>
                 ))}
@@ -862,7 +782,7 @@ export default function RtwChecksPage() {
 
             <div className="flex items-center justify-between pt-2 border-t border-[#EBEBEB]/60 mt-1">
               <button type="button" className="text-[13px] font-medium text-[#5C5C5C] hover:text-[#171717] underline cursor-pointer">How it works</button>
-              <button type="submit" disabled={isVerifying} className="h-[36px] px-5 rounded-[10px] bg-[#7D52F4] hover:bg-[#6C3FEB] text-white text-[14px] font-medium transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center disabled:opacity-50">
+              <button type="submit" disabled={isVerifying || !selectedEntityId} className="h-[36px] px-5 rounded-[10px] bg-[#7D52F4] hover:bg-[#6C3FEB] text-white text-[14px] font-medium transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center disabled:opacity-50">
                 {isVerifying ? <span>Processing...</span> : <span>{verifyMode === "automatic" ? "Verify share code" : "Save verification"}</span>}
               </button>
             </div>

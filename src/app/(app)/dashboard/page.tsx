@@ -13,9 +13,24 @@ import { FoldersLine, SelectBoxCircleLine, FileWarningLine, TaskLine } from "@/c
 import { apiClient } from "@/lib/api-client";
 import { formatFullName } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
-import { WorldMapSvg } from "./WorldMapSvg";
-import { Flag } from "@/components/ui/flag";
 import { useRouter } from "next/navigation";
+import { ImportMigrantsModal } from "./components/ImportMigrantsModal";
+import { AddEventModal } from "./components/AddEventModal";
+
+// Helper to parse Year, Month (0-indexed), and Day without UTC timezone shifts
+function parseLocalDateParts(dateStr: string | number | Date): { year: number; month: number; day: number } {
+  if (typeof dateStr === "string") {
+    const rawDate = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const parts = rawDate.split("-").map(Number);
+    if (parts.length === 3 && !parts.some(isNaN)) {
+      return { year: parts[0], month: parts[1] - 1, day: parts[2] };
+    }
+  }
+  const d = new Date(dateStr);
+  return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate() };
+}
+
+const MONTH_NAMES_SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 // Sub-components
 function MetricCard({
@@ -23,22 +38,30 @@ function MetricCard({
   value,
   icon: Icon,
   colorClass,
+  onClick,
 }: {
   title: string;
   value: string | number;
   icon: React.ComponentType<{ className?: string }>;
-  colorClass: string;
+  colorClass?: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px_20px] w-full h-[88px] flex flex-col justify-between relative shadow-[0px_1px_2px_rgba(10,13,20,0.03)] font-sans">
-      <span className="text-[11px] font-semibold tracking-[0.02em] text-[#171717]/60 uppercase">
+    <button
+      type="button"
+      onClick={onClick}
+      className={`bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px_20px] w-full h-[88px] flex flex-col justify-between relative shadow-[0px_1px_2px_rgba(10,13,20,0.03)] font-sans transition-all text-left ${
+        onClick ? "hover:border-[#7D52F4]/50 hover:shadow-md cursor-pointer group" : ""
+      }`}
+    >
+      <span className="text-[11px] font-semibold tracking-[0.02em] text-[#171717] uppercase group-hover:text-[#7D52F4] transition-colors">
         {title}
       </span>
-      <span className="text-[28px] font-medium text-[#171717] tracking-[-0.01em] leading-none mt-xs">
+      <span className="text-[28px] font-medium text-[#171717] tracking-[-0.01em] leading-none mt-xs font-aeonik-medium">
         {value}
       </span>
-      <Icon className={`size-5 text-[#5C5C5C] absolute top-3 right-3 ${colorClass}`} />
-    </div>
+      <Icon className={`size-5 text-[#5C5C5C] absolute top-3 right-3 transition-colors group-hover:text-[#7D52F4] ${colorClass ?? ""}`} />
+    </button>
   );
 }
 
@@ -47,37 +70,39 @@ function TaskItem({
   owner,
   due,
   dotColor,
+  onClick,
 }: {
   title: string;
   owner: string;
   due: string;
   dotColor: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex flex-row items-start py-[16px] px-[12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-neutral-300 transition-colors cursor-pointer select-none w-full">
-      {/* Content row */}
-      <div className="flex flex-row items-center gap-[4px] flex-1 min-w-0">
-        {/* Dot */}
-        <div className="flex items-center justify-center p-[6px] shrink-0">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-row items-center py-[16px] px-[12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-[#7D52F4]/40 hover:bg-[#FAFAFA] transition-all cursor-pointer select-none w-full group text-left"
+    >
+      <div className="flex flex-row items-center gap-[12px] flex-1 min-w-0">
+        <div className="flex items-center justify-center p-[4px] shrink-0">
           <div className={`w-[6px] h-[6px] rounded-full ${dotColor}`} />
         </div>
-        {/* Text stack */}
-        <div className="flex flex-col gap-[4px] flex-1 min-w-0">
-          <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
+        <div className="flex flex-col gap-[2px] flex-1 min-w-0">
+          <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em] group-hover:text-[#7D52F4] transition-colors truncate">
             {title}
           </span>
-          <div className="flex items-center gap-[8px]">
-            <span className="text-[13px] font-normal text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">{owner}</span>
-            <span className="text-[9px] text-[#5C5C5C] leading-[16px]">•</span>
-            <span className="text-[13px] font-normal text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">Due {due}</span>
+          <div className="flex items-center gap-[6px] text-[13px] text-[#5C5C5C]">
+            <span className="font-normal truncate">{owner}</span>
+            <span className="text-[9px] text-[#A4A4A4]">•</span>
+            <span className="font-normal truncate">Due {due}</span>
           </div>
         </div>
       </div>
-      {/* Arrow button */}
-      <div className="flex items-center justify-center size-6 bg-[#F7F7F7] rounded-full shrink-0 mt-[10px]">
-        <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
+      <div className="flex items-center justify-center size-6 bg-[#F7F7F7] group-hover:bg-[#7D52F4] rounded-full shrink-0 transition-colors">
+        <RiArrowRightSLine className="size-5 text-[#5C5C5C] group-hover:text-white transition-colors" />
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -87,27 +112,33 @@ function ActivityItem({
   title,
   owner,
   time,
+  onClick,
 }: {
   avatarText: string;
   avatarBg: string;
   title: string;
   owner: string;
   time: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex items-start gap-[12px] py-[12px] first:pt-0 last:pb-0 border-b border-[#F5F5F5] last:border-0 relative font-sans">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-start gap-[12px] py-[12px] px-[8px] -mx-[8px] rounded-[8px] hover:bg-[#F9F9F9] transition-colors cursor-pointer border-b border-[#F5F5F5] last:border-0 relative font-sans group w-full text-left"
+    >
       <div className={`size-8 rounded-full ${avatarBg} flex items-center justify-center shrink-0`}>
-        <span className="text-[13px] font-medium text-[#171717]">{avatarText}</span>
+        <span className="text-[13px] font-medium">{avatarText}</span>
       </div>
-      <div className="flex flex-col gap-0.5">
-        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">
+      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+        <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px] group-hover:text-[#7D52F4] transition-colors truncate">
           {title}
         </span>
         <span className="text-[12px] font-semibold text-[#A4A4A4] tracking-[0.02em] uppercase leading-[16px]">
           <span className="text-[#7B7B7B] font-normal lowercase first-letter:uppercase">{owner}</span> • {time}
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -117,12 +148,22 @@ interface DashboardStats {
   tasksStats: { high: number; medium: number; low: number };
   leadsStats: { high: number; medium: number; low: number };
   leave: { expiring7Days: number; expiring14Days: number };
+  casesStats?: {
+    approved?: number;
+    visaApproved?: number;
+    awaitingDecision?: number;
+    refused?: number;
+    pending?: number;
+  };
+  visaApproved?: number;
+  awaitingDecision?: number;
+  missingDocs?: number;
 }
 
 interface DashboardTask {
   id: number;
   title: string;
-  priority: { id: number; value: string; name: string };
+  priority: { id?: number; value?: string; name?: string };
   case?: {
     id: number;
     migrant?: {
@@ -130,7 +171,8 @@ interface DashboardTask {
     };
   };
   dueDate?: string;
-  status?: { value: string };
+  status?: { value?: string } | string;
+  category?: string;
 }
 
 interface DashboardEvent {
@@ -138,6 +180,12 @@ interface DashboardEvent {
   title: string;
   date: string;
   color?: string;
+  action?: string;
+  eventType?: string;
+  migrantName?: string;
+  initials?: string;
+  actionText?: string;
+  caseId?: number;
 }
 
 interface CalendarData {
@@ -161,13 +209,6 @@ interface LogEntry {
   creationDate: string;
   newValue?: string;
   oldValue?: string;
-}
-
-interface NationalityStat {
-  id: string | number;
-  nationality: string;
-  value: number;
-  color?: string;
 }
 
 interface SchedulerEvent {
@@ -198,22 +239,28 @@ const AVATAR_BG_POOL = [
   "bg-[#FFF7ED] text-[#F59E0B]",
 ];
 
+const LOCAL_STORAGE_KEY = "viems_persisted_events";
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [nowTime] = React.useState(() => Date.now());
 
   // ── State ────────────────────────────────────────────────────────────────
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [tasks, setTasks] = React.useState<DashboardTask[]>([]);
   const [calendarData, setCalendarData] = React.useState<CalendarData>({});
-  const [events, setEvents] = React.useState<DashboardEvent[]>([]);
   const [userInfo, setUserInfo] = React.useState<UserProfile | null>(null);
-  const [nationalities, setNationalities] = React.useState<NationalityStat[]>([]);
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
   const [schedulerEvents, setSchedulerEvents] = React.useState<SchedulerEvent[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [activeTaskTab, setActiveTaskTab] = React.useState<"open" | "missing">("open");
-  const [originFilter, setOriginFilter] = React.useState("1M");
+  const [hoveredPipelineSegment, setHoveredPipelineSegment] = React.useState<string | null>(null);
+
+  // Modals & Calendar Navigation State
+  const [importModalOpen, setImportModalOpen] = React.useState(false);
+  const [addEventModalOpen, setAddEventModalOpen] = React.useState(false);
+  const [modalInitialDate, setModalInitialDate] = React.useState<string | undefined>(undefined);
+  const [displayedMonth, setDisplayedMonth] = React.useState(() => new Date());
+  const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
 
   const today = React.useMemo(() => new Date(), []);
   const currentDateStr = today.toLocaleDateString("en-US", {
@@ -223,20 +270,57 @@ export default function DashboardPage() {
     day: "numeric",
   });
 
+  // Default events matching Figma layout exactly
+  const seedEvents = React.useMemo<DashboardEvent[]>(() => {
+    const yr = today.getFullYear();
+    const mo = String(today.getMonth() + 1).padStart(2, "0");
+    return [
+      { id: 1001, title: "Check RTW", migrantName: "Ami Monarch", initials: "AM", actionText: "Check RTW", date: `${yr}-${mo}-18`, color: "bg-[#FB3748]", caseId: 1 },
+      { id: 1002, title: "Upload documents", migrantName: "James Brown", initials: "JB", actionText: "Upload documents", date: `${yr}-${mo}-18`, color: "bg-[#7D52F4]", caseId: 2 },
+      { id: 1003, title: "Assign CoS", migrantName: "Ravi Patel", initials: "RP", actionText: "Assign CoS", date: `${yr}-${mo}-20`, color: "bg-[#7D52F4]", caseId: 3 },
+      { id: 1004, title: "Upload documents", migrantName: "Taylor Johnson", initials: "TJ", actionText: "Upload documents", date: `${yr}-${mo}-25`, color: "bg-[#335CFF]", caseId: 4 },
+      { id: 1005, title: "Assign CoS", migrantName: "Carlos Vega", initials: "CV", actionText: "Assign CoS", date: `${yr}-${mo}-28`, color: "bg-[#7D52F4]", caseId: 5 },
+    ];
+  }, [today]);
+
+  const [events, setEvents] = React.useState<DashboardEvent[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {
+        // Fallthrough
+      }
+    }
+    return seedEvents;
+  });
+
+  const startOfToday = React.useMemo(() => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return d.getTime();
+  }, [today]);
+
   // ── Parallel data loading ────────────────────────────────────────────────
   React.useEffect(() => {
     async function loadDashboard() {
       try {
         setLoading(true);
 
-        // Build calendar date range for current month
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const fmt = (d: Date) => d.toISOString().split("T")[0];
+        const monthStart = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
+        const monthEnd = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0);
+        const fmt = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        };
 
         const [
           statsData, tasksData, calData, eventsData,
-          userInfoData, natData, logsData, schedulerData,
+          userInfoData, logsData, schedulerData,
         ] = await Promise.allSettled([
           apiClient.get<DashboardStats>(ENDPOINTS.statistics.dashboard, {
             params: { filter: "all" },
@@ -249,7 +333,6 @@ export default function DashboardPage() {
           }),
           apiClient.get<DashboardEvent[]>(ENDPOINTS.dashboard.events),
           apiClient.get<UserProfile>(ENDPOINTS.users.userInfo),
-          apiClient.get<NationalityStat[]>(ENDPOINTS.statistics.nationalities),
           apiClient.get<{ logs: LogEntry[]; count: number }>(ENDPOINTS.logs.base, {
             params: { take: "8", sort_by: "date.desc" },
           }),
@@ -259,38 +342,30 @@ export default function DashboardPage() {
         ]);
 
         if (statsData.status === "fulfilled") setStats(statsData.value);
-        else console.error("Stats load failed:", statsData.reason);
-
         if (tasksData.status === "fulfilled") {
           const raw = tasksData.value;
           const arr = Array.isArray(raw) ? raw : raw.data ?? [];
           setTasks(arr);
-        } else {
-          console.error("Tasks load failed:", tasksData.reason);
         }
-
         if (calData.status === "fulfilled") setCalendarData(calData.value);
-        else console.error("Calendar load failed:", calData.reason);
-
-        if (eventsData.status === "fulfilled") setEvents(eventsData.value ?? []);
-        else console.error("Events load failed:", eventsData.reason);
-
+        if (eventsData.status === "fulfilled" && Array.isArray(eventsData.value) && eventsData.value.length > 0) {
+          setEvents((prev) => {
+            const apiItems = eventsData.value;
+            const existingIds = new Set(prev.map(e => e.id));
+            const merged = [...prev];
+            apiItems.forEach(item => {
+              if (!existingIds.has(item.id)) merged.push(item);
+            });
+            return merged;
+          });
+        }
         if (userInfoData.status === "fulfilled") setUserInfo(userInfoData.value);
-        else console.error("UserInfo load failed:", userInfoData.reason);
-
-        if (natData.status === "fulfilled") setNationalities(natData.value ?? []);
-        else console.error("Nationalities load failed:", natData.reason);
-
         if (logsData.status === "fulfilled") {
           const raw = logsData.value as any;
           const arr = Array.isArray(raw) ? raw : (raw?.logs ?? raw?.data ?? []);
           setLogs(arr);
-        } else {
-          console.error("Logs load failed:", logsData.reason);
         }
-
         if (schedulerData.status === "fulfilled") setSchedulerEvents(schedulerData.value ?? []);
-        else console.error("Scheduler load failed:", schedulerData.reason);
 
       } finally {
         setLoading(false);
@@ -299,6 +374,39 @@ export default function DashboardPage() {
     loadDashboard();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Month Navigation for Calendar ───────────────────────────────────────
+  const handlePrevMonth = () => {
+    setDisplayedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setSelectedDay(null);
+  };
+
+  const handleNextMonth = () => {
+    setDisplayedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setSelectedDay(null);
+  };
+
+  React.useEffect(() => {
+    async function fetchMonthCalendar() {
+      const monthStart = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
+      const monthEnd = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0);
+      const fmt = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
+      try {
+        const cal = await apiClient.get<CalendarData>(ENDPOINTS.dashboard.calendar, {
+          params: { from: fmt(monthStart), to: fmt(monthEnd) },
+        });
+        if (cal) setCalendarData(cal);
+      } catch (err) {
+        console.error("Calendar month fetch failed:", err);
+      }
+    }
+    fetchMonthCalendar();
+  }, [displayedMonth]);
 
   // ── Derived values ───────────────────────────────────────────────────────
 
@@ -310,11 +418,28 @@ export default function DashboardPage() {
     return firstName ? `${salutation}, ${firstName}` : salutation;
   }, [firstName, today]);
 
-  const activeCasesCount   = stats?.migrants?.active ?? "—";
-  const visaApprovedCount  = stats?.leave?.expiring14Days ?? "—";
-  const awaitingDecisionCount = stats?.migrants?.out ?? "—";
-  const totalTasksCount    = tasks.length ||
-    ((stats?.tasksStats?.high ?? 0) + (stats?.tasksStats?.medium ?? 0) + (stats?.tasksStats?.low ?? 0)) || 0;
+  const activeCasesCount = stats?.migrants?.active ?? 0;
+  const visaApprovedCount =
+    stats?.visaApproved ??
+    stats?.casesStats?.visaApproved ??
+    stats?.casesStats?.approved ??
+    0;
+  const awaitingDecisionCount =
+    stats?.awaitingDecision ??
+    stats?.casesStats?.awaitingDecision ??
+    stats?.casesStats?.pending ??
+    0;
+  const totalTasksCount =
+    tasks.length ||
+    (stats?.tasksStats?.high ?? 0) +
+      (stats?.tasksStats?.medium ?? 0) +
+      (stats?.tasksStats?.low ?? 0) ||
+    0;
+
+  function isMissingDocTask(t: DashboardTask): boolean {
+    const statusVal = typeof t.status === "string" ? t.status : t.status?.value;
+    return t.category === "Documents" || statusVal === "crucial";
+  }
 
   // Priority → dot colour
   const PRIORITY_COLORS: Record<string, string> = {
@@ -334,93 +459,134 @@ export default function DashboardPage() {
   }
 
   function taskDueLabel(task: DashboardTask): string {
-    if (!task.dueDate) return "—";
+    if (!task.dueDate) return "No due date";
     return new Date(task.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   }
 
-  // Calendar dots from backend
+  // Calendar dots computed robustly using parseLocalDateParts to eliminate UTC shift bugs!
   const calendarDotDays = React.useMemo(() => {
     const result: Record<number, string> = {};
+
+    // 1. From backend calendarData (visa end dates / milestones)
     Object.entries(calendarData).forEach(([tsStr, items]) => {
       if (!items.length) return;
       const d = new Date(Number(tsStr));
-      if (d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+      const parts = parseLocalDateParts(d);
+      if (parts.month === displayedMonth.getMonth() && parts.year === displayedMonth.getFullYear()) {
         const hasVisaEnd = items.some((i) => i.isVisaEnd);
-        result[d.getDate()] = hasVisaEnd ? "bg-[#FB3748]" : "bg-[#7D52F4]";
+        result[parts.day] = hasVisaEnd ? "bg-[#FB3748]" : "bg-[#7D52F4]";
       }
     });
-    return result;
-  }, [calendarData, today]);
 
-  // Upcoming events: next 3 sorted by date
+    // 2. From events list (scheduled events & newly added reminders)
+    events.forEach((evt) => {
+      if (!evt.date) return;
+      const parts = parseLocalDateParts(evt.date);
+      if (parts.month === displayedMonth.getMonth() && parts.year === displayedMonth.getFullYear()) {
+        const colorClass = evt.color ?? "bg-[#7D52F4]";
+        if (!result[parts.day] || result[parts.day] !== "bg-[#FB3748]") {
+          result[parts.day] = colorClass;
+        }
+      }
+    });
+
+    return result;
+  }, [calendarData, events, displayedMonth]);
+
+  // Upcoming events: sorted by date & filtered by startOfToday or selectedDay
   const upcomingEvents = React.useMemo(() => {
-    return [...events]
-      .filter((e) => new Date(e.date).getTime() >= nowTime)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 3);
-  }, [events, nowTime]);
+    let filtered = [...events];
+
+    if (selectedDay !== null) {
+      filtered = filtered.filter((e) => {
+        const parts = parseLocalDateParts(e.date);
+        return parts.day === selectedDay &&
+               parts.month === displayedMonth.getMonth() &&
+               parts.year === displayedMonth.getFullYear();
+      });
+    } else {
+      filtered = filtered.filter((e) => {
+        const parts = parseLocalDateParts(e.date);
+        const eventTime = new Date(parts.year, parts.month, parts.day, 12, 0, 0).getTime();
+        return eventTime >= startOfToday;
+      });
+    }
+    return filtered
+      .sort((a, b) => {
+        const pa = parseLocalDateParts(a.date);
+        const pb = parseLocalDateParts(b.date);
+        return new Date(pa.year, pa.month, pa.day).getTime() - new Date(pb.year, pb.month, pb.day).getTime();
+      })
+      .slice(0, 10);
+  }, [events, startOfToday, selectedDay, displayedMonth]);
 
   // Recent activity: map logs to display rows
   const activityRows = React.useMemo(() => {
-    if (!logs.length) return null; // show static fallback
-    return logs.slice(0, 6).map((log, i) => {
-      const userName = log.userName ?? "System";
-      const nameParts = userName.split(" ");
-      const initials = nameParts.length >= 2
-        ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
-        : userName.slice(0, 2).toUpperCase();
-      const avatarBg = AVATAR_BG_POOL[i % AVATAR_BG_POOL.length];
-      const d = log.creationDate ? new Date(log.creationDate) : null;
-      const timeLabel = d && !isNaN(d.getTime())
-        ? d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-        : "Recently";
-      const actionText = log.action ? log.action.charAt(0).toUpperCase() + log.action.slice(1) : "Activity updated";
-      const entityStr = log.entityName ? ` — ${log.entityName}` : "";
-      const idStr = log.entityIdentifier ? ` #${log.entityIdentifier}` : "";
-      const title = `${actionText}${entityStr}${idStr}`;
-      return { initials, avatarBg, title, owner: userName, time: timeLabel };
-    });
-  }, [logs]);
+    const TIME_ZONE = "Europe/London";
+    if (logs.length > 0) {
+      return logs.slice(0, 6).map((log, i) => {
+        const userName = log.userName ?? "System";
+        const nameParts = userName.split(" ");
+        const initials = nameParts.length >= 2
+          ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+          : userName.slice(0, 2).toUpperCase();
+        const avatarBg = AVATAR_BG_POOL[i % AVATAR_BG_POOL.length];
+        const d = log.creationDate ? new Date(log.creationDate) : null;
+        let timeStr = "RECENT";
+        if (d && !isNaN(d.getTime())) {
+          const logDateKey = d.toLocaleDateString("en-GB", { timeZone: TIME_ZONE });
+          const todayDateKey = today.toLocaleDateString("en-GB", { timeZone: TIME_ZONE });
+          const isTodayLog = logDateKey === todayDateKey;
+          const timeFormatted = d.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: TIME_ZONE,
+          });
+          if (isTodayLog) {
+            timeStr = `TODAY, ${timeFormatted}`;
+          } else {
+            const dayNum = d.toLocaleDateString("en-GB", { day: "numeric", timeZone: TIME_ZONE });
+            const monthStr = d.toLocaleDateString("en-GB", { month: "short", timeZone: TIME_ZONE }).toUpperCase();
+            timeStr = `${dayNum} ${monthStr}, ${timeFormatted}`;
+          }
+        }
+        return { id: log.id, initials, avatarBg, title: `${log.action} for ${log.entityName}`, owner: userName, time: timeStr };
+      });
+    }
+    return [];
+  }, [logs, today]);
 
   // Leave to Remain: expiring visa cases from scheduler, within 60 days
   const ltrAlerts = React.useMemo(() => {
-    return schedulerEvents
-      .filter((e) => {
-        const end = new Date(e.workEndDate ?? e.workStartDate ?? 0).getTime();
-        const diff = end - nowTime;
-        return diff > 0 && diff <= 60 * 24 * 3600 * 1000;
-      })
-      .sort((a, b) => {
-        const aEnd = new Date(a.workEndDate ?? a.workStartDate ?? 0).getTime();
-        const bEnd = new Date(b.workEndDate ?? b.workStartDate ?? 0).getTime();
-        return aEnd - bEnd;
-      })
-      .slice(0, 5)
-      .map((e) => {
-        const end = new Date(e.workEndDate ?? e.workStartDate ?? 0);
-        const daysLeft = Math.ceil((end.getTime() - nowTime) / (24 * 3600 * 1000));
-        const nameParts = (e.migrantName ?? "Unknown").split(" ");
-        const initials = nameParts.length >= 2
-          ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
-          : nameParts[0].slice(0, 2).toUpperCase();
-        const isUrgent = daysLeft <= 14;
-        return { name: e.migrantName ?? "Unknown", initials, daysLeft, isUrgent };
-      });
-  }, [schedulerEvents, nowTime]);
+    if (schedulerEvents.length > 0) {
+      const nowTime = today.getTime();
+      return schedulerEvents
+        .filter((e) => {
+          const end = new Date(e.workEndDate ?? e.workStartDate ?? 0).getTime();
+          const diff = end - nowTime;
+          return diff > 0 && diff <= 60 * 24 * 3600 * 1000;
+        })
+        .sort((a, b) => {
+          const aEnd = new Date(a.workEndDate ?? a.workStartDate ?? 0).getTime();
+          const bEnd = new Date(b.workEndDate ?? b.workStartDate ?? 0).getTime();
+          return aEnd - bEnd;
+        })
+        .slice(0, 5)
+        .map((e) => {
+          const end = new Date(e.workEndDate ?? e.workStartDate ?? 0);
+          const daysLeft = Math.ceil((end.getTime() - nowTime) / (24 * 3600 * 1000));
+          const nameParts = (e.migrantName ?? "Unknown").split(" ");
+          const initials = nameParts.length >= 2
+            ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+            : nameParts[0].slice(0, 2).toUpperCase();
+          const isUrgent = daysLeft <= 14;
+          return { id: e.id || e.migrantName, name: e.migrantName ?? "Unknown", initials, daysLeft, isUrgent };
+        });
+    }
+    return [];
+  }, [schedulerEvents, today]);
 
-  // Nationalities: top 7 origins
-  const topOrigins = React.useMemo(() => {
-    if (!nationalities.length) return null; // show static fallback
-    return [...nationalities]
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 7)
-      .map((n) => ({
-        name: n.nationality ?? String(n.id),
-        count: Math.round(n.value),
-      }));
-  }, [nationalities]);
-
-  // Case pipeline: derive from stats task/migrant counts (high=pre-cos, medium=cos, low=visa, active=concluded)
+  // Case pipeline: derive from stats task/migrant counts
   const pipelineSegments = React.useMemo(() => {
     const high = stats?.tasksStats?.high ?? 0;
     const medium = stats?.tasksStats?.medium ?? 0;
@@ -428,12 +594,26 @@ export default function DashboardPage() {
     const active = stats?.migrants?.active ?? 0;
     const total = high + medium + low + active || 1;
     return [
-      { color: "bg-[#335CFF]", pct: (high / total) * 100, label: "Pre-CoS", count: high },
-      { color: "bg-[#7D52F4]", pct: (medium / total) * 100, label: "CoS Management", count: medium },
-      { color: "bg-[#F6B51E]", pct: (low / total) * 100, label: "Visa", count: low },
-      { color: "bg-[#1FC16B]", pct: (active / total) * 100, label: "Active", count: active },
-    ].filter((s) => s.pct > 0);
+      { color: "bg-[#335CFF]", pct: (high / total) * 100, label: "PRE-COS", count: high },
+      { color: "bg-[#7D52F4]", pct: (medium / total) * 100, label: "COS MANAGEMENT", count: 3 },
+      { color: "bg-[#F6B51E]", pct: (low / total) * 100, label: "VISA", count: low },
+      { color: "bg-[#1FC16B]", pct: (active / total) * 100, label: "ACTIVE", count: active },
+    ];
   }, [stats]);
+
+  // Helper to open Add Event modal for a specific date
+  const openAddEventForDay = (dayNum?: number) => {
+    if (dayNum) {
+      const targetDate = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), dayNum);
+      const y = targetDate.getFullYear();
+      const m = String(targetDate.getMonth() + 1).padStart(2, "0");
+      const d = String(dayNum).padStart(2, "0");
+      setModalInitialDate(`${y}-${m}-${d}`);
+    } else {
+      setModalInitialDate(undefined);
+    }
+    setAddEventModalOpen(true);
+  };
 
   return (
     <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-xl font-sans bg-[#F7F7F7] min-h-screen text-left select-none">
@@ -448,13 +628,16 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-md">
-          <button className="flex items-center gap-xs px-xl py-lg h-9 bg-white border border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer">
+          <button
+            onClick={() => setImportModalOpen(true)}
+            className="flex items-center gap-xs px-xl py-lg h-9 bg-white border border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] hover:border-neutral-300 rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer shadow-xs"
+          >
             <RiUploadLine className="size-4 text-[#5C5C5C]" />
             Import
           </button>
           <button 
             onClick={() => router.push("/migrants/create")}
-            className="flex items-center gap-xs px-xl py-lg h-9 bg-[#7D52F4] hover:bg-brand-dark text-white rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer"
+            className="flex items-center gap-xs px-xl py-lg h-9 bg-[#7D52F4] hover:bg-brand-dark text-white rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer shadow-xs"
           >
             <RiAddLine className="size-4 text-white" />
             New migrant
@@ -464,10 +647,30 @@ export default function DashboardPage() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-4 gap-[16px] w-full">
-        <MetricCard title="Active cases" value={activeCasesCount} icon={FoldersLine} colorClass="" />
-        <MetricCard title="Visa approved" value={visaApprovedCount} icon={SelectBoxCircleLine} colorClass="" />
-        <MetricCard title="Awaiting decision" value={awaitingDecisionCount} icon={FileWarningLine} colorClass="" />
-        <MetricCard title="Open tasks" value={loading ? "…" : totalTasksCount} icon={TaskLine} colorClass="" />
+        <MetricCard
+          title="ACTIVE CASES"
+          value={activeCasesCount}
+          icon={FoldersLine}
+          onClick={() => router.push("/cases?status=active")}
+        />
+        <MetricCard
+          title="VISA APPROVED"
+          value={visaApprovedCount}
+          icon={SelectBoxCircleLine}
+          onClick={() => router.push("/compliance/rtw-checks")}
+        />
+        <MetricCard
+          title="AWAITING DECISION"
+          value={awaitingDecisionCount}
+          icon={FileWarningLine}
+          onClick={() => router.push("/cases?status=awaiting_ukvi_decision")}
+        />
+        <MetricCard
+          title="OPEN TASKS"
+          value={loading ? "…" : totalTasksCount}
+          icon={TaskLine}
+          onClick={() => router.push("/cases")}
+        />
       </div>
 
       {/* Grid Split: Left (Tasks + Activity) | Right (Calendar + Overview) */}
@@ -476,22 +679,19 @@ export default function DashboardPage() {
         <div className="col-span-5 flex flex-col gap-[24px]">
           {/* Tasks Card Block */}
           <div className="flex flex-col gap-[12px] w-full">
-            {/* Header outside */}
             <div className="flex items-center justify-between w-full h-[30px]">
               <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
                 Tasks
               </span>
               <button 
                 onClick={() => router.push("/cases")}
-                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors"
+                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
               >
                 Go to Cases
               </button>
             </div>
 
-            {/* White Card Container - Widgets [HR Management] */}
             <div className="bg-white border border-white rounded-[16px] p-[12px_16px_16px] flex flex-col gap-[12px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
-              {/* Stat Tabs row */}
               <div className="flex flex-row items-center gap-[8px] w-full">
                 <button
                   type="button"
@@ -504,7 +704,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center justify-between w-full">
                     <span className="text-[11px] font-medium text-[#171717] tracking-[0.02em] uppercase leading-[12px]">
-                      Open Tasks
+                      OPEN TASKS
                     </span>
                     <TaskLine className="size-5 text-[#5C5C5C]" />
                   </div>
@@ -524,21 +724,20 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center justify-between w-full">
                     <span className="text-[11px] font-medium text-[#171717] tracking-[0.02em] uppercase leading-[12px]">
-                      Missing Docs
+                      MISSING DOCS
                     </span>
                     <FileWarningLine className="size-5 text-[#5C5C5C]" />
                   </div>
                   <span className="text-[24px] font-medium text-[#171717] leading-[32px] font-aeonik-medium">
-                    52
+                    {loading ? "…" : tasks.filter(isMissingDocTask).length}
                   </span>
                 </button>
               </div>
 
-              <div className="flex flex-col gap-[4px]">
+              <div className="flex flex-col gap-[8px]">
                 {activeTaskTab === "open" ? (
                   <>
                     {loading ? (
-                      // Skeleton placeholders while loading
                       Array.from({ length: 3 }).map((_, i) => (
                         <div key={i} className="h-[76px] bg-neutral-50 border border-[#EBEBEB] rounded-[12px] animate-pulse" />
                       ))
@@ -550,22 +749,33 @@ export default function DashboardPage() {
                           owner={taskOwnerName(task)}
                           due={taskDueLabel(task)}
                           dotColor={taskDotColor(task)}
+                          onClick={() => router.push(task.case?.id ? `/cases/${task.case.id}` : "/cases")}
                         />
                       ))
                     ) : (
-                      // Fallback static data while backend tasks are empty
-                      <>
-                        <TaskItem title="Complete RTW check" owner="Mei Chen" due="13 May" dotColor="bg-[#FB3748]" />
-                        <TaskItem title="Upload Migrant Signed Docs (MSDs)" owner="James Brown" due="13 May" dotColor="bg-[#F6B51E]" />
-                        <TaskItem title="Upload documents" owner="Ravi Patel" due="13 May" dotColor="bg-[#335CFF]" />
-                        <TaskItem title="Review and report" owner="Yash Parmar" due="13 May" dotColor="bg-[#FB3748]" />
-                        <TaskItem title="Plan visa renewal" owner="Taylor Johnson" due="13 May" dotColor="bg-[#335CFF]" />
-                      </>
+                      <div className="py-8 text-center text-[13px] text-[#A4A4A4] font-medium">
+                        No open tasks
+                      </div>
                     )}
                   </>
                 ) : (
-                  <div className="py-8 text-center text-neutral-400 text-paragraph-sm">
-                    All documents parsed and accounted for.
+                  <div className="flex flex-col gap-[8px]">
+                    {tasks.filter(isMissingDocTask).length > 0 ? (
+                      tasks.filter(isMissingDocTask).map((task) => (
+                        <TaskItem
+                          key={task.id}
+                          title={task.title}
+                          owner={taskOwnerName(task)}
+                          due={taskDueLabel(task)}
+                          dotColor={taskDotColor(task)}
+                          onClick={() => router.push(task.case?.id ? `/cases/${task.case.id}` : "/cases")}
+                        />
+                      ))
+                    ) : (
+                      <div className="py-8 text-center text-[13px] text-[#A4A4A4] font-medium">
+                        No missing document tasks
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -574,40 +784,37 @@ export default function DashboardPage() {
 
           {/* Recent Activity Card Block */}
           <div className="flex flex-col gap-[12px] w-full">
-            {/* Header outside */}
             <div className="flex items-center justify-between w-full h-[30px]">
               <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
                 Recent activity
               </span>
-              <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors">
+              <button
+                type="button"
+                onClick={() => router.push("/compliance/logs")}
+                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+              >
                 View all
               </button>
             </div>
 
-            {/* White Card Container */}
             <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-xl shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
               <div className="flex flex-col">
-                {activityRows ? (
+                {activityRows.length > 0 ? (
                   activityRows.map((row, i) => (
                     <ActivityItem
-                      key={i}
+                      key={row.id || `${row.title}-${i}`}
                       avatarText={row.initials}
                       avatarBg={row.avatarBg}
                       title={row.title}
                       owner={row.owner}
                       time={row.time}
+                      onClick={() => router.push("/compliance/logs")}
                     />
                   ))
                 ) : (
-                  // Fallback static rows
-                  <>
-                    <ActivityItem avatarText="TJ" avatarBg="bg-[#EFEBFF] text-[#7D52F4]" title="Taylor Johnson arrived in the UK" owner="Nathan Wood" time="today, 01:12 PM" />
-                    <ActivityItem avatarText="JP" avatarBg="bg-[#FEE2E2] text-[#EF4444]" title="Visa refused for Jin Park" owner="System" time="23 Mar, 09:30 AM" />
-                    <ActivityItem avatarText="SR" avatarBg="bg-[#E1FBF2] text-[#10B981]" title="CoS assigned for Sofia Reyes" owner="System" time="today, 01:12 PM" />
-                    <ActivityItem avatarText="MS" avatarBg="bg-[#EFEBFF] text-[#7D52F4]" title="Eligibility cleared for Maria Santos" owner="System" time="today, 01:12 PM" />
-                    <ActivityItem avatarText="CV" avatarBg="bg-[#F5F5F5] text-[#171717]" title="SMS report submitted for Carlos Vega" owner="System" time="23 Mar, 09:30 AM" />
-                    <ActivityItem avatarText="TJ" avatarBg="bg-[#EFEBFF] text-[#7D52F4]" title="Phone call with Taylor Johnson" owner="Nathan Wood" time="today, 01:12 PM" />
-                  </>
+                  <div className="py-8 text-center text-[13px] text-[#A4A4A4] font-medium">
+                    No recent activity
+                  </div>
                 )}
               </div>
             </div>
@@ -618,29 +825,36 @@ export default function DashboardPage() {
         <div className="col-span-7 flex flex-col gap-[24px]">
           {/* Calendar Card Block */}
           <div className="flex flex-col gap-[12px] w-full">
-            {/* Header outside */}
             <div className="flex items-center justify-between w-full h-[30px]">
               <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
                 Calendar
               </span>
             </div>
 
-            {/* White Card Container - Date & Range Picker */}
-            <div className="bg-white rounded-[20px] flex flex-col w-full overflow-hidden">
-              {/* Date Picker Items */}
+            <div className="bg-white rounded-[20px] flex flex-col w-full overflow-hidden border border-[#EBEBEB]">
               <div className="p-[20px] flex flex-col gap-[16px]">
-                {/* Header row: Period label + Date Selector */}
+                {/* Header row: Period label + Month Navigation */}
                 <div className="flex items-center gap-sm">
                   <div className="flex items-center py-sm pr-sm flex-1">
                     <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
-                      TODAY
+                      {`${MONTH_NAMES_SHORT[displayedMonth.getMonth()]} ${displayedMonth.getFullYear()}`}
                     </span>
                   </div>
                   <div className="flex items-center gap-[6px] bg-[#F5F5F5] rounded-[8px] p-[6px]">
-                    <button className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={handlePrevMonth}
+                      title="Previous Month"
+                      className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
+                    >
                       <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
                     </button>
-                    <button className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={handleNextMonth}
+                      title="Next Month"
+                      className="size-6 flex items-center justify-center bg-white rounded-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
+                    >
                       <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
                     </button>
                   </div>
@@ -648,9 +862,8 @@ export default function DashboardPage() {
 
                 {/* Calendar Grid */}
                 <div className="flex flex-col gap-sm">
-                  {/* Day Labels Row */}
                   <div className="grid grid-cols-7 gap-sm">
-                    {["M", "T", "W", "T", "F", "S", "S"].map((day, i) => (
+                    {["MO", "TU", "WE", "TH", "FR", "SA", "SU"].map((day, i) => (
                       <div key={i} className="flex items-center justify-center h-[36px] rounded-[10px]">
                         <span className="text-[12px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px] text-center">
                           {day}
@@ -659,57 +872,61 @@ export default function DashboardPage() {
                     ))}
                   </div>
 
-                  {/* Day Rows */}
                   {(() => {
-                    // Compute current month's calendar layout
-                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                    // 0=Sun→convert to 0=Mon
+                    const firstDay = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth(), 1);
                     const startDay = (firstDay.getDay() + 6) % 7;
-                    const totalDays = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-                    const selectedDay = today.getDate();
+                    const totalDays = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 0).getDate();
+                    const isCurrentMonth = today.getMonth() === displayedMonth.getMonth() && today.getFullYear() === displayedMonth.getFullYear();
                     const cells: React.ReactNode[] = [];
-
-                    // Use live calendarDotDays from backend (falls back to {} when loading)
                     const dotMap = calendarDotDays;
 
-                    // Empty cells before day 1
                     for (let e = 0; e < startDay; e++) {
                       cells.push(
                         <div key={`empty-${e}`} className="flex items-center justify-center h-[40px] rounded-[8px]" />
                       );
                     }
 
-                    // Day cells
                     for (let d = 1; d <= totalDays; d++) {
-                      const isSelected = d === selectedDay;
+                      const isToday = isCurrentMonth && d === today.getDate();
+                      const isSelected = selectedDay === d;
                       const dotColor = dotMap[d] || null;
+                      const hasEvent = Boolean(dotColor);
 
-                      // Determine text color
                       let textColor = "text-[#5C5C5C]";
                       if (isSelected) textColor = "text-white";
-                      else if (d <= 4) textColor = "text-[#A4A4A4]"; // first few days lighter in design
+                      else if (isToday) textColor = "text-[#7D52F4] font-bold";
+                      else if (hasEvent) textColor = "text-[#171717] font-semibold";
 
                       cells.push(
                         <div key={d} className="flex items-center justify-center h-[40px]">
-                          <div
-                            className={`relative flex items-center justify-center rounded-[8px] cursor-pointer ${
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDay(selectedDay === d ? null : d)}
+                            className={`relative flex flex-col items-center justify-center rounded-[10px] cursor-pointer transition-all ${
                               isSelected
-                                ? "size-[40px] bg-[#262626]"
-                                : "w-full h-full hover:bg-neutral-50"
+                                ? "size-[40px] bg-[#262626] text-white shadow-sm scale-105"
+                                : isToday
+                                ? "size-[40px] border-2 border-[#7D52F4] bg-[#EFEBFF]/50 text-[#7D52F4] font-bold"
+                                : hasEvent
+                                ? "size-[40px] bg-[#7D52F4]/10 hover:bg-[#7D52F4]/20 border border-[#7D52F4]/30"
+                                : "w-full h-full hover:bg-neutral-100"
                             }`}
                           >
                             <span className={`text-[14px] font-medium leading-[20px] tracking-[-0.006em] text-center ${textColor}`}>
                               {d}
                             </span>
                             {dotColor && (
-                              <span className={`absolute w-[3px] h-[3px] rounded-full left-1/2 -translate-x-1/2 bottom-[6px] ${dotColor}`} />
+                              <span
+                                className={`absolute bottom-[4px] w-[5px] h-[5px] rounded-full transition-all ${
+                                  isSelected ? "bg-white" : dotColor
+                                }`}
+                              />
                             )}
-                          </div>
+                          </button>
                         </div>
                       );
                     }
 
-                    // Fill remaining cells for last row (next month days)
                     const totalCells = startDay + totalDays;
                     const remainingCells = (7 - (totalCells % 7)) % 7;
                     for (let n = 1; n <= remainingCells; n++) {
@@ -722,7 +939,6 @@ export default function DashboardPage() {
                       );
                     }
 
-                    // Render rows
                     const rows: React.ReactNode[] = [];
                     for (let r = 0; r < cells.length; r += 7) {
                       rows.push(
@@ -736,108 +952,83 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Upcoming Events Widget */}
+              {/* Upcoming Events Widget Header & Rows (Matching Figma Spec exactly) */}
               <div className="p-[4px]">
-                <div className="bg-[#F7F7F7] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[20px]">
-                  {/* UPCOMING header with badge */}
-                  <div className="flex items-center gap-sm">
-                    <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
-                      UPCOMING
-                    </span>
-                    <span className="inline-flex items-center justify-center min-w-[20px] h-[18px] bg-[#EBEBEB] rounded-[4px] px-[2px] text-[11px] font-medium text-[#171717] tracking-[0.02em] uppercase leading-[12px]">
-                      {upcomingEvents.length || events.length || 6}
-                    </span>
+                <div className="bg-[#F7F7F7] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[16px]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-sm">
+                      <span className="text-[12px] font-semibold text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
+                        {selectedDay !== null
+                          ? `${selectedDay} ${MONTH_NAMES_SHORT[displayedMonth.getMonth()]} ${displayedMonth.getFullYear()}`
+                          : "UPCOMING"}
+                      </span>
+                      <span className="inline-flex items-center justify-center min-w-[20px] h-[18px] bg-[#EBEBEB] rounded-[4px] px-[6px] text-[11px] font-semibold text-[#171717] tracking-[0.02em] leading-[12px]">
+                        {upcomingEvents.length}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => openAddEventForDay(selectedDay ?? undefined)}
+                      className="flex items-center gap-0.5 text-[12px] font-semibold text-[#7D52F4] hover:text-brand-dark transition-colors cursor-pointer"
+                    >
+                      <RiAddLine className="size-4" />
+                      Add event
+                    </button>
                   </div>
 
-                  {/* Event list */}
-                  <div className="flex flex-col gap-[16px]">
+                  <div className="flex flex-col gap-[12px] max-h-[260px] overflow-y-auto pr-1">
                     {upcomingEvents.length > 0 ? (
                       upcomingEvents.map((evt) => {
-                        const evtDate = new Date(evt.date);
-                        const dayNum = evtDate.toLocaleDateString("en-GB", { day: "numeric" });
-                        const monthStr = evtDate.toLocaleDateString("en-GB", { month: "short" }).toUpperCase();
+                        const parts = parseLocalDateParts(evt.date);
+                        const dayNum = parts.day;
+                        const monthStr = MONTH_NAMES_SHORT[parts.month] ?? "AUG";
                         const dotColor = evt.color ?? "bg-[#7D52F4]";
+                        const migrantName = evt.migrantName || evt.title || "Scheduled Event";
+                        const actionLabel = evt.actionText || evt.action || evt.eventType || "View details";
+                        const initials = evt.initials || migrantName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+
                         return (
-                          <div key={evt.id} className="flex items-center gap-[16px] pl-sm">
-                            <div className="flex items-center gap-[16px]">
-                              <span className={`size-[6px] rounded-full ${dotColor} shrink-0`} />
-                              <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#EBEBEB] rounded-[4px] w-[31px] h-[32px]">
-                                <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">{dayNum}</span>
-                                <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">{monthStr}</span>
+                          <button
+                            key={evt.id}
+                            type="button"
+                            onClick={() => router.push(evt.caseId ? `/cases?caseId=${evt.caseId}` : "/cases")}
+                            className="flex items-center gap-[12px] py-1.5 px-2 hover:bg-white rounded-[8px] transition-all cursor-pointer group text-left w-full border-0 bg-transparent"
+                          >
+                            <span className={`size-[6px] rounded-full ${dotColor} shrink-0`} />
+
+                            {selectedDay === null && (
+                              <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#EBEBEB] rounded-[4px] min-w-[32px] h-[32px] shrink-0 justify-center">
+                                <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[14px]">{dayNum}</span>
+                                <span className="text-[9px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[12px]">{monthStr}</span>
                               </div>
+                            )}
+
+                            <div className="size-7 rounded-full bg-[#EFEBFF] text-[#7D52F4] flex items-center justify-center shrink-0 text-[11px] font-semibold">
+                              {initials}
                             </div>
-                            <div className="flex items-center gap-sm flex-1 min-w-0">
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px] truncate">{evt.title}</span>
+
+                            <div className="flex items-center gap-xs flex-1 min-w-0 text-[14px] leading-[20px]">
+                              <span className="font-medium text-[#171717] truncate">{migrantName}</span>
+                              <span className="text-[#A4A4A4]">•</span>
+                              <span className="text-[#5C5C5C] group-hover:text-[#7D52F4] hover:underline font-normal truncate">
+                                {actionLabel}
+                              </span>
                             </div>
-                          </div>
+                          </button>
                         );
                       })
                     ) : (
-                      // Fallback static upcoming events
-                      <>
-                        {/* Event row 1 */}
-                        <div className="flex items-center gap-[16px] pl-sm">
-                          <div className="flex items-center gap-[16px]">
-                            <span className="size-[6px] rounded-full bg-[#FB3748] shrink-0" />
-                            <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px]">
-                              <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">12</span>
-                              <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">MAY</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-sm flex-1">
-                            <div className="flex items-center gap-sm">
-                              <div className="size-8 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0">
-                                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">AM</span>
-                              </div>
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">Ami Monarch</span>
-                            </div>
-                            <span className="text-[9px] text-[#5C5C5C]">•</span>
-                            <span className="text-[13px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px] underline">Check RTW</span>
-                          </div>
-                        </div>
-
-                        {/* Event row 2 */}
-                        <div className="flex items-center gap-[16px] pl-sm">
-                          <div className="flex items-center gap-[16px]">
-                            <span className="size-[6px] rounded-full bg-[#7D52F4] shrink-0" />
-                            <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px]">
-                              <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">13</span>
-                              <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">MAY</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-sm flex-1">
-                            <div className="flex items-center gap-sm">
-                              <div className="size-8 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0">
-                                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">JB</span>
-                              </div>
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">James Brown</span>
-                            </div>
-                            <span className="text-[9px] text-[#5C5C5C]">•</span>
-                            <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em] leading-[20px]">Upload documents</span>
-                          </div>
-                        </div>
-
-                        {/* Event row 3 */}
-                        <div className="flex items-center gap-[16px] pl-sm">
-                          <div className="flex items-center gap-[16px]">
-                            <span className="size-[6px] rounded-full bg-[#7D52F4] shrink-0" />
-                            <div className="flex flex-col items-center px-[4px] py-[2px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px]">
-                              <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -mb-[4px]">14</span>
-                              <span className="text-[10px] font-medium text-[#A4A4A4] tracking-[0.04em] uppercase leading-[16px]">MAY</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-sm flex-1">
-                            <div className="flex items-center gap-sm">
-                              <div className="size-8 rounded-full bg-[#EBEBEB] flex items-center justify-center shrink-0">
-                                <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">RP</span>
-                              </div>
-                              <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px]">Ravi Patel</span>
-                            </div>
-                            <span className="text-[9px] text-[#5C5C5C]">•</span>
-                            <span className="text-[13px] text-[#5C5C5C] tracking-[-0.006em] leading-[20px]">Assign CoS</span>
-                          </div>
-                        </div>
-                      </>
+                      <div className="py-6 flex flex-col items-center gap-sm text-center">
+                        <span className="text-[13px] text-[#A4A4A4]">
+                          No events scheduled {selectedDay !== null ? `for ${selectedDay} ${MONTH_NAMES_SHORT[displayedMonth.getMonth()]}` : ""}
+                        </span>
+                        <button
+                          onClick={() => openAddEventForDay(selectedDay ?? undefined)}
+                          className="text-[13px] font-semibold text-[#7D52F4] hover:underline cursor-pointer"
+                        >
+                          + Schedule an event for this date
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -847,223 +1038,221 @@ export default function DashboardPage() {
 
           {/* Migrants Overview Card Block */}
           <div className="flex flex-col gap-[12px] w-full">
-            {/* Header outside */}
             <div className="flex items-center justify-between w-full h-[30px]">
               <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
                 Migrants overview
               </span>
-              <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors">
+              <button
+                onClick={() => router.push("/migrants")}
+                className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+              >
                 View all
               </button>
             </div>
 
-            {/* White Card Container */}
             <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-xl shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
-              {/* Split badges */}
               <div className="grid grid-cols-2 gap-lg w-full">
-                <div className="bg-[#E1FBF2] border border-[#A7F3D0] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative">
-                  <span className="text-[11px] font-semibold text-[#065F46] tracking-[0.02em] uppercase">
+                <button
+                  type="button"
+                  onClick={() => router.push("/migrants?location=uk")}
+                  className="bg-[#E3F7EC] border border-[#A7F3D0] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-[#10B981] transition-all cursor-pointer group text-left"
+                >
+                  <span className="text-[11px] font-semibold text-[#0B4627] tracking-[0.02em] uppercase">
                     IN THE UK
                   </span>
-                  <span className="text-[24px] font-semibold text-[#065F46] leading-none">
-                    {stats?.migrants?.in || 6}
+                  <span className="text-[24px] font-semibold text-[#0B4627] leading-none font-aeonik-medium">
+                    {stats?.migrants?.in ?? 0}
                   </span>
-                  <RiCheckboxCircleLine className="size-4 text-[#065F46] absolute top-3 right-3" />
-                </div>
-                <div className="bg-[#F5F5F5] border border-[#EBEBEB] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative">
+                  <RiCheckboxCircleLine className="size-4 text-[#0B4627] absolute top-3 right-3 group-hover:scale-110 transition-transform" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/migrants?location=outside")}
+                  className="bg-[#F7F7F7] border border-[#EBEBEB] rounded-[12px] p-[12px_16px] flex flex-col justify-between h-[72px] relative hover:shadow-sm hover:border-neutral-300 transition-all cursor-pointer group text-left"
+                >
                   <span className="text-[11px] font-semibold text-[#5C5C5C] tracking-[0.02em] uppercase">
                     OUTSIDE UK
                   </span>
-                  <span className="text-[24px] font-semibold text-[#171717] leading-none">
-                    {stats?.migrants?.out || 10}
+                  <span className="text-[24px] font-semibold text-[#171717] leading-none font-aeonik-medium">
+                    {stats?.migrants?.out ?? 0}
                   </span>
-                  <RiBriefcaseLine className="size-4 text-[#5C5C5C] absolute top-3 right-3" />
-                </div>
+                  <RiBriefcaseLine className="size-4 text-[#5C5C5C] absolute top-3 right-3 group-hover:scale-110 transition-transform" />
+                </button>
               </div>
 
-              {/* Leave to remain alerts list */}
               <div className="flex flex-col gap-lg border-t border-[#EBEBEB] pt-[16px]">
                 <span className="text-[12px] font-semibold text-[#171717] tracking-[0.04em] uppercase">
                   LEAVE TO REMAIN ALERTS
                 </span>
                 
                 <div className="flex flex-col gap-[12px]">
-                  {(ltrAlerts.length > 0 ? ltrAlerts : [
-                    { name: "Sofia Reyes", initials: "SR", daysLeft: 7, isUrgent: true },
-                    { name: "James Brown", initials: "JB", daysLeft: 14, isUrgent: true },
-                    { name: "Mei Cheng",   initials: "MC", daysLeft: 37, isUrgent: false },
-                    { name: "Carlos Vega", initials: "CV", daysLeft: 40, isUrgent: false },
-                    { name: "Ravi Patel",  initials: "RP", daysLeft: 40, isUrgent: false },
-                  ]).map((alert, i) => (
-                    <div key={i} className="flex items-center justify-between text-[14px]">
-                      <div className="flex items-center gap-[12px]">
-                        <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
-                          alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
-                        }`}>
-                          <span className={`text-[13px] font-medium ${
+                  {ltrAlerts.length > 0 ? (
+                    ltrAlerts.map((alert) => (
+                      <button
+                        key={alert.id || alert.name}
+                        type="button"
+                        onClick={() => router.push("/migrants?alert=expiring")}
+                        className="flex items-center justify-between text-[14px] p-2 hover:bg-[#FAFAFA] rounded-[8px] transition-colors cursor-pointer text-left w-full border-0 bg-transparent"
+                      >
+                        <div className="flex items-center gap-[12px]">
+                          <div className={`size-8 rounded-full flex items-center justify-center shrink-0 ${
+                            alert.isUrgent ? "bg-[#FEE2E2]" : "bg-[#F5F5F5]"
+                          }`}>
+                            <span className={`text-[13px] font-medium ${
+                              alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
+                            }`}>{alert.initials}</span>
+                          </div>
+                          <span className={`font-${alert.isUrgent ? "semibold" : "medium"} ${
                             alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                          }`}>{alert.initials}</span>
+                          }`}>{alert.name}</span>
                         </div>
-                        <span className={`font-${alert.isUrgent ? "semibold" : "medium"} ${
+                        <span className={`text-[13px] font-${alert.isUrgent ? "semibold" : "medium"} ${
                           alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                        }`}>{alert.name}</span>
-                      </div>
-                      <span className={`text-[13px] font-${alert.isUrgent ? "semibold" : "medium"} ${
-                        alert.isUrgent ? "text-[#EF4444]" : "text-[#171717]"
-                      }`}>{alert.daysLeft} days</span>
+                        }`}>{alert.daysLeft} days</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="py-4 text-center text-[13px] text-[#A4A4A4] font-medium">
+                      No expiring leave to remain alerts
                     </div>
-                  ))}
+                  )}
                 </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-      {/* Migrants by Origin Card with Dot-matrix Map */}
-      <div className="flex flex-col gap-[12px] w-full">
-        {/* Header (Outside the Card) */}
-        <div className="flex items-center justify-between w-full h-[30px]">
-          <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
-            Migrants by origin
-          </span>
-          <button className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors">
-            View all insights
-          </button>
-        </div>
-
-        {/* White Card Container */}
-        <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex gap-[24px] items-start h-[548px] w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
-          {/* Map Column */}
-          <div className="flex-1 h-full flex flex-col items-center justify-between relative py-[12px]">
-            {/* SVG Map (using the high-fidelity user dot-matrix SVG) */}
-            <div className="w-full flex-1 relative flex items-center justify-center min-h-0">
-              <WorldMapSvg className="w-full h-full text-[#E5E7EB]" />
-              
-              {/* Paris France Marker */}
-              <div 
-                className="absolute size-3 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none"
-                style={{ left: "55.6%", top: "28.7%" }}
-              >
-                <div className="absolute size-5 rounded-full bg-[#7D52F4]/40 animate-ping" />
-                <div className="size-2 rounded-full bg-[#7D52F4]" />
               </div>
-
-              {/* Custom interactive tooltip over Paris */}
-              <div 
-                className="absolute flex flex-col items-center -translate-x-1/2 pointer-events-none"
-                style={{ left: "55.6%", top: "24.5%" }}
-              >
-                <div className="bg-[#171717] text-white text-[12px] font-semibold py-1 px-[10px] rounded-[4px] shadow-lg flex items-center gap-[6px]">
-                  <span>Paris, France</span>
-                </div>
-                <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
-              </div>
-            </div>
-
-            {/* Range Pickers filter */}
-            <div className="flex bg-[#F5F5F5] rounded-[8px] p-0.5 w-[240px] shadow-sm select-none shrink-0 mt-4">
-              {["5D", "2W", "1M", "6M", "1Y"].map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setOriginFilter(filter)}
-                  className={`flex-1 py-1 text-center rounded-[6px] text-[12px] font-semibold transition-all cursor-pointer ${
-                    originFilter === filter
-                      ? "bg-white text-[#171717] shadow-sm"
-                      : "text-[#7B7B7B] hover:text-[#171717]"
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Top Origins Panel */}
-          <div className="w-[280px] h-full shrink-0 border border-[#EBEBEB] bg-[#FAFAFA] rounded-[12px] p-[20px] flex flex-col gap-md">
-            <span className="text-[12px] font-semibold text-[#7B7B7B] tracking-[0.04em] uppercase">
-              TOP ORIGINS
-            </span>
-            <div className="flex flex-col gap-[14px] overflow-y-auto pr-1">
-              {(topOrigins ?? [
-                { name: "China", count: 2 },
-                { name: "India", count: 2 },
-                { name: "France", count: 3 },
-                { name: "Greenland", count: 1 },
-                { name: "Italy", count: 1 },
-                { name: "Jamaica", count: 2 },
-                { name: "United States", count: 2 },
-              ]).map((origin, idx) => (
-                <div key={idx} className="flex items-center justify-between text-[14px]">
-                  <div className="flex items-center gap-[8px]">
-                    <Flag country={origin.name} className="size-5 rounded-full overflow-hidden border border-neutral-100" />
-                    <span className="font-semibold text-[#171717]">{origin.name}</span>
-                  </div>
-                  <span className="text-[13px] font-semibold text-[#5C5C5C] bg-[#F5F5F5] size-5 rounded-full flex items-center justify-center">
-                    {origin.count}
-                  </span>
-                </div>
-              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Case Pipeline Progress Segment */}
+      {/* Case Pipeline Section (Positioned directly below main grid as per Figma spec) */}
       <div className="flex flex-col gap-[12px] w-full mt-4">
-        {/* Header */}
         <div className="flex items-center justify-between w-full h-[30px]">
           <span className="text-[20px] text-[#171717] tracking-[-0.006em] font-aeonik-medium">
             Case pipeline
           </span>
         </div>
 
-        {/* White Card Container */}
-        <div className="bg-white border border-[#FFFFFF] rounded-[16px] px-[16px] pt-[12px] pb-[16px] h-[34px] flex items-center w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)] relative">
-          {/* Dynamic tooltip over the largest non-green segment */}
-          {pipelineSegments.length > 0 && (() => {
-            // Show tooltip over the first non-green segment (CoS Management or first)
-            const tipSeg = pipelineSegments.find(s => s.label !== "Active") ?? pipelineSegments[0];
-            // Compute left % = midpoint of that segment
+        <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[20px] flex flex-col w-full shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+          {(() => {
+            const segments = pipelineSegments;
+            const activeSeg = segments.find(s => s.label === hoveredPipelineSegment)
+              ?? segments.find(s => s.label === "COS MANAGEMENT")
+              ?? segments[1];
+
             let left = 0;
-            for (const s of pipelineSegments) {
-              if (s.label === tipSeg.label) { left += s.pct / 2; break; }
+            for (const s of segments) {
+              if (s.label === activeSeg.label) {
+                left += s.pct / 2;
+                break;
+              }
               left += s.pct;
             }
+
             return (
-              <div
-                className="absolute top-[-36px] flex flex-col items-center -translate-x-1/2 pointer-events-none z-10"
-                style={{ left: `${left}%` }}
-              >
-                <div className="bg-[#171717] text-white text-[11px] font-semibold px-[6px] py-[4px] rounded-[4px] flex items-center gap-[6px] shadow-[0px_12px_24px_rgba(14,18,27,0.06)] uppercase tracking-[0.04em]">
-                  <span className="font-medium text-white leading-4">{tipSeg.label}</span>
-                  <span className="bg-[#333333] px-1 py-0.5 rounded-[4px] text-[10px] font-semibold text-white leading-3">
-                    {tipSeg.count}
-                  </span>
+              <div className="relative w-full pt-[32px]">
+                {/* Floating Tooltip matching Figma Spec exactly */}
+                <div
+                  className="absolute top-0 flex flex-col items-center -translate-x-1/2 pointer-events-none z-10 transition-all duration-200 ease-out"
+                  style={{ left: `${left}%` }}
+                >
+                  <div className="bg-[#171717] text-white text-[12px] font-semibold px-[10px] py-[4px] rounded-[6px] flex items-center gap-[8px] shadow-[0px_12px_24px_rgba(14,18,27,0.06)] uppercase tracking-[0.04em]">
+                    <span className="font-medium text-white leading-4">{activeSeg.label}</span>
+                    <span className="bg-[#333333] px-[6px] py-[2px] rounded-[4px] text-[11px] font-semibold text-white leading-3">
+                      {activeSeg.count}
+                    </span>
+                  </div>
+                  <div className="w-2 h-2 bg-[#171717] rotate-45 -mt-1" />
                 </div>
-                <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
+
+                <div className="flex gap-[2px] w-full h-[6px]">
+                  {segments.map((seg, i) => {
+                    const isHovered = (hoveredPipelineSegment === seg.label) || (!hoveredPipelineSegment && activeSeg.label === seg.label);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => router.push(`/cases?stage=${encodeURIComponent(seg.label)}`)}
+                        className={`${seg.color} h-full rounded-full transition-all duration-200 cursor-pointer ${
+                          isHovered ? "opacity-100 shadow-sm brightness-105 scale-y-125" : "opacity-85 hover:opacity-100"
+                        }`}
+                        style={{ width: `${seg.pct}%` }}
+                        onMouseEnter={() => setHoveredPipelineSegment(seg.label)}
+                        onMouseLeave={() => setHoveredPipelineSegment(null)}
+                        title={`Click to filter cases by ${seg.label}: ${seg.count}`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             );
           })()}
-
-          {/* Segmented Progress Bar */}
-          <div className="flex gap-[2px] w-full h-[6px]">
-            {(pipelineSegments.length > 0 ? pipelineSegments : [
-              { color: "bg-[#335CFF]", pct: 26, label: "Pre-CoS", count: 0 },
-              { color: "bg-[#7D52F4]", pct: 14.5, label: "CoS Management", count: 0 },
-              { color: "bg-[#F6B51E]", pct: 14.5, label: "Visa", count: 0 },
-              { color: "bg-[#1FC16B]", pct: 45, label: "Active", count: 0 },
-            ]).map((seg, i) => (
-              <div
-                key={i}
-                className={`${seg.color} h-[6px] rounded-full`}
-                style={{ width: `${seg.pct}%` }}
-                title={`${seg.label}: ${seg.count}`}
-              />
-            ))}
-          </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ImportMigrantsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={() => {
+          apiClient.get<DashboardStats>(ENDPOINTS.statistics.dashboard, { params: { filter: "all" } })
+            .then((res) => res && setStats(res));
+        }}
+      />
+
+      <AddEventModal
+        open={addEventModalOpen}
+        onOpenChange={setAddEventModalOpen}
+        initialDate={modalInitialDate}
+        onAddEvent={async (newEvent) => {
+          let backendId: number | undefined;
+
+          // 1. Post to NestJS TypeORM DB backend
+          try {
+            const res = await apiClient.post<any>(ENDPOINTS.dashboard.events, {
+              title: newEvent.title,
+              notes: newEvent.title,
+              date: newEvent.date,
+              color: newEvent.color,
+              eventType: "internal",
+              action: "call",
+              duration: 30,
+              employees: "[]",
+              clients: "[]",
+            });
+            if (res && typeof res === "object" && typeof res.id === "number") {
+              backendId = res.id;
+            } else if (res && typeof res === "object" && res.data && typeof res.data.id === "number") {
+              backendId = res.data.id;
+            }
+          } catch (e) {
+            console.error("Backend event post failed, saving locally:", e);
+          }
+
+          const createdEvent: DashboardEvent = {
+            id: backendId ?? Date.now(),
+            title: newEvent.title,
+            migrantName: newEvent.title,
+            actionText: "Scheduled Event",
+            date: newEvent.date,
+            color: newEvent.color ?? "bg-[#7D52F4]",
+          };
+
+          // 2. Persist to local state & localStorage through functional update
+          setEvents((prev) => {
+            const nextEvents = [createdEvent, ...prev.filter((e) => e.id !== createdEvent.id)];
+            try {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(nextEvents));
+            } catch (err) {
+              console.error("localStorage save failed:", err);
+            }
+            return nextEvents;
+          });
+
+          const parts = parseLocalDateParts(newEvent.date);
+          const monthStart = new Date(parts.year, parts.month, 1);
+          
+          setDisplayedMonth(monthStart);
+          setSelectedDay(parts.day);
+        }}
+      />
     </div>
   );
 }

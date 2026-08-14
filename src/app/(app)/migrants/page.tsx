@@ -12,6 +12,7 @@ import {
   RiAddLine,
   RiUploadLine,
   RiExpandUpDownFill,
+  RiUserLine,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { formatFullName, getInitials } from "@/lib/utils";
@@ -50,172 +51,11 @@ interface MigrantRow {
   actionColor: "blue" | "red" | "yellow" | "gray";
 }
 
-const DEFAULT_MIGRANTS: MigrantRow[] = [
-  {
-    id: 1,
-    caseId: "431/2026",
-    country: "United States",
-    countryCode: "US",
-    countryHalf: "USA",
-    flag: "🇺🇸",
-    name: "Alex Marin",
-    group: "AX Studios",
-    avatarText: "AM",
-    status: "Visa Approved",
-    migration: "OUTSIDE UK",
-    migrationColor: "outside",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    id: 2,
-    caseId: "430/2026",
-    country: "United States",
-    countryCode: "US",
-    countryHalf: "USA",
-    flag: "🇺🇸",
-    name: "Taylor Johnson",
-    group: "AX Studios",
-    avatarText: "TJ",
-    status: "Visa Approved",
-    migration: "ARRIVED – RTW PENDING",
-    migrationColor: "pending",
-    action: "Check RTW",
-    actionColor: "red",
-  },
-  {
-    id: 3,
-    caseId: "429/2026",
-    country: "China",
-    countryCode: "CN",
-    countryHalf: "Chn",
-    flag: "🇨🇳",
-    name: "Gulab Singh Sidhu",
-    group: "Inderbir Sidhu",
-    avatarText: "GS",
-    status: "Active Compliance",
-    migration: "ACTIVE COMPLIANCE",
-    migrationColor: "active",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    id: 4,
-    caseId: "428/2026",
-    country: "India",
-    countryCode: "IN",
-    countryHalf: "Ind",
-    flag: "🇮🇳",
-    name: "Elena Petrova",
-    group: "Dhira Gill Music Video",
-    avatarText: "EP",
-    status: "Visa Approved",
-    migration: "OUTSIDE UK",
-    migrationColor: "outside",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    id: 5,
-    caseId: "427/2026",
-    country: "India",
-    countryCode: "IN",
-    countryHalf: "Ind",
-    flag: "🇮🇳",
-    name: "Ami Monarch",
-    group: "Dhira Gill Music Video",
-    avatarText: "AM",
-    status: "Pre-Arrival",
-    migration: "PRE-ARRIVAL",
-    migrationColor: "pre",
-    action: "Schedule RTW check",
-    actionColor: "yellow",
-  },
-  {
-    id: 6,
-    caseId: "426/2026",
-    country: "France",
-    countryCode: "FR",
-    countryHalf: "Fra",
-    flag: "🇫🇷",
-    name: "Wei Chen",
-    group: "Anonymous Group",
-    avatarText: "WC",
-    status: "Visa Approved",
-    migration: "OUTSIDE UK",
-    migrationColor: "outside",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    id: 7,
-    caseId: "425/2026",
-    country: "France",
-    countryCode: "FR",
-    countryHalf: "Fra",
-    flag: "🇫🇷",
-    name: "James Brown",
-    group: "Anonymous Group",
-    avatarText: "JB",
-    status: "Active Compliance",
-    migration: "ACTIVE COMPLIANCE",
-    migrationColor: "active",
-    action: "Upload passport",
-    actionColor: "blue",
-  },
-  {
-    id: 8,
-    caseId: "424/2026",
-    country: "France",
-    countryCode: "FR",
-    countryHalf: "Fra",
-    flag: "🇫🇷",
-    name: "Sofia Reyez",
-    group: "Anonymous Group",
-    avatarText: "SR",
-    status: "Sponsorship Withdrawn",
-    migration: "SPONSORSHIP WITHDRAWN",
-    migrationColor: "withdrawn",
-    action: "Review and report",
-    actionColor: "red",
-  },
-  {
-    id: 9,
-    caseId: "423/2026",
-    country: "South Africa",
-    countryCode: "ZA",
-    countryHalf: "SA",
-    flag: "🇿🇦",
-    name: "Juma Omondi",
-    group: "Bhai Tera Star Hai Film",
-    avatarText: "JO",
-    status: "Visa Approved",
-    migration: "OUTSIDE UK",
-    migrationColor: "outside",
-    action: "No action required",
-    actionColor: "gray",
-  },
-  {
-    id: 10,
-    caseId: "422/2026",
-    country: "China",
-    countryCode: "CN",
-    countryHalf: "Chn",
-    flag: "🇨🇳",
-    name: "Ravi Patel",
-    group: "Bhai Tera Star Hai Film",
-    avatarText: "RP",
-    status: "Archived",
-    migration: "ARCHIVED",
-    migrationColor: "archived",
-    action: "No action required",
-    actionColor: "gray",
-  },
-];
+const DEFAULT_MIGRANTS: MigrantRow[] = [];
 
 export default function MigrantsPage() {
   const router = useRouter();
-  const [migrants, setMigrants] = React.useState<MigrantRow[]>(DEFAULT_MIGRANTS);
+  const [migrants, setMigrants] = React.useState<MigrantRow[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
@@ -233,81 +73,133 @@ export default function MigrantsPage() {
   const [actionModalOpen, setActionModalOpen] = React.useState(false);
   const [selectedActionType, setSelectedActionType] = React.useState<string>("");
 
-  React.useEffect(() => {
-    async function fetchCasesData() {
-      try {
-        setLoading(true);
-        const res = await apiClient.get<any>(ENDPOINTS.cases.base);
-        const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
-        if (rawArr.length > 0) {
-          const sampleCountries = [
-            { code: "US", name: "United States", half: "USA", flag: "🇺🇸" },
-            { code: "CN", name: "China", half: "Chn", flag: "🇨🇳" },
-            { code: "IN", name: "India", half: "Ind", flag: "🇮🇳" },
-            { code: "FR", name: "France", half: "Fra", flag: "🇫🇷" },
-            { code: "ZA", name: "South Africa", half: "SA", flag: "🇿🇦" },
-          ];
+  const [error, setError] = React.useState<string | null>(null);
 
-          const mapped: MigrantRow[] = rawArr.map((c, i) => {
-            const name = formatFullName(c.first_name, c.last_name);
-            const initials = getInitials(name);
-            const caseId = c.caseIdDisplay || c.caseNumber || `43${9 - i}/2026`;
-            
-            const rawVal = c.nationality_value || c.country || c.country_code || c.nationality || c.nationality_code || c.migrant?.user?.personalInfo?.nationalityCode;
-            let countryObj = sampleCountries[i % sampleCountries.length];
+  const fetchCasesData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await apiClient.get<any>(ENDPOINTS.cases.base);
+      const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
+      if (rawArr.length > 0) {
+        const sampleCountries = [
+          { code: "US", name: "United States", half: "USA", flag: "🇺🇸" },
+          { code: "CN", name: "China", half: "Chn", flag: "🇨🇳" },
+          { code: "IN", name: "India", half: "Ind", flag: "🇮🇳" },
+          { code: "FR", name: "France", half: "Fra", flag: "🇫🇷" },
+          { code: "ZA", name: "South Africa", half: "SA", flag: "🇿🇦" },
+        ];
 
-            if (rawVal) {
-              const upper = String(rawVal).trim().toUpperCase();
-              if (upper === "US" || upper === "USA" || upper === "UNITED STATES") {
-                countryObj = sampleCountries[0];
-              } else if (upper === "CN" || upper === "CHINA" || upper === "CHINESE") {
-                countryObj = sampleCountries[1];
-              } else if (upper === "IN" || upper === "INDIA" || upper === "INDIAN") {
-                countryObj = sampleCountries[2];
-              } else if (upper === "FR" || upper === "FRANCE" || upper === "FRENCH") {
-                countryObj = sampleCountries[3];
-              } else if (upper === "ZA" || upper === "SOUTH AFRICA") {
-                countryObj = sampleCountries[4];
-              }
+        const mapped: MigrantRow[] = rawArr.map((c, i) => {
+          const name = formatFullName(c.first_name, c.last_name) || c.name || "Unknown Migrant";
+          const initials = getInitials(name) || "—";
+          const caseId = c.caseIdDisplay || c.caseNumber || (c.id ? `CASE-${c.id}` : "Unknown");
+          
+          const rawVal = c.nationality_value || c.country || c.country_code || c.nationality || c.nationality_code || c.migrant?.user?.personalInfo?.nationalityCode;
+          let countryObj = { code: "", name: "Unspecified", half: "—", flag: "🌐" };
+
+          if (rawVal) {
+            const upper = String(rawVal).trim().toUpperCase();
+            if (upper === "US" || upper === "USA" || upper === "UNITED STATES") {
+              countryObj = sampleCountries[0];
+            } else if (upper === "CN" || upper === "CHINA" || upper === "CHINESE") {
+              countryObj = sampleCountries[1];
+            } else if (upper === "IN" || upper === "INDIA" || upper === "INDIAN") {
+              countryObj = sampleCountries[2];
+            } else if (upper === "FR" || upper === "FRANCE" || upper === "FRENCH") {
+              countryObj = sampleCountries[3];
+            } else if (upper === "ZA" || upper === "SOUTH AFRICA") {
+              countryObj = sampleCountries[4];
+            } else {
+              countryObj = { code: upper.slice(0, 2), name: String(rawVal), half: upper.slice(0, 3), flag: "🌐" };
             }
+          }
 
-            let migration = "ACTIVE COMPLIANCE";
-            let migrationColor: MigrantRow["migrationColor"] = "active";
-            const mod = i % 6;
-            if (mod === 0) { migration = "OUTSIDE UK"; migrationColor = "outside"; }
-            else if (mod === 1) { migration = "ARRIVED – RTW PENDING"; migrationColor = "pending"; }
-            else if (mod === 2) { migration = "ACTIVE COMPLIANCE"; migrationColor = "active"; }
-            else if (mod === 3) { migration = "PRE-ARRIVAL"; migrationColor = "pre"; }
-            else if (mod === 4) { migration = "SPONSORSHIP WITHDRAWN"; migrationColor = "withdrawn"; }
-            else { migration = "ARCHIVED"; migrationColor = "archived"; }
+          const rawMigration = (c.migration_stage || c.migration_status || c.migrationStatus || "").toString().trim().toUpperCase();
+          let migration = "ACTIVE COMPLIANCE";
+          let migrationColor: MigrantRow["migrationColor"] = "active";
 
-            return {
-              id: c.id ?? i + 1,
-              caseId,
-              country: countryObj.name,
-              countryCode: countryObj.code,
-              countryHalf: countryObj.half,
-              flag: countryObj.flag,
-              name: name || "Migrant Applicant",
-              group: c.group_name || "AX Studios",
-              avatarText: initials || "MA",
-              status: c.case_status || "Visa Approved",
-              migration,
-              migrationColor,
-              action: mod === 1 ? "Check RTW" : mod === 3 ? "Schedule RTW check" : mod === 4 ? "Review and report" : "No action required",
-              actionColor: mod === 1 || mod === 4 ? "red" : mod === 3 ? "yellow" : "gray",
-            };
-          });
-          setMigrants(mapped);
-        }
-      } catch (err) {
-        console.error("Failed to fetch cases for migrants table:", err);
-      } finally {
-        setLoading(false);
+          if (rawMigration.includes("OUTSIDE")) {
+            migration = "OUTSIDE UK";
+            migrationColor = "outside";
+          } else if (rawMigration.includes("PENDING") || rawMigration.includes("RTW")) {
+            migration = "ARRIVED – RTW PENDING";
+            migrationColor = "pending";
+          } else if (rawMigration.includes("ACTIVE") || rawMigration.includes("COMPLIANCE")) {
+            migration = "ACTIVE COMPLIANCE";
+            migrationColor = "active";
+          } else if (rawMigration.includes("PRE")) {
+            migration = "PRE-ARRIVAL";
+            migrationColor = "pre";
+          } else if (rawMigration.includes("WITHDRAWN")) {
+            migration = "SPONSORSHIP WITHDRAWN";
+            migrationColor = "withdrawn";
+          } else if (rawMigration.includes("ARCHIVED") || rawMigration.includes("CLOSED")) {
+            migration = "ARCHIVED";
+            migrationColor = "archived";
+          } else if (rawMigration) {
+            migration = rawMigration;
+            migrationColor = "active";
+          }
+
+          const rawAction = (c.action || c.pending_action || c.required_action || "").toString().trim();
+          let action = "No action required";
+          let actionColor: MigrantRow["actionColor"] = "gray";
+
+          if (rawAction) {
+            action = rawAction;
+            const upperAct = rawAction.toUpperCase();
+            if (upperAct.includes("CHECK") || upperAct.includes("REPORT") || upperAct.includes("REVIEW")) {
+              actionColor = "red";
+            } else if (upperAct.includes("SCHEDULE")) {
+              actionColor = "yellow";
+            } else {
+              actionColor = "blue";
+            }
+          } else if (migrationColor === "pending") {
+            action = "Check RTW";
+            actionColor = "red";
+          } else if (migrationColor === "pre") {
+            action = "Schedule RTW check";
+            actionColor = "yellow";
+          } else if (migrationColor === "withdrawn") {
+            action = "Review and report";
+            actionColor = "red";
+          }
+
+          return {
+            id: c.id ?? i + 1,
+            caseId,
+            country: countryObj.name,
+            countryCode: countryObj.code,
+            countryHalf: countryObj.half,
+            flag: countryObj.flag,
+            name,
+            group: c.group_name || c.group || "—",
+            avatarText: initials,
+            status: c.case_status || c.status || "—",
+            migration,
+            migrationColor,
+            action,
+            actionColor,
+          };
+        });
+        setMigrants(mapped);
+      } else {
+        setMigrants([]);
       }
+    } catch (err) {
+      console.error("Failed to fetch cases for migrants table:", err);
+      setMigrants([]);
+      setError("Failed to load migrant records.");
+    } finally {
+      setLoading(false);
     }
-    fetchCasesData();
   }, []);
+
+  React.useEffect(() => {
+    fetchCasesData();
+  }, [fetchCasesData]);
 
   const availableCountries = React.useMemo(() => {
     const map = new Map<string, { code: string; label: string; flag: string; count: number }>();
@@ -507,249 +399,299 @@ export default function MigrantsPage() {
         </button>
       </div>
 
-      {/* Main Table Container */}
-      <div className="flex flex-col gap-[8px] w-full">
-        {/* Table Header */}
-        <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-4 flex items-center justify-between w-full">
-          <div className="w-[124px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>CASE ID #</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>COUNTRY</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[200px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>MIGRANT</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>ACTION</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[160px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>VISA STATUS</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[257px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
-            <span>MIGRATION STATUS</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[48px] shrink-0" />
+      {/* Main Table / Empty State Container */}
+      {loading ? (
+        <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-12 text-center flex flex-col items-center justify-center gap-2 shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+          <span className="text-[14px] font-medium text-[#5C5C5C] animate-pulse">Loading migrant records...</span>
         </div>
-
-        {/* Table Rows */}
-        <div className="flex flex-col gap-[4px] w-full">
-          {currentRows.map((migrant) => {
-            const badgeStyle = getMigrationBadgeStyle(migrant.migrationColor);
-
-            return (
-              <div
-                key={migrant.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => handleRowClick(migrant)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleRowClick(migrant);
-                  }
-                }}
-                className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center justify-between transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
-              >
-                {/* Case ID */}
-                <div className="w-[124px] flex items-center">
-                  <span className="font-mono text-[14px] font-medium text-[#171717]">
-                    {migrant.caseId}
-                  </span>
-                </div>
-
-                {/* Country */}
-                <div className="w-[180px] flex items-center gap-2">
-                  <Flag country={migrant.countryCode} className="size-4 rounded-full object-cover shrink-0" />
-                  <span className="text-[14px] font-medium text-[#171717]">
-                    {migrant.country}
-                  </span>
-                </div>
-
-                {/* Migrant (Avatar + Name & Group) */}
-                <div className="w-[200px] flex items-center gap-2.5">
-                  <div className="size-8 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 font-sans">
-                    {migrant.avatarText}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-[14px] font-medium text-[#171717] truncate leading-[20px]">
-                      {migrant.name}
-                    </span>
-                    <span className="text-[13px] font-normal text-[#5C5C5C] truncate leading-[18px]">
-                      {migrant.group}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action */}
-                <div className="w-[180px] flex items-center">
-                  {migrant.action === "Check RTW" ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedRow(migrant);
-                        setSelectedActionType("check_rtw");
-                        setActionModalOpen(true);
-                      }}
-                      className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
-                    >
-                      Check RTW
-                    </button>
-                  ) : migrant.action === "Schedule RTW check" ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedRow(migrant);
-                        setSelectedActionType("schedule_rtw");
-                        setActionModalOpen(true);
-                      }}
-                      className="px-[8px] py-[2px] bg-[#FFFAEB] text-[#855B00] hover:bg-[#FFEFC2] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
-                    >
-                      Schedule RTW check
-                    </button>
-                  ) : migrant.action === "Review and report" ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedRow(migrant);
-                        setSelectedActionType("review_report");
-                        setActionModalOpen(true);
-                      }}
-                      className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
-                    >
-                      Review and report
-                    </button>
-                  ) : (
-                    <span className="text-[14px] font-normal text-[#5C5C5C]">
-                      No action required
-                    </span>
-                  )}
-                </div>
-
-                {/* Visa Status */}
-                <div className="w-[160px] flex items-center">
-                  <div className="inline-flex items-center gap-1.5 px-[8px] py-[2px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[12px] font-medium">
-                    <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-                    <span className="truncate">
-                      {migrant.status}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Migration Status */}
-                <div className="w-[257px] flex items-center gap-2">
-                  <div className={`size-[6px] rounded-full ${badgeStyle.dot} shrink-0`} />
-                  <span className={`text-[11px] font-semibold tracking-[0.02em] uppercase leading-[12px] ${badgeStyle.text}`}>
-                    {migrant.migration}
-                  </span>
-                </div>
-
-                {/* More actions menu */}
-                <div className="w-[48px] flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-                  <CaseRowMenu
-                    onChangeStatus={() => { setSelectedRow(migrant); setStatusModalOpen(true); }}
-                    onMarkRefused={() => { setSelectedRow(migrant); setRefusedModalOpen(true); }}
-                    onViewDetails={() => handleRowClick(migrant)}
-                    onArchive={() => { setSelectedRow(migrant); setArchiveModalOpen(true); }}
-                    onDelete={() => { setSelectedRow(migrant); setDeleteModalOpen(true); }}
-                  />
-                </div>
+      ) : migrants.length === 0 ? (
+        <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-12 text-center flex flex-col items-center justify-center gap-3 shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+          <div className="size-12 rounded-full bg-[#FAF8FF] border border-[#E5DBFF] flex items-center justify-center text-[#7D52F4]">
+            <RiUserLine className="size-6" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-[16px] font-semibold text-[#171717]">No migrant records found</h3>
+            <p className="text-[14px] text-[#5C5C5C]">There are no migrant applicants currently registered.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/migrants/create")}
+            className="mt-2 h-9 px-4 bg-[#7D52F4] hover:bg-brand-dark text-white rounded-[10px] text-[14px] font-semibold transition-all cursor-pointer"
+          >
+            + Add New Migrant
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-[8px] w-full">
+            {/* Table Header */}
+            <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-4 flex items-center justify-between w-full">
+              <div className="w-[124px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                <span>CASE ID #</span>
+                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
               </div>
-            );
-          })}
-        </div>
-      </div>
+              <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                <span>COUNTRY</span>
+                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+              </div>
+              <div className="w-[200px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                <span>MIGRANT</span>
+                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+              </div>
+              <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                <span>ACTION</span>
+                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+              </div>
+              <div className="w-[160px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                <span>VISA STATUS</span>
+                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+              </div>
+              <div className="w-[257px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                <span>MIGRATION STATUS</span>
+                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
+              </div>
+              <div className="w-[48px] shrink-0" />
+            </div>
 
-      {/* Pagination Footer Group */}
-      <div className="flex items-center justify-between w-full h-[32px] mt-2 border-t border-[#EBEBEB] pt-[24px]">
-        {/* Left Page Summary */}
-        <span className="text-[14px] font-normal text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
-          Page {currentPage} of {totalPages}
-        </span>
+            {/* Table Rows */}
+            <div className="flex flex-col gap-[4px] w-full">
+              {error ? (
+                <div className="bg-white border border-[#FECDCA] rounded-[12px] p-8 text-center flex flex-col items-center justify-center gap-xs">
+                  <span className="text-[14px] font-semibold text-[#FB3748]">{error}</span>
+                  <button
+                    type="button"
+                    onClick={fetchCasesData}
+                    className="mt-2 text-[13px] font-medium text-[#7D52F4] hover:underline cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : filteredMigrants.length === 0 ? (
+                <div className="bg-white border border-[#EBEBEB] rounded-[12px] p-8 text-center text-[14px] text-[#5C5C5C]">
+                  No migrants match your search or filter criteria.
+                </div>
+              ) : (
+                currentRows.map((migrant, idx) => {
+                  const badgeStyle = getMigrationBadgeStyle(migrant.migrationColor);
 
-        {/* Center Page Numbers */}
-        <div className="flex items-center gap-[8px]">
-          <button
-            type="button"
-            onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
-          >
-            «
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
-          >
-            <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
-          </button>
+                  return (
+                    <div
+                      key={migrant.id ? `migrant-${migrant.id}-${idx}` : `migrant-${migrant.caseId}-${idx}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("[role='menu']")) {
+                          return;
+                        }
+                        handleRowClick(migrant);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("[role='menu']")) {
+                            return;
+                          }
+                          e.preventDefault();
+                          handleRowClick(migrant);
+                        }
+                      }}
+                      className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center justify-between transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
+                    >
+                      {/* Case ID */}
+                      <div className="w-[124px] flex items-center">
+                        <span className="font-mono text-[14px] font-medium text-[#171717]">
+                          {migrant.caseId}
+                        </span>
+                      </div>
 
-          {pageNumbers.map((pNum) => (
-            <button
-              key={pNum}
-              type="button"
-              onClick={() => setCurrentPage(pNum)}
-              className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
-                currentPage === pNum
-                  ? "bg-[#171717] text-white"
-                  : "bg-transparent text-[#5C5C5C] hover:bg-neutral-200"
-              }`}
-            >
-              {pNum}
-            </button>
-          ))}
+                      {/* Country */}
+                      <div className="w-[180px] flex items-center gap-2">
+                        <Flag country={migrant.countryCode} className="size-4 rounded-full object-cover shrink-0" />
+                        <span className="text-[14px] font-medium text-[#171717]">
+                          {migrant.country}
+                        </span>
+                      </div>
 
-          <button
-            type="button"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            disabled={currentPage === totalPages}
-            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
-          >
-            <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setCurrentPage(totalPages)}
-            disabled={currentPage === totalPages}
-            className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
-          >
-            »
-          </button>
-        </div>
+                      {/* Migrant (Avatar + Name & Group) */}
+                      <div className="w-[200px] flex items-center gap-2.5">
+                        <div className="size-8 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 font-sans">
+                          {migrant.avatarText}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[14px] font-medium text-[#171717] truncate leading-[20px]">
+                            {migrant.name}
+                          </span>
+                          <span className="text-[13px] font-normal text-[#5C5C5C] truncate leading-[18px]">
+                            {migrant.group}
+                          </span>
+                        </div>
+                      </div>
 
-        {/* Right Items per Page */}
-        <DropdownMenu>
-          <DropdownMenuTrigger className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer outline-none hover:text-[#171717] hover:bg-neutral-50 transition-colors">
-            <span>{itemsPerPage} / page</span>
-            <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {[10, 25, 50].map((val) => (
-              <DropdownMenuItem
-                key={val}
-                onClick={() => {
-                  setItemsPerPage(val);
-                  setCurrentPage(1);
-                }}
-                className="cursor-pointer text-[13px]"
+                      {/* Action */}
+                      <div className="w-[180px] flex items-center">
+                        {migrant.action === "Check RTW" ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRow(migrant);
+                              setSelectedActionType("check_rtw");
+                              setActionModalOpen(true);
+                            }}
+                            className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
+                          >
+                            Check RTW
+                          </button>
+                        ) : migrant.action === "Schedule RTW check" ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRow(migrant);
+                              setSelectedActionType("schedule_rtw");
+                              setActionModalOpen(true);
+                            }}
+                            className="px-[8px] py-[2px] bg-[#FFFAEB] text-[#855B00] hover:bg-[#FFEFC2] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
+                          >
+                            Schedule RTW check
+                          </button>
+                        ) : migrant.action === "Review and report" ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRow(migrant);
+                              setSelectedActionType("review_report");
+                              setActionModalOpen(true);
+                            }}
+                            className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
+                          >
+                            Review and report
+                          </button>
+                        ) : (
+                          <span className="text-[14px] font-normal text-[#5C5C5C]">
+                            No action required
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Visa Status */}
+                      <div className="w-[160px] flex items-center">
+                        <div className="inline-flex items-center gap-1.5 px-[8px] py-[2px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[12px] font-medium">
+                          <span className="size-1.5 rounded-full bg-[#1FC16B]" />
+                          <span className="truncate">
+                            {migrant.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Migration Status */}
+                      <div className="w-[257px] flex items-center gap-2">
+                        <div className={`size-[6px] rounded-full ${badgeStyle.dot} shrink-0`} />
+                        <span className={`text-[11px] font-semibold tracking-[0.02em] uppercase leading-[12px] ${badgeStyle.text}`}>
+                          {migrant.migration}
+                        </span>
+                      </div>
+
+                      {/* More actions menu */}
+                      <div className="w-[48px] flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                        <CaseRowMenu
+                          onChangeStatus={() => { setSelectedRow(migrant); setStatusModalOpen(true); }}
+                          onMarkRefused={() => { setSelectedRow(migrant); setRefusedModalOpen(true); }}
+                          onViewDetails={() => handleRowClick(migrant)}
+                          onArchive={() => { setSelectedRow(migrant); setArchiveModalOpen(true); }}
+                          onDelete={() => { setSelectedRow(migrant); setDeleteModalOpen(true); }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Pagination Footer Group */}
+          <div className="flex items-center justify-between w-full h-[32px] mt-2 border-t border-[#EBEBEB] pt-[24px]">
+            {/* Left Page Summary */}
+            <span className="text-[14px] font-normal text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
+              Page {currentPage} of {totalPages}
+            </span>
+
+            {/* Center Page Numbers */}
+            <div className="flex items-center gap-[8px]">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
               >
-                {val} / page
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+                «
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+              >
+                <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
+              </button>
+
+              {pageNumbers.map((pNum) => (
+                <button
+                  key={pNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pNum)}
+                  className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
+                    currentPage === pNum
+                      ? "bg-[#171717] text-white"
+                      : "bg-transparent text-[#5C5C5C] hover:bg-neutral-200"
+                  }`}
+                >
+                  {pNum}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+              >
+                <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
+              >
+                »
+              </button>
+            </div>
+
+            {/* Right Items per Page */}
+            <DropdownMenu>
+              <DropdownMenuTrigger className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer outline-none hover:text-[#171717] hover:bg-neutral-50 transition-colors">
+                <span>{itemsPerPage} / page</span>
+                <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {[10, 25, 50].map((val) => (
+                  <DropdownMenuItem
+                    key={val}
+                    onClick={() => {
+                      setItemsPerPage(val);
+                      setCurrentPage(1);
+                    }}
+                    className="cursor-pointer text-[13px]"
+                  >
+                    {val} / page
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
 
       {/* Action & Status Modals */}
       {selectedRow && (
