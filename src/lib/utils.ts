@@ -57,3 +57,24 @@ export function getInitials(fullName: string): string {
   if (parts.length === 1) return parts[0][0].toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
+
+export function getStatusBadgeStyle(statusStr: string): { bg: string; text: string; dot: string } {
+  const norm = (statusStr || "").toLowerCase().replace(/_/g, " ").trim();
+  if (norm.includes("approved") || norm.includes("assigned") || norm.includes("granted") || norm.includes("cleared")) {
+    return { bg: "bg-[#E3F7EC]", text: "text-[#0B4627]", dot: "bg-[#1FC16B]" };
+  }
+  if (norm.includes("refused") || norm.includes("ineligible") || norm.includes("risk")) {
+    return { bg: "bg-[#FFEBEC]", text: "text-[#681219]", dot: "bg-[#FB3748]" };
+  }
+  if (norm.includes("pending") || norm.includes("awaiting") || norm.includes("requested") || norm.includes("decision") || norm.includes("biometrics") || norm.includes("interview")) {
+    return { bg: "bg-[#FFFAEB]", text: "text-[#855B00]", dot: "bg-[#F6B51E]" };
+  }
+  if (norm.includes("draft") || norm.includes("progress") || norm.includes("assessment") || norm.includes("submission")) {
+    return { bg: "bg-[#EFEBFF]", text: "text-[#351A75]", dot: "bg-[#7D52F4]" };
+  }
+  if (norm.includes("withdrawn") || norm.includes("closed") || norm.includes("done") || norm.includes("archived")) {
+    return { bg: "bg-[#F5F5F5]", text: "text-[#5C5C5C]", dot: "bg-[#7B7B7B]" };
+  }
+  return { bg: "bg-[#F5F5F5]", text: "text-[#5C5C5C]", dot: "bg-[#7B7B7B]" };
+}
+

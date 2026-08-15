@@ -4,16 +4,17 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   RiSearchLine,
-  RiArrowDownSLine,
-  RiExpandUpDownFill,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { StatusFilterDropdown } from "../../components/StatusFilterDropdown";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface CaseHistoryRow {
   id: string;
   caseId: string;
   date: string;
+  dateValue: number;
   visaType: string;
   group: string;
   status: string;
@@ -30,8 +31,8 @@ interface CasesTabProps {
 export function CasesTab({ migrant, migrantId }: CasesTabProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
+  const { sortField, sortDirection, setSortField, setSortDirection, handleSort, renderSortIcon } = useTableSort<CaseHistoryRow>();
   const [casesList, setCasesList] = React.useState<CaseHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -40,20 +41,15 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
 
   React.useEffect(() => {
     async function fetchCases() {
+      if (!resolvedMigrantId) return;
       try {
         setLoading(true);
         let casesData: any[] = [];
-
-        if (resolvedMigrantId) {
-          // Fetch only this migrant's cases from the migrant endpoint
-          const migrantRes = await apiClient.get<any>(ENDPOINTS.migrants.byId(resolvedMigrantId));
-          // The migrant response includes a nested `cases` array
-          const migrantCases = migrantRes?.cases || migrantRes?.data?.cases;
-          if (Array.isArray(migrantCases)) {
-            casesData = migrantCases;
-          }
-        } else {
-          // Fallback: fetch all cases (should not happen in migrant context)
+        try {
+          const res = await apiClient.get<any>(ENDPOINTS.migrants.byId(resolvedMigrantId));
+          const mCases = res?.cases || res?.data?.cases;
+          casesData = Array.isArray(mCases) ? mCases : (Array.isArray(res) ? res : res?.data || []);
+        } catch {
           const res = await apiClient.get<any>(ENDPOINTS.cases.base);
           casesData = Array.isArray(res) ? res : res?.data || res?.cases || [];
         }
@@ -63,10 +59,14 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             const rawStatus = c.case_status || c.status || "PENDING";
             const isAppr = rawStatus.toUpperCase().includes("APPROVED");
             const isEntered = Boolean(c.flightEntered?.isEntered);
+            const dateStr = c.created_at || c.creation_date;
+            const dateObj = dateStr ? new Date(dateStr) : null;
+            const dateValue = dateObj && !isNaN(dateObj.getTime()) ? dateObj.getTime() : 0;
             return {
               id: String(c.id || ""),
               caseId: c.caseIdDisplay || c.caseNumber || (c.id ? `#${c.id}` : "—"),
-              date: c.created_at || c.creation_date ? new Date(c.created_at || c.creation_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              date: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              dateValue,
               visaType: c.job_title || c.visaType || c.personal?.jobTitle || "—",
               group: c.group_name || c.personal?.groupName || "—",
               status: rawStatus.toUpperCase(),
@@ -89,8 +89,20 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
     fetchCases();
   }, [resolvedMigrantId]);
 
+  const availableStatuses = React.useMemo(() => {
+    const map = new Map<string, number>();
+    casesList.forEach((c) => {
+      if (!c.status) return;
+      map.set(c.status, (map.get(c.status) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([label, count]) => ({
+      label,
+      count,
+    }));
+  }, [casesList]);
+
   const filteredCases = React.useMemo(() => {
-    return casesList.filter((item) => {
+    const list = casesList.filter((item) => {
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchesQuery = (
@@ -107,7 +119,22 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
       }
       return true;
     });
-  }, [casesList, searchQuery, statusFilter]);
+
+    if (!sortField) return list;
+
+    return [...list].sort((a, b) => {
+      if (sortField === "date") {
+        return sortDirection === "asc"
+          ? a.dateValue - b.dateValue
+          : b.dateValue - a.dateValue;
+      }
+      const valA = (a[sortField] || "").toString().toLowerCase();
+      const valB = (b[sortField] || "").toString().toLowerCase();
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [casesList, searchQuery, statusFilter, sortField, sortDirection]);
 
   return (
     <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">
@@ -120,15 +147,20 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search..."
+            placeholder="Search cases..."
             className="w-full bg-transparent text-[14px] font-normal text-[#171717] placeholder:text-[#A4A4A4] border-0 outline-none leading-[20px]"
           />
         </div>
 
-        {/* Filter Button */}
+        {/* Filter Reset Button */}
         <button
           type="button"
-          onClick={() => setSearchQuery("")}
+          onClick={() => {
+            setSearchQuery("");
+            setStatusFilter(null);
+            setSortField(null);
+            setSortDirection("asc");
+          }}
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filter"
         >
@@ -137,47 +169,66 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
           </svg>
         </button>
 
-        {/* Country Filter Dropdown */}
-        <div className="h-[32px] px-[12px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[6px] text-[14px] font-medium text-[#5C5C5C] cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
-          <span>All countries</span>
-          <RiArrowDownSLine className="size-5 text-[#5C5C5C]" />
-        </div>
-
         {/* Status Filter Dropdown */}
-        <div className="h-[32px] px-[12px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[6px] text-[14px] font-medium text-[#5C5C5C] cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
-          <span>All status</span>
-          <RiArrowDownSLine className="size-5 text-[#5C5C5C]" />
-        </div>
+        <StatusFilterDropdown
+          statuses={availableStatuses}
+          value={statusFilter}
+          onChange={(val: string | null) => setStatusFilter(val)}
+        />
       </div>
 
       {/* Table Section */}
       <div className="flex flex-col gap-[8px] w-full">
         {/* Table Header */}
         <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-4 flex items-center gap-[24px] w-full">
-          <div className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+          <button
+            type="button"
+            onClick={() => handleSort("caseId")}
+            className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>CASE ID #</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("caseId")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("date")}
+            className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>DATE</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("date")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("visaType")}
+            className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>VISA TYPE</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("visaType")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("group")}
+            className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>GROUP</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("group")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("status")}
+            className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>STATUS</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
-          <div className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            {renderSortIcon("status")}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSort("immigrationStatus")}
+            className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+          >
             <span>IMMIGRATION STATUS</span>
-            <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-          </div>
+            {renderSortIcon("immigrationStatus")}
+          </button>
         </div>
 
         {/* Table Rows */}

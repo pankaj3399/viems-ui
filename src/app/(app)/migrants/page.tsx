@@ -1,22 +1,26 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   RiSearchLine,
   RiFilterLine,
-  RiArrowDownSLine,
   RiArrowLeftSLine,
   RiArrowRightSLine,
+  RiArrowDownSLine,
   RiMore2Line,
   RiAddLine,
   RiUploadLine,
-  RiExpandUpDownFill,
   RiUserLine,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName, getInitials } from "@/lib/utils";
+import { formatFullName, getInitials, getStatusBadgeStyle } from "@/lib/utils";
+import { getCountryInfo } from "@/lib/country";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { useTableSort } from "@/hooks/useTableSort";
+import { toast } from "sonner";
 import { CountryFilterDropdown } from "../cases/components/CountryFilterDropdown";
 import { StatusFilterDropdown } from "../cases/components/StatusFilterDropdown";
 import { CaseRowMenu } from "../cases/components/CaseRowMenu";
@@ -25,6 +29,7 @@ import { MarkVisaRefusedModal } from "../cases/components/MarkVisaRefusedModal";
 import { ArchiveCaseModal } from "../cases/components/ArchiveCaseModal";
 import { DeleteCaseModal } from "../cases/components/DeleteCaseModal";
 import { CaseActionModal } from "../cases/components/CaseActionModal";
+import { ImportMigrantsModal } from "../dashboard/components/ImportMigrantsModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +51,7 @@ interface MigrantRow {
   avatarUrl?: string;
   status: string;
   migration: string;
-  migrationColor: "outside" | "pending" | "active" | "pre" | "withdrawn" | "archived";
+  migrationColor: "outside" | "pending" | "active" | "pre" | "withdrawn" | "archived" | "unknown";
   action: string;
   actionColor: "blue" | "red" | "yellow" | "gray";
 }
@@ -55,11 +60,15 @@ const DEFAULT_MIGRANTS: MigrantRow[] = [];
 
 export default function MigrantsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialNationality = searchParams?.get("nationality") || null;
+
   const [migrants, setMigrants] = React.useState<MigrantRow[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
+  const [countryFilter, setCountryFilter] = React.useState<string | null>(initialNationality);
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
   const [needsActionOnly, setNeedsActionOnly] = React.useState(false);
+  const { sortField, sortDirection, setSortField, setSortDirection, handleSort, renderSortIcon } = useTableSort<MigrantRow>();
   const [currentPage, setCurrentPage] = React.useState(1);
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
   const [loading, setLoading] = React.useState(false);
@@ -71,7 +80,7 @@ export default function MigrantsPage() {
   const [archiveModalOpen, setArchiveModalOpen] = React.useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
   const [actionModalOpen, setActionModalOpen] = React.useState(false);
-  const [selectedActionType, setSelectedActionType] = React.useState<string>("");
+  const [importModalOpen, setImportModalOpen] = React.useState(false);
 
   const [error, setError] = React.useState<string | null>(null);
 
@@ -82,64 +91,84 @@ export default function MigrantsPage() {
       const res = await apiClient.get<any>(ENDPOINTS.cases.base);
       const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
       if (rawArr.length > 0) {
-        const sampleCountries = [
-          { code: "US", name: "United States", half: "USA", flag: "🇺🇸" },
-          { code: "CN", name: "China", half: "Chn", flag: "🇨🇳" },
-          { code: "IN", name: "India", half: "Ind", flag: "🇮🇳" },
-          { code: "FR", name: "France", half: "Fra", flag: "🇫🇷" },
-          { code: "ZA", name: "South Africa", half: "SA", flag: "🇿🇦" },
-        ];
-
         const mapped: MigrantRow[] = rawArr.map((c, i) => {
           const name = formatFullName(c.first_name, c.last_name) || c.name || "Unknown Migrant";
           const initials = getInitials(name) || "—";
           const caseId = c.caseIdDisplay || c.caseNumber || (c.id ? `CASE-${c.id}` : "Unknown");
           
-          const rawVal = c.nationality_value || c.country || c.country_code || c.nationality || c.nationality_code || c.migrant?.user?.personalInfo?.nationalityCode;
-          let countryObj = { code: "", name: "Unspecified", half: "—", flag: "🌐" };
+          const rawVal =
+            c.nationality_value ||
+            c.country ||
+            c.country_code ||
+            c.nationality ||
+            c.nationality_code ||
+            c.migrant?.user?.personalInfo?.nationalityCode ||
+            c.migrant?.user?.personalInfo?.nationality?.value ||
+            c.migrant?.user?.personalInfo?.nationality?.name ||
+            c.migrant?.user?.personalInfo?.nationality?.title;
 
-          if (rawVal) {
-            const upper = String(rawVal).trim().toUpperCase();
-            if (upper === "US" || upper === "USA" || upper === "UNITED STATES") {
-              countryObj = sampleCountries[0];
-            } else if (upper === "CN" || upper === "CHINA" || upper === "CHINESE") {
-              countryObj = sampleCountries[1];
-            } else if (upper === "IN" || upper === "INDIA" || upper === "INDIAN") {
-              countryObj = sampleCountries[2];
-            } else if (upper === "FR" || upper === "FRANCE" || upper === "FRENCH") {
-              countryObj = sampleCountries[3];
-            } else if (upper === "ZA" || upper === "SOUTH AFRICA") {
-              countryObj = sampleCountries[4];
-            } else {
-              countryObj = { code: upper.slice(0, 2), name: String(rawVal), half: upper.slice(0, 3), flag: "🌐" };
-            }
-          }
+          const countryObj = getCountryInfo(rawVal);
+          const rawStatus = (c.case_status || c.status || "").toString().trim();
+          const normStatus = rawStatus.toLowerCase().replace(/_/g, " ").trim();
+
+          let statusDisplay = rawStatus || "Pending";
+          if (normStatus === "in progress" || normStatus === "in_progress") statusDisplay = "In Progress";
+          else if (normStatus === "cos assigned" || normStatus === "cos_assigned") statusDisplay = "CoS Assigned";
+          else if (normStatus === "visa approved" || normStatus === "visa_approved" || normStatus === "granted") statusDisplay = "Visa Approved";
+          else if (normStatus === "visa refused" || normStatus === "visa_refused" || normStatus === "refused") statusDisplay = "Visa Refused";
+          else if (normStatus === "withdrawn" || normStatus === "application withdrawn" || normStatus === "application_withdrawn") statusDisplay = "Withdrawn";
+          else if (normStatus === "awaiting applicant docs" || normStatus === "awaiting_applicant_docs") statusDisplay = "Awaiting Docs";
+          else if (normStatus === "drafting cos" || normStatus === "drafting_cos") statusDisplay = "Drafting CoS";
+          else if (normStatus === "draft") statusDisplay = "Draft";
+          else if (normStatus === "pending") statusDisplay = "Pending";
 
           const rawMigration = (c.migration_stage || c.migration_status || c.migrationStatus || "").toString().trim().toUpperCase();
           let migration = "ACTIVE COMPLIANCE";
           let migrationColor: MigrantRow["migrationColor"] = "active";
 
-          if (rawMigration.includes("OUTSIDE")) {
-            migration = "OUTSIDE UK";
-            migrationColor = "outside";
-          } else if (rawMigration.includes("PENDING") || rawMigration.includes("RTW")) {
-            migration = "ARRIVED – RTW PENDING";
-            migrationColor = "pending";
-          } else if (rawMigration.includes("ACTIVE") || rawMigration.includes("COMPLIANCE")) {
-            migration = "ACTIVE COMPLIANCE";
-            migrationColor = "active";
-          } else if (rawMigration.includes("PRE")) {
-            migration = "PRE-ARRIVAL";
-            migrationColor = "pre";
-          } else if (rawMigration.includes("WITHDRAWN")) {
-            migration = "SPONSORSHIP WITHDRAWN";
-            migrationColor = "withdrawn";
-          } else if (rawMigration.includes("ARCHIVED") || rawMigration.includes("CLOSED")) {
-            migration = "ARCHIVED";
-            migrationColor = "archived";
-          } else if (rawMigration) {
-            migration = rawMigration;
-            migrationColor = "active";
+          if (rawMigration) {
+            if (rawMigration.includes("OUTSIDE")) {
+              migration = "OUTSIDE UK";
+              migrationColor = "outside";
+            } else if (rawMigration.includes("PENDING") || rawMigration.includes("RTW")) {
+              migration = "ARRIVED – RTW PENDING";
+              migrationColor = "pending";
+            } else if (rawMigration.includes("ACTIVE") || rawMigration.includes("COMPLIANCE")) {
+              migration = "ACTIVE COMPLIANCE";
+              migrationColor = "active";
+            } else if (rawMigration.includes("PRE")) {
+              migration = "PRE-ARRIVAL";
+              migrationColor = "pre";
+            } else if (rawMigration.includes("WITHDRAWN")) {
+              migration = "SPONSORSHIP WITHDRAWN";
+              migrationColor = "withdrawn";
+            } else if (rawMigration.includes("REFUSED")) {
+              migration = "VISA REFUSED";
+              migrationColor = "withdrawn";
+            } else if (rawMigration.includes("ARCHIVED") || rawMigration.includes("CLOSED") || rawMigration.includes("LEFT")) {
+              migration = "ARCHIVED";
+              migrationColor = "archived";
+            } else {
+              migration = rawMigration;
+              migrationColor = "active";
+            }
+          } else {
+            if (normStatus.includes("refused")) {
+              migration = "VISA REFUSED";
+              migrationColor = "withdrawn";
+            } else if (normStatus.includes("withdrawn") || normStatus.includes("closed")) {
+              migration = "SPONSORSHIP WITHDRAWN";
+              migrationColor = "withdrawn";
+            } else if (normStatus.includes("pending") || normStatus.includes("awaiting") || normStatus.includes("draft")) {
+              migration = "PRE-ARRIVAL";
+              migrationColor = "pre";
+            } else if (normStatus.includes("approved") || normStatus.includes("assigned") || normStatus.includes("granted")) {
+              migration = "UNKNOWN";
+              migrationColor = "archived";
+            } else {
+              migration = "UNKNOWN";
+              migrationColor = "archived";
+            }
           }
 
           const rawAction = (c.action || c.pending_action || c.required_action || "").toString().trim();
@@ -156,13 +185,13 @@ export default function MigrantsPage() {
             } else {
               actionColor = "blue";
             }
-          } else if (migrationColor === "pending") {
+          } else if (migrationColor === "pending" || migration.includes("RTW PENDING")) {
             action = "Check RTW";
             actionColor = "red";
-          } else if (migrationColor === "pre") {
+          } else if (migrationColor === "pre" || migration.includes("PRE-ARRIVAL")) {
             action = "Schedule RTW check";
             actionColor = "yellow";
-          } else if (migrationColor === "withdrawn") {
+          } else if (migrationColor === "withdrawn" || normStatus.includes("refused") || normStatus.includes("withdrawn")) {
             action = "Review and report";
             actionColor = "red";
           }
@@ -170,14 +199,14 @@ export default function MigrantsPage() {
           return {
             id: c.id ?? i + 1,
             caseId,
-            country: countryObj.name,
+            country: countryObj.full,
             countryCode: countryObj.code,
             countryHalf: countryObj.half,
             flag: countryObj.flag,
             name,
             group: c.group_name || c.group || "—",
             avatarText: initials,
-            status: c.case_status || c.status || "—",
+            status: statusDisplay,
             migration,
             migrationColor,
             action,
@@ -235,11 +264,17 @@ export default function MigrantsPage() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [countryFilter, statusFilter, needsActionOnly, searchQuery]);
+  }, [countryFilter, statusFilter, needsActionOnly, searchQuery, sortField, sortDirection]);
 
   const filteredMigrants = React.useMemo(() => {
-    return migrants.filter((m) => {
-      if (countryFilter && m.countryCode.toLowerCase() !== countryFilter.toLowerCase()) return false;
+    const list = migrants.filter((m) => {
+      if (countryFilter) {
+        const cf = countryFilter.toLowerCase().trim();
+        const matches =
+          m.countryCode.toLowerCase() === cf ||
+          m.country.toLowerCase().includes(cf);
+        if (!matches) return false;
+      }
       if (statusFilter && m.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
       if (needsActionOnly && m.action === "No action required") return false;
       if (searchQuery.trim()) {
@@ -248,12 +283,25 @@ export default function MigrantsPage() {
           m.name.toLowerCase().includes(q) ||
           m.caseId.toLowerCase().includes(q) ||
           m.group.toLowerCase().includes(q) ||
-          m.country.toLowerCase().includes(q)
+          m.country.toLowerCase().includes(q) ||
+          m.countryCode.toLowerCase().includes(q) ||
+          m.status.toLowerCase().includes(q) ||
+          m.migration.toLowerCase().includes(q)
         );
       }
       return true;
     });
-  }, [migrants, countryFilter, statusFilter, needsActionOnly, searchQuery]);
+
+    if (!sortField) return list;
+
+    return [...list].sort((a, b) => {
+      const valA = (a[sortField] || "").toString().toLowerCase();
+      const valB = (b[sortField] || "").toString().toLowerCase();
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [migrants, countryFilter, statusFilter, needsActionOnly, searchQuery, sortField, sortDirection]);
 
   const totalPages = Math.max(1, Math.ceil(filteredMigrants.length / itemsPerPage));
 
@@ -293,7 +341,7 @@ export default function MigrantsPage() {
       case "withdrawn":
         return { dot: "bg-[#FB3748]", text: "text-[#681219]" };
       case "archived":
-        return { dot: "bg-[#7B7B7B]", text: "text-[#7B7B7B]" };
+      case "unknown":
       case "outside":
       default:
         return { dot: "bg-[#7B7B7B]", text: "text-[#7B7B7B]" };
@@ -315,6 +363,7 @@ export default function MigrantsPage() {
         <div className="flex items-center gap-[12px]">
           <button
             type="button"
+            onClick={() => setImportModalOpen(true)}
             className="flex items-center gap-xs px-xl py-lg h-9 bg-white border border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[10px] text-[14px] font-semibold leading-[20px] tracking-[-0.006em] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           >
             <RiUploadLine className="size-4 text-[#5C5C5C]" />
@@ -354,6 +403,8 @@ export default function MigrantsPage() {
             setCountryFilter(null);
             setStatusFilter(null);
             setNeedsActionOnly(false);
+            setSortField(null);
+            setSortDirection("asc");
           }}
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filters"
@@ -377,9 +428,19 @@ export default function MigrantsPage() {
           onChange={(val: string | null) => setStatusFilter(val)}
           statusColors={{
             "Visa Approved": "#1FC16B",
+            "CoS Assigned": "#1FC16B",
             "Active Compliance": "#1FC16B",
+            "Pending": "#F6B51E",
             "Pre-Arrival": "#F6B51E",
+            "Awaiting Docs": "#F6B51E",
+            "Awaiting applicant docs": "#F6B51E",
+            "Drafting CoS": "#7D52F4",
+            "In Progress": "#7D52F4",
+            "Visa Refused": "#FB3748",
             "Sponsorship Withdrawn": "#FB3748",
+            "Withdrawn": "#7B7B7B",
+            "Draft": "#7B7B7B",
+            "Case Closed": "#7B7B7B",
             "Archived": "#7B7B7B",
           }}
         />
@@ -426,30 +487,54 @@ export default function MigrantsPage() {
           <div className="flex flex-col gap-[8px] w-full">
             {/* Table Header */}
             <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-4 flex items-center justify-between w-full">
-              <div className="w-[124px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+              <button
+                type="button"
+                onClick={() => handleSort("caseId")}
+                className="w-[124px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+              >
                 <span>CASE ID #</span>
-                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-              </div>
-              <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                {renderSortIcon("caseId")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSort("country")}
+                className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+              >
                 <span>COUNTRY</span>
-                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-              </div>
-              <div className="w-[200px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                {renderSortIcon("country")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSort("name")}
+                className="w-[200px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+              >
                 <span>MIGRANT</span>
-                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-              </div>
-              <div className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                {renderSortIcon("name")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSort("action")}
+                className="w-[180px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+              >
                 <span>ACTION</span>
-                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-              </div>
-              <div className="w-[160px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                {renderSortIcon("action")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSort("status")}
+                className="w-[160px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+              >
                 <span>VISA STATUS</span>
-                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-              </div>
-              <div className="w-[257px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+                {renderSortIcon("status")}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSort("migration")}
+                className="w-[257px] shrink-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+              >
                 <span>MIGRATION STATUS</span>
-                <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />
-              </div>
+                {renderSortIcon("migration")}
+              </button>
               <div className="w-[48px] shrink-0" />
             </div>
 
@@ -534,7 +619,6 @@ export default function MigrantsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRow(migrant);
-                              setSelectedActionType("check_rtw");
                               setActionModalOpen(true);
                             }}
                             className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
@@ -547,7 +631,6 @@ export default function MigrantsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRow(migrant);
-                              setSelectedActionType("schedule_rtw");
                               setActionModalOpen(true);
                             }}
                             className="px-[8px] py-[2px] bg-[#FFFAEB] text-[#855B00] hover:bg-[#FFEFC2] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
@@ -560,7 +643,6 @@ export default function MigrantsPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedRow(migrant);
-                              setSelectedActionType("review_report");
                               setActionModalOpen(true);
                             }}
                             className="px-[8px] py-[2px] bg-[#FFEBEC] text-[#681219] hover:bg-[#FFD6D8] rounded-[6px] text-[12px] font-medium leading-[16px] transition-colors border-0 cursor-pointer"
@@ -576,12 +658,17 @@ export default function MigrantsPage() {
 
                       {/* Visa Status */}
                       <div className="w-[160px] flex items-center">
-                        <div className="inline-flex items-center gap-1.5 px-[8px] py-[2px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[12px] font-medium">
-                          <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-                          <span className="truncate">
-                            {migrant.status}
-                          </span>
-                        </div>
+                        {(() => {
+                          const statusStyle = getStatusBadgeStyle(migrant.status);
+                          return (
+                            <div className={`inline-flex items-center gap-1.5 px-[8px] py-[2px] ${statusStyle.bg} ${statusStyle.text} rounded-full text-[12px] font-medium`}>
+                              <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />
+                              <span className="truncate">
+                                {migrant.status}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Migration Status */}
@@ -595,6 +682,10 @@ export default function MigrantsPage() {
                       {/* More actions menu */}
                       <div className="w-[48px] flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                         <CaseRowMenu
+                          onResolve={() => {
+                            setSelectedRow(migrant);
+                            setActionModalOpen(true);
+                          }}
                           onChangeStatus={() => { setSelectedRow(migrant); setStatusModalOpen(true); }}
                           onMarkRefused={() => { setSelectedRow(migrant); setRefusedModalOpen(true); }}
                           onViewDetails={() => handleRowClick(migrant)}
@@ -632,21 +723,21 @@ export default function MigrantsPage() {
                 disabled={currentPage === 1}
                 className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
               >
-                <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
+                ‹
               </button>
 
-              {pageNumbers.map((pNum) => (
+              {pageNumbers.map((p) => (
                 <button
-                  key={pNum}
+                  key={p}
                   type="button"
-                  onClick={() => setCurrentPage(pNum)}
-                  className={`size-8 rounded-[8px] flex items-center justify-center text-[14px] font-medium transition-colors border-0 cursor-pointer ${
-                    currentPage === pNum
+                  onClick={() => setCurrentPage(p)}
+                  className={`size-8 rounded-[8px] text-[13px] font-medium flex items-center justify-center transition-colors cursor-pointer border-0 ${
+                    currentPage === p
                       ? "bg-[#171717] text-white"
-                      : "bg-transparent text-[#5C5C5C] hover:bg-neutral-200"
+                      : "text-[#5C5C5C] hover:bg-neutral-200"
                   }`}
                 >
-                  {pNum}
+                  {p}
                 </button>
               ))}
 
@@ -656,7 +747,7 @@ export default function MigrantsPage() {
                 disabled={currentPage === totalPages}
                 className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
               >
-                <RiArrowRightSLine className="size-5 text-[#5C5C5C]" />
+                ›
               </button>
               <button
                 type="button"
@@ -668,23 +759,23 @@ export default function MigrantsPage() {
               </button>
             </div>
 
-            {/* Right Items per Page */}
+            {/* Right Per-Page Selector */}
             <DropdownMenu>
-              <DropdownMenuTrigger className="h-[32px] px-[10px] bg-white border border-[#EBEBEB] rounded-[8px] flex items-center gap-[4px] text-[14px] text-[#5C5C5C] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer outline-none hover:text-[#171717] hover:bg-neutral-50 transition-colors">
+              <DropdownMenuTrigger className="flex items-center gap-2 h-8 px-3 rounded-[8px] border border-[#EBEBEB] bg-white text-[13px] text-[#171717] hover:bg-neutral-50 transition-colors outline-none cursor-pointer">
                 <span>{itemsPerPage} / page</span>
-                <RiArrowDownSLine className="size-5 text-[#A4A4A4]" />
+                <RiArrowDownSLine className="size-4 text-[#5C5C5C]" />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {[10, 25, 50].map((val) => (
+              <DropdownMenuContent align="end" className="w-[120px]">
+                {[10, 20, 50, 100].map((size) => (
                   <DropdownMenuItem
-                    key={val}
+                    key={size}
                     onClick={() => {
-                      setItemsPerPage(val);
+                      setItemsPerPage(size);
                       setCurrentPage(1);
                     }}
-                    className="cursor-pointer text-[13px]"
+                    className="text-[13px] cursor-pointer"
                   >
-                    {val} / page
+                    {size} / page
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -700,10 +791,40 @@ export default function MigrantsPage() {
             open={statusModalOpen}
             onOpenChange={setStatusModalOpen}
             currentStatus={selectedRow.status}
-            onApply={(newStatus: string) => {
-              setMigrants((prev) =>
-                prev.map((m) => (m.id === selectedRow.id ? { ...m, status: newStatus } : m))
-              );
+            onApply={async (newStatus: string) => {
+              try {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
+                    case_status: newStatus,
+                    status: newStatus,
+                  });
+                  success = true;
+                } catch (caseErr: any) {
+                  console.error("Initial case status update failed:", caseErr);
+                  const statusCode = caseErr?.status || caseErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
+                    await apiClient.patch(ENDPOINTS.migrants.byId(selectedRow.id), {
+                      case_status: newStatus,
+                      status: newStatus,
+                    });
+                    success = true;
+                  } else {
+                    throw caseErr;
+                  }
+                }
+                if (success) {
+                  toast.success("Case status updated successfully");
+                  fetchCasesData();
+                }
+              } catch (err: any) {
+                console.error("Failed to update status in backend:", err);
+                toast.error(err?.message || "Failed to update case status");
+              }
             }}
           />
           <MarkVisaRefusedModal
@@ -714,10 +835,41 @@ export default function MigrantsPage() {
               name: selectedRow.name,
               avatarText: selectedRow.avatarText,
             }}
-            onConfirm={(reason: string) => {
-              setMigrants((prev) =>
-                prev.map((m) => (m.id === selectedRow.id ? { ...m, status: "Visa Refused", migration: "SPONSORSHIP WITHDRAWN", migrationColor: "withdrawn" } : m))
-              );
+            onConfirm={async (reason: string, customText?: string) => {
+              try {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.patch(`${ENDPOINTS.migrants.base}/credibility/${selectedRow.id}`, {
+                    refusalReason: reason,
+                    customReason: customText,
+                    refusalDate: new Date().toISOString(),
+                  });
+                  success = true;
+                } catch (refErr: any) {
+                  console.error("Initial migrant credibility update failed:", refErr);
+                  const statusCode = refErr?.status || refErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
+                    await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
+                      outcome: "Refused",
+                      case_status: "Visa Refused",
+                    });
+                    success = true;
+                  } else {
+                    throw refErr;
+                  }
+                }
+                if (success) {
+                  toast.success("Case marked as visa refused");
+                  fetchCasesData();
+                }
+              } catch (err: any) {
+                console.error("Failed to mark visa refused:", err);
+                toast.error(err?.message || "Failed to mark visa as refused");
+              }
             }}
           />
           <ArchiveCaseModal
@@ -728,8 +880,38 @@ export default function MigrantsPage() {
               name: selectedRow.name,
               avatarText: selectedRow.avatarText,
             }}
-            onConfirm={() => {
-              setMigrants((prev) => prev.filter((m) => m.id !== selectedRow.id));
+            onConfirm={async () => {
+              try {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.delete(ENDPOINTS.cases.toArchive, {
+                    data: { data: [{ id: selectedRow.id }] },
+                  });
+                  success = true;
+                } catch (archErr: any) {
+                  console.error("Initial case archive failed:", archErr);
+                  const statusCode = archErr?.status || archErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
+                    await apiClient.delete(`${ENDPOINTS.migrants.base}/to-archive`, {
+                      data: { data: [{ id: selectedRow.id }] },
+                    });
+                    success = true;
+                  } else {
+                    throw archErr;
+                  }
+                }
+                if (success) {
+                  toast.success("Case archived successfully");
+                  fetchCasesData();
+                }
+              } catch (err: any) {
+                console.error("Failed to archive case:", err);
+                toast.error(err?.message || "Failed to archive case");
+              }
             }}
           />
           <DeleteCaseModal
@@ -740,12 +922,60 @@ export default function MigrantsPage() {
               name: selectedRow.name,
               avatarText: selectedRow.avatarText,
             }}
-            onConfirm={() => {
-              setMigrants((prev) => prev.filter((m) => m.id !== selectedRow.id));
+            onConfirm={async () => {
+              try {
+                if (!selectedRow.id) {
+                  toast.error("Invalid case ID");
+                  return;
+                }
+                let success = false;
+                try {
+                  await apiClient.delete(ENDPOINTS.cases.archive, {
+                    data: { data: [{ id: selectedRow.id }] },
+                  });
+                  success = true;
+                } catch (delErr: any) {
+                  console.error("Initial case delete failed:", delErr);
+                  const statusCode = delErr?.status || delErr?.response?.status;
+                  if (statusCode === 404 || statusCode === 405) {
+                    await apiClient.delete(`${ENDPOINTS.migrants.base}/archive`, {
+                      data: { data: [{ id: selectedRow.id }] },
+                    });
+                    success = true;
+                  } else {
+                    throw delErr;
+                  }
+                }
+                if (success) {
+                  toast.success("Case deleted successfully");
+                  fetchCasesData();
+                }
+              } catch (err: any) {
+                console.error("Failed to delete case:", err);
+                toast.error(err?.message || "Failed to delete case");
+              }
+            }}
+          />
+          <CaseActionModal
+            open={actionModalOpen}
+            onOpenChange={setActionModalOpen}
+            row={selectedRow}
+            onSuccess={() => {
+              fetchCasesData();
             }}
           />
         </>
       )}
+
+      {/* Import Migrants Modal */}
+      <ImportMigrantsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={() => {
+          toast.success("Migrants imported successfully");
+          fetchCasesData();
+        }}
+      />
     </div>
   );
 }

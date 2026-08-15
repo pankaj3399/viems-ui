@@ -14,14 +14,20 @@ interface StatusFilterDropdownProps {
   statuses: StatusOption[];
   value: string | null;
   onChange: (value: string | null) => void;
-  statusColors: Record<string, string>;
+  statusColors?: Record<string, string>;
 }
 
 export function StatusFilterDropdown({
   statuses,
   value,
   onChange,
-  statusColors,
+  statusColors = {
+    "Visa Approved": "#1FC16B",
+    "Active Compliance": "#1FC16B",
+    "Pre-Arrival": "#F6B51E",
+    "Sponsorship Withdrawn": "#FB3748",
+    "Archived": "#7B7B7B",
+  },
 }: StatusFilterDropdownProps) {
   const [open, setOpen] = React.useState(false);
   const [tempValue, setTempValue] = React.useState<string | null>(value);
@@ -34,7 +40,10 @@ export function StatusFilterDropdown({
   }, [open, value]);
 
   const getDotColor = (status: string) => {
-    const color = statusColors[status];
+    const color = statusColors[status] || "#7D52F4";
+    if (color.startsWith("#")) {
+      return color;
+    }
     switch (color) {
       case "warning":
         return "#F6B51E";

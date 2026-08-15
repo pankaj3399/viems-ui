@@ -24,6 +24,14 @@ import {
   RiFileTextLine,
   RiArrowUpSLine,
   RiArrowDownSLine,
+  RiCustomerService2Line,
+  RiCustomerService2Fill,
+  RiLayoutGridLine,
+  RiLayoutGridFill,
+  RiGroupLine,
+  RiGroupFill,
+  RiEqualizerLine,
+  RiEqualizerFill,
 } from "@remixicon/react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 
@@ -61,6 +69,28 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
   )
 );
 
+const SettingsIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
+  active ? (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 17 17"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
+    >
+      <path
+        d="M5.68934 2.17484L7.64459 0.21959C7.78524 0.0789866 7.97597 0 8.17484 0C8.37371 0 8.56444 0.0789866 8.70509 0.21959L10.6603 2.17484H13.4248C13.6238 2.17484 13.8145 2.25386 13.9552 2.39451C14.0958 2.53516 14.1748 2.72593 14.1748 2.92484V5.68934L16.1301 7.64459C16.2707 7.78524 16.3497 7.97597 16.3497 8.17484C16.3497 8.37371 16.2707 8.56444 16.1301 8.70509L14.1748 10.6603V13.4248C14.1748 13.6238 14.0958 13.8145 13.9552 13.9552C13.8145 14.0958 13.6238 14.1748 13.4248 14.1748H10.6603L8.70509 16.1301C8.56444 16.2707 8.37371 16.3497 7.64459 16.1301L5.68934 14.1748H2.92484C2.72593 14.1748 2.53516 14.0958 2.39451 13.9552C2.25386 13.8145 2.17484 13.6238 2.17484 13.4248V10.6603L0.21959 8.70509C0.0789866 8.56444 0 8.37371 0 8.17484C0 7.97597 0.0789866 7.78524 0.21959 7.64459L2.17484 5.68934V2.92484C2.17484 2.72593 2.25386 2.53516 2.39451 2.39451C2.53516 2.25386 2.72593 2.17484 2.92484 2.17484H5.68934ZM8.17484 10.4248C8.77158 10.4248 9.34387 10.1878 9.76583 9.76583C10.1878 9.34387 10.4248 8.77158 10.4248 8.17484C10.4248 7.5781 10.1878 7.00581 9.76583 6.58385C9.34387 6.16189 8.77158 5.92484 8.17484 5.92484C7.5781 5.92484 7.00581 6.16189 6.58385 6.58385C6.16189 7.00581 5.92484 7.5781 5.92484 8.17484C5.92484 8.77158 6.16189 9.34387 6.58385 9.76583C7.00581 10.1878 7.5781 10.4248 8.17484 10.4248V10.4248Z"
+        fill="currentColor"
+        fillRule="evenodd"
+        clipRule="evenodd"
+      />
+    </svg>
+  ) : (
+    <Settings {...props} />
+  )
+);
+
 interface SidebarProps {
   userInfo?: {
     personalInfo?: {
@@ -82,7 +112,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
   const router = useRouter();
   const [isComplianceOpen, setIsComplianceOpen] = React.useState(true);
 
-  // Nav Items definition using original icons (LayoutGrid, Users, CasesIcon, PieChart, Sliders, Settings, Headphones)
+  // Nav Items definition using original icons (LayoutGrid, Users, CasesIcon, PieChart, Sliders, SettingsIcon, Headphones)
   const mainNavItems = [
     {
       name: "Dashboard",
@@ -124,7 +154,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     {
       name: "Settings",
       href: "/settings",
-      icon: Settings,
+      icon: SettingsIcon,
     },
     {
       name: "Support",
@@ -341,29 +371,47 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 }`}
                 title={item.name}
               >
-                {item.name === "Compliance" ? (
+                {item.name === "Dashboard" ? (
+                  isActive ? (
+                    <RiLayoutGridFill className="size-6 shrink-0 text-white transition-colors" />
+                  ) : (
+                    <RiLayoutGridLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                  )
+                ) : item.name === "Compliance" ? (
                   isActive ? (
                     <RiShieldCheckFill className="size-6 shrink-0 text-white transition-colors" />
                   ) : (
                     <RiShieldCheckLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
-                ) : item.name === "Insights" ? (
+                ) : item.name === "Migrants" ? (
                   isActive ? (
-                    <RiPieChartFill className="size-6 shrink-0 text-white transition-colors" />
+                    <RiGroupFill className="size-6 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiPieChartLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiGroupLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
-                ) : item.icon === CasesIcon ? (
+                ) : item.name === "Cases" ? (
                   <CasesIcon
                     active={isActive}
                     className={`size-6 shrink-0 transition-colors ${
                       isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                     }`}
                   />
+                ) : item.name === "Insights" ? (
+                  isActive ? (
+                    <RiPieChartFill className="size-6 shrink-0 text-white transition-colors" />
+                  ) : (
+                    <RiPieChartLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                  )
+                ) : item.name === "Admin" ? (
+                  isActive ? (
+                    <RiEqualizerFill className="size-6 shrink-0 text-white transition-colors" />
+                  ) : (
+                    <RiEqualizerLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                  )
                 ) : (
                   <Icon
                     className={`size-6 shrink-0 transition-colors ${
-                      isActive ? "text-white fill-current" : "text-[#5C5C5C] fill-none group-hover:text-white"
+                      isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                     }`}
                   />
                 )}
@@ -409,11 +457,26 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                   }`}
                   title={item.name}
                 >
-                  <Icon
-                    className={`size-6 shrink-0 transition-colors ${
-                      isActive ? "text-white fill-current" : "text-[#5C5C5C] fill-none group-hover:text-white"
-                    }`}
-                  />
+                  {item.name === "Settings" ? (
+                    <SettingsIcon
+                      active={isActive}
+                      className={`size-6 shrink-0 transition-colors ${
+                        isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                      }`}
+                    />
+                  ) : item.name === "Support" ? (
+                    isActive ? (
+                      <RiCustomerService2Fill className="size-6 shrink-0 text-white transition-colors" />
+                    ) : (
+                      <RiCustomerService2Line className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    )
+                  ) : (
+                    <Icon
+                      className={`size-6 shrink-0 transition-colors ${
+                        isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                      }`}
+                    />
+                  )}
                   <span
                     className={`text-paragraph-sm font-medium whitespace-nowrap transition-all duration-300 ${
                       isOpen

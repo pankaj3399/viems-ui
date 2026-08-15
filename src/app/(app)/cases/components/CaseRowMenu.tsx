@@ -24,6 +24,7 @@ interface CaseRowMenuProps {
   onViewDetails: () => void;
   onArchive?: () => void;
   onDelete?: () => void;
+  onResolve?: () => void;
 }
 
 export function CaseRowMenu({
@@ -32,6 +33,7 @@ export function CaseRowMenu({
   onViewDetails,
   onArchive,
   onDelete,
+  onResolve,
 }: CaseRowMenuProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -53,7 +55,13 @@ export function CaseRowMenu({
         className="w-[251px] bg-white border border-[#EBEBEB] rounded-[16px] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] p-2 gap-[4px] flex flex-col"
       >
         <DropdownMenuItem
-          onClick={() => {}}
+          onClick={() => {
+            if (onResolve) {
+              onResolve();
+            } else {
+              onChangeStatus();
+            }
+          }}
           className="w-[235px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
         >
           <RiFocus2Line className="size-5 text-[#5C5C5C]" />

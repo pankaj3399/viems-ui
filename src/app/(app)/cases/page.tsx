@@ -43,6 +43,7 @@ import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
 import { formatFullName, getInitials } from "@/lib/utils";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { getCountryInfo } from "@/lib/country";
 import { Flag } from "@/components/ui/flag";
 import { toast } from "sonner";
 
@@ -103,70 +104,7 @@ interface CaseRow {
   cosStatusValue?: string | null; // preserve server cosStatus on PATCH
 }
 
-const countryMap: Record<string, { code: string; full: string; half: string; flag: string }> = {
-  us: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
-  usa: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
-  american: { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
-  "united states": { code: "US", full: "United States", half: "USA", flag: "🇺🇸" },
-  gb: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
-  uk: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
-  british: { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
-  "united kingdom": { code: "GB", full: "United Kingdom", half: "UK", flag: "🇬🇧" },
-  in: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
-  indian: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
-  india: { code: "IN", full: "India", half: "Ind", flag: "🇮🇳" },
-  cn: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
-  chinese: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
-  china: { code: "CN", full: "China", half: "Chn", flag: "🇨🇳" },
-  fr: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
-  french: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
-  france: { code: "FR", full: "France", half: "Fra", flag: "🇫🇷" },
-  za: { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
-  sa: { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
-  "south african": { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
-  "south africa": { code: "ZA", full: "South Africa", half: "SA", flag: "🇿🇦" },
-  np: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
-  nepalese: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
-  nepal: { code: "NP", full: "Nepal", half: "Nep", flag: "🇳🇵" },
-  pk: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
-  pakistani: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
-  pakistan: { code: "PK", full: "Pakistan", half: "Pak", flag: "🇵🇰" },
-  de: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
-  german: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
-  germany: { code: "DE", full: "Germany", half: "Ger", flag: "🇩🇪" },
-  it: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
-  italian: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
-  italy: { code: "IT", full: "Italy", half: "Ita", flag: "🇮🇹" },
-  gl: { code: "GL", full: "Greenland", half: "Grl", flag: "🇬🇱" },
-  greenland: { code: "GL", full: "Greenland", half: "Grl", flag: "🇬🇱" },
-  jm: { code: "JM", full: "Jamaica", half: "Jam", flag: "🇯🇲" },
-  jamaica: { code: "JM", full: "Jamaica", half: "Jam", flag: "🇯🇲" },
-};
 
-function getCountryInfo(raw: string): { code: string; full: string; half: string; flag: string } {
-  if (!raw) return { code: "US", full: "United States", half: "USA", flag: "🇺🇸" };
-  const clean = raw.trim().toLowerCase().replace(/_/g, " ");
-  
-  if (countryMap[clean]) {
-    return countryMap[clean];
-  }
-  
-  const code = (clean.length === 2 ? clean : clean.slice(0, 2)).toUpperCase();
-  const words = clean.split(" ");
-  const full = words
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
-  const half = full.length > 3 ? full.slice(0, 3) : full;
-  
-  const flagMap: Record<string, string> = {
-    US: "🇺🇸", CN: "🇨🇳", IN: "🇮🇳", FR: "🇫🇷", ZA: "🇿🇦",
-    GB: "🇬🇧", NP: "🇳🇵", DE: "🇩🇪", PK: "🇵🇰", IT: "🇮🇹",
-    GL: "🇬🇱", JM: "🇯🇲"
-  };
-  const flag = flagMap[code] || "🇺🇸";
-  
-  return { code, full, half, flag };
-}
 function getStatusDetails(rawStatus: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
   if (!rawStatus) return { label: "Visa Approved", color: "success" };
   const norm = rawStatus.toLowerCase().replace(/_/g, " ").trim();
