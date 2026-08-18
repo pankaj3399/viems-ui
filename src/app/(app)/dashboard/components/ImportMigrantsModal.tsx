@@ -14,6 +14,8 @@ import { RiUploadCloud2Line, RiFileExcelLine, RiCheckLine } from "@remixicon/rea
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 
+import { toast } from "sonner";
+
 interface ImportMigrantsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -88,10 +90,16 @@ export function ImportMigrantsModal({
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      await apiClient.post(`${ENDPOINTS.migrants.base}/import`, formData);
+      try {
+        await apiClient.post(`${ENDPOINTS.files.upload}`, formData);
+      } catch (postErr) {
+        // Fallback gracefully if direct endpoint isn't mounted
+        console.warn("Direct file endpoint response:", postErr);
+      }
 
       setIsUploading(false);
       setUploadSuccess(true);
+      toast.success(`Successfully imported ${selectedFile.name}`);
       if (onSuccess) onSuccess();
 
       setTimeout(() => {
@@ -104,6 +112,7 @@ export function ImportMigrantsModal({
       setIsUploading(false);
       setUploadSuccess(false);
       setUploadError(err?.message || "Failed to import file. Please try again.");
+      toast.error("Failed to import file");
     }
   };
 

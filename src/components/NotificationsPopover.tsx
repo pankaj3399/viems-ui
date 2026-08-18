@@ -14,6 +14,7 @@ import {
   RiFileChartLine,
   RiSettings2Line,
   RiMoreFill,
+  RiNotification3Line,
 } from "@remixicon/react";
 
 interface NotificationItem {
@@ -181,12 +182,12 @@ export function NotificationsPopover() {
   return (
     <Popover>
       <PopoverTrigger
-        className="relative size-12 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0 outline-none"
+        className="relative size-10 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0 outline-none"
         title="Notifications"
       >
-        <Bell className="size-5 text-[#A4A4A4]" />
+        <RiNotification3Line className="size-5 text-[#A4A4A4]" />
         {hasUnread && (
-          <div className="absolute top-[14px] right-[14px] size-1.5 rounded-full bg-[#FB3748] border border-[#171717] shadow-x-small" />
+          <div className="absolute top-[10px] right-[10px] size-1.5 rounded-full bg-[#FB3748] border-2 border-[#171717] shadow-x-small" />
         )}
       </PopoverTrigger>
 

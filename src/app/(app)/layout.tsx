@@ -1,14 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { isAuthenticated, removeToken } from "@/lib/auth";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import Sidebar from "@/components/sidebar";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
-import { Loader2, Bell } from "lucide-react";
+import { RiSearch2Line } from "@remixicon/react";
+import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function ProtectedAppLayout({
@@ -17,16 +18,21 @@ export default function ProtectedAppLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isChecking, setIsChecking] = React.useState(true);
   const [userInfo, setUserInfo] = React.useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
   React.useEffect(() => {
+    if (pathname.startsWith("/compliance")) {
+      setIsSidebarOpen(true);
+      return;
+    }
     const stored = localStorage.getItem("viems-sidebar-open");
     if (stored !== null) {
       setIsSidebarOpen(stored === "true");
     }
-  }, []);
+  }, [pathname]);
 
   const handleToggleSidebar = () => {
     setIsSidebarOpen((prev) => {
@@ -78,13 +84,13 @@ export default function ProtectedAppLayout({
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full min-w-0 pr-sm pb-sm pt-0">
         {/* Top Header Bar [1.1] */}
-        <header className="h-20 w-full flex items-center px-xl shrink-0">
+        <header className="h-[72px] w-full flex items-center justify-between px-xl shrink-0">
           {/* Left side: Sidebar Collapse Toggle Button */}
-          {!isSidebarOpen && (
+          {!isSidebarOpen ? (
             <button
               type="button"
               onClick={handleToggleSidebar}
-              className="size-12 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
+              className="size-10 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
               title="Expand Sidebar"
             >
               <svg
@@ -102,9 +108,21 @@ export default function ProtectedAppLayout({
                 <path d="M9 3v18" />
               </svg>
             </button>
+          ) : (
+            <div />
           )}
 
-          <div className="flex items-center gap-lg ml-auto">
+          <div className="flex items-center gap-[12px] ml-auto">
+            {/* Search Icon Button */}
+            <button
+              type="button"
+              onClick={() => router.push("/cases")}
+              className="size-10 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
+              title="Search"
+            >
+              <RiSearch2Line className="size-5 text-[#A4A4A4]" />
+            </button>
+
             {/* Notification Bell Icon & Popover */}
             <NotificationsPopover />
 

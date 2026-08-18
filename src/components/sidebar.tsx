@@ -32,6 +32,8 @@ import {
   RiGroupFill,
   RiEqualizerLine,
   RiEqualizerFill,
+  RiArrowRightSLine,
+  RiSettings2Line,
 } from "@remixicon/react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 
@@ -111,6 +113,12 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
   const pathname = usePathname();
   const router = useRouter();
   const [isComplianceOpen, setIsComplianceOpen] = React.useState(true);
+
+  React.useEffect(() => {
+    if (pathname.startsWith("/compliance")) {
+      setIsComplianceOpen(true);
+    }
+  }, [pathname]);
 
   // Nav Items definition using original icons (LayoutGrid, Users, CasesIcon, PieChart, Sliders, SettingsIcon, Headphones)
   const mainNavItems = [
@@ -267,7 +275,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
               const isComplianceActive = pathname.startsWith("/compliance");
 
               return (
-                <div key="Compliance" className="flex flex-col gap-1 w-full">
+                <div key="Compliance" className={`flex flex-col gap-1 ${isOpen ? "w-full" : "items-center justify-center"}`}>
                   <button
                     type="button"
                     aria-label="Compliance"
@@ -278,36 +286,34 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                         setIsComplianceOpen((prev) => !prev);
                       }
                     }}
-                    className={`relative flex items-center justify-between rounded-[8px] transition-all duration-300 border-0 cursor-pointer group ${
-                      isOpen ? "w-[208px] h-9 px-2.5" : "size-12 justify-center"
+                    className={`relative flex items-center rounded-[8px] transition-all duration-300 border-0 cursor-pointer group ${
+                      isOpen ? "w-[208px] h-9 px-2.5 justify-between gap-2" : "size-10 justify-center p-0"
                     } ${
                       isComplianceActive
-                        ? "text-white"
-                        : "text-[#5C5C5C] hover:text-white"
+                        ? "bg-[#262626] text-white"
+                        : "text-[#7B7B7B] hover:bg-[#262626]/50 hover:text-white"
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <RiShieldFill
-                        className={`size-5 shrink-0 transition-colors ${
-                          isComplianceActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
-                        }`}
-                      />
-                      {isOpen && (
+                    {isComplianceActive ? (
+                      <RiShieldFill className="size-5 shrink-0 text-white transition-colors" />
+                    ) : (
+                      <RiShieldLine className="size-5 shrink-0 text-[#7B7B7B] group-hover:text-white transition-colors" />
+                    )}
+                    {isOpen && (
+                      <>
                         <span
-                          className={`text-[14px] font-medium whitespace-nowrap transition-colors ${
-                            isComplianceActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+                          className={`text-[14px] font-medium whitespace-nowrap transition-colors flex-1 text-left ${
+                            isComplianceActive ? "text-white" : "text-[#7B7B7B] group-hover:text-white"
                           }`}
                         >
                           Compliance
                         </span>
-                      )}
-                    </div>
-                    {isOpen && (
-                      <RiArrowUpSLine
-                        className={`size-5 text-[#7B7B7B] transition-transform ${
-                          isComplianceOpen ? "" : "rotate-180"
-                        }`}
-                      />
+                        <RiArrowUpSLine
+                          className={`size-5 text-[#7B7B7B] transition-transform ml-auto shrink-0 ${
+                            isComplianceOpen ? "" : "rotate-180"
+                          }`}
+                        />
+                      </>
                     )}
                   </button>
 
@@ -363,67 +369,68 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 key={item.name}
                 href={item.href}
                 className={`relative flex items-center rounded-[8px] transition-all duration-300 border-0 group ${
-                  isOpen ? "w-[208px] h-12 px-4 justify-start gap-3" : "size-12 justify-center"
+                  isOpen ? "w-[208px] h-9 px-2.5 justify-start gap-2" : "size-10 justify-center p-0"
                 } ${
                   isActive
                     ? "bg-[#262626] text-white"
-                    : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                    : "text-white/70 hover:bg-[#262626]/50 hover:text-white"
                 }`}
                 title={item.name}
               >
                 {item.name === "Dashboard" ? (
                   isActive ? (
-                    <RiLayoutGridFill className="size-6 shrink-0 text-white transition-colors" />
+                    <RiLayoutGridFill className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiLayoutGridLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiLayoutGridLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Compliance" ? (
                   isActive ? (
-                    <RiShieldCheckFill className="size-6 shrink-0 text-white transition-colors" />
+                    <RiShieldCheckFill className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiShieldCheckLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiShieldCheckLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Migrants" ? (
                   isActive ? (
-                    <RiGroupFill className="size-6 shrink-0 text-white transition-colors" />
+                    <RiGroupFill className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiGroupLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiGroupLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Cases" ? (
                   <CasesIcon
                     active={isActive}
-                    className={`size-6 shrink-0 transition-colors ${
+                    className={`size-5 shrink-0 transition-colors ${
                       isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                     }`}
                   />
                 ) : item.name === "Insights" ? (
                   isActive ? (
-                    <RiPieChartFill className="size-6 shrink-0 text-white transition-colors" />
+                    <RiPieChartFill className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiPieChartLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiPieChartLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Admin" ? (
                   isActive ? (
-                    <RiEqualizerFill className="size-6 shrink-0 text-white transition-colors" />
+                    <RiEqualizerFill className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiEqualizerLine className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiEqualizerLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : (
                   <Icon
-                    className={`size-6 shrink-0 transition-colors ${
+                    className={`size-5 shrink-0 transition-colors ${
                       isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                     }`}
                   />
                 )}
-                <span
-                  className={`text-paragraph-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                    isOpen
-                      ? "opacity-100 translate-x-0"
-                      : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-                  }`}
-                >
-                  {item.name}
-                </span>
+                {isOpen && (
+                  <>
+                    <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate">
+                      {item.name}
+                    </span>
+                    {item.name === "Dashboard" && isActive && (
+                      <RiArrowRightSLine className="size-5 text-white shrink-0 ml-auto" />
+                    )}
+                  </>
+                )}
               </Link>
             );
           })}
@@ -449,44 +456,39 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                   key={item.name}
                   href={item.href}
                   className={`relative flex items-center rounded-[8px] transition-all duration-300 border-0 group ${
-                    isOpen ? "w-[208px] h-12 px-4 justify-start gap-3" : "size-12 justify-center"
+                    isOpen ? "w-[208px] h-9 px-2.5 justify-start gap-2" : "size-10 justify-center p-0"
                   } ${
                     isActive
                       ? "bg-[#262626] text-white"
-                      : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                      : "text-white/70 hover:bg-[#262626]/50 hover:text-white"
                   }`}
                   title={item.name}
                 >
                   {item.name === "Settings" ? (
-                    <SettingsIcon
-                      active={isActive}
-                      className={`size-6 shrink-0 transition-colors ${
+                    <RiSettings2Line
+                      className={`size-5 shrink-0 transition-colors ${
                         isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                       }`}
                     />
                   ) : item.name === "Support" ? (
                     isActive ? (
-                      <RiCustomerService2Fill className="size-6 shrink-0 text-white transition-colors" />
+                      <RiCustomerService2Fill className="size-5 shrink-0 text-white transition-colors" />
                     ) : (
-                      <RiCustomerService2Line className="size-6 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                      <RiCustomerService2Line className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                     )
                   ) : (
                     <Icon
-                      className={`size-6 shrink-0 transition-colors ${
+                      className={`size-5 shrink-0 transition-colors ${
                         isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                       }`}
                     />
                   )}
-                  <span
-                    className={`text-paragraph-sm font-medium whitespace-nowrap transition-all duration-300 ${
-                      isOpen
-                        ? "opacity-100 translate-x-0"
-                        : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
-                    }`}
-                  >
+                {isOpen && (
+                  <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate">
                     {item.name}
                   </span>
-                </Link>
+                )}
+              </Link>
               );
             })}
           </nav>
@@ -494,7 +496,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
       </div>
 
       {/* Sidebar Footer */}
-      <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] border-t border-[#262626]/20 shrink-0">
+      <div className="h-[88px] w-full flex items-center justify-center bg-[#171717] border-t border-[#262626]/40 shrink-0 px-3">
         <UserProfileDropdown
           userInfo={userInfo}
           align="start"
@@ -503,7 +505,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
             <button
               type="button"
               className={`rounded-[10px] border border-[#262626] bg-[#171717] flex items-center transition-all duration-300 hover:bg-[#262626] cursor-pointer ${
-                isOpen ? "w-[208px] h-16 px-3 justify-start gap-3" : "size-16 justify-center"
+                isOpen ? "w-[248px] h-16 p-3 justify-start gap-3" : "size-12 justify-center"
               }`}
               title="User Profile Menu"
             >
@@ -511,19 +513,22 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 {getInitials()}
               </div>
               <div
-                className={`flex flex-col items-start text-left min-w-0 transition-all duration-300 ${
+                className={`flex flex-col items-start text-left min-w-0 flex-1 transition-all duration-300 ${
                   isOpen
                     ? "opacity-100 translate-x-0"
                     : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
                 }`}
               >
-                <span className="font-sans text-paragraph-sm font-semibold text-white truncate w-full">
+                <span className="font-sans text-[14px] font-medium text-white truncate w-full leading-[20px] tracking-[-0.006em]">
                   {getFullName()}
                 </span>
-                <span className="text-paragraph-xs text-neutral-400 truncate w-full">
+                <span className="text-[12px] text-[#A4A4A4] truncate w-full leading-[16px]">
                   {getEmail()}
                 </span>
               </div>
+              {isOpen && (
+                <RiArrowRightSLine className="size-5 text-[#5C5C5C] shrink-0" />
+              )}
             </button>
           }
         />

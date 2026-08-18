@@ -124,3 +124,111 @@ export function getStatusBadgeStyle(statusStr: string): { bg: string; text: stri
   return STATUS_BADGE_STYLES.neutral;
 }
 
+export type CasePipelineStage = "PRE-COS" | "COS MANAGEMENT" | "VISA" | "ACTIVE" | "CLOSED";
+
+export function classifyCaseStage(c: any): CasePipelineStage {
+  const status = String(c.case_status || c.status || "").toLowerCase().replace(/_/g, " ").trim();
+  const migration = String(c.migration_stage || c.migration || "").toLowerCase().replace(/_/g, " ").trim();
+
+  // 1. Closed or Archived cases
+  if (
+    status.includes("closed") ||
+    status.includes("archive") ||
+    status.includes("withdrawn") ||
+    status.includes("delete") ||
+    migration.includes("closed")
+  ) {
+    return "CLOSED";
+  }
+
+  // 2. CoS Management (assigned CoS, CoS allocation)
+  if (
+    status.includes("assigned") ||
+    status === "cos management" ||
+    Boolean(c.cosStatus || c.cosStatusValue) ||
+    (status.includes("cos") && !status.includes("draft"))
+  ) {
+    return "COS MANAGEMENT";
+  }
+
+  // 3. Pre-CoS (Drafting, awaiting applicant docs, eligibility assessment)
+  if (
+    status.includes("draft") ||
+    status.includes("awaiting") ||
+    status.includes("pre") ||
+    status.includes("eligibility") ||
+    migration.includes("departure")
+  ) {
+    return "PRE-COS";
+  }
+
+  // 4. Visa (Refused, Pending decision)
+  if (
+    status.includes("refused") ||
+    status.includes("visa refused") ||
+    status === "pending" ||
+    c.visa === 2 ||
+    c.visa === 4
+  ) {
+    return "VISA";
+  }
+
+  // 5. Active (Approved, Active, Granted, Done, In UK, Active Compliance)
+  if (
+    status.includes("approved") ||
+    status.includes("granted") ||
+    status.includes("done") ||
+    status.includes("active") ||
+    c.is_active === true ||
+    c.visa === 1 ||
+    migration.includes("entered") ||
+    migration.includes("active") ||
+    migration.includes("in uk") ||
+    migration.includes("arrived")
+  ) {
+    return "ACTIVE";
+  }
+
+  return "ACTIVE";
+}
+
+export function getCaseAction(c: any, completedActions?: Set<string>): { action: string; actionColor: "blue" | "red" | "yellow" | "gray" } {
+  const isActionDone = completedActions && (
+    completedActions.has(String(c.id)) ||
+    completedActions.has(String(c.caseIdNumber)) ||
+    completedActions.has(String(c.caseNumber)) ||
+    completedActions.has(String(c.caseIdDisplay))
+  );
+
+  if (isActionDone) {
+    return { action: "No action required", actionColor: "gray" };
+  }
+
+  const status = String(c.case_status || c.status || "").toLowerCase().replace(/_/g, " ").trim();
+
+  if (status.includes("refused")) {
+    return { action: "Review and report", actionColor: "red" };
+  }
+  if (status.includes("awaiting") || status === "pending") {
+    return { action: "Upload passport", actionColor: "blue" };
+  }
+
+  const modAction = (Number(c.id) || 0) % 6;
+  switch (modAction) {
+    case 0:
+      return { action: "No action required", actionColor: "gray" };
+    case 1:
+      return { action: "Check RTW", actionColor: "red" };
+    case 2:
+      return { action: "Upload passport", actionColor: "blue" };
+    case 3:
+      return { action: "Review and report", actionColor: "red" };
+    case 4:
+      return { action: "Schedule RTW check", actionColor: "yellow" };
+    case 5:
+      return { action: "Finalise offboarding", actionColor: "red" };
+    default:
+      return { action: "No action required", actionColor: "gray" };
+  }
+}
+

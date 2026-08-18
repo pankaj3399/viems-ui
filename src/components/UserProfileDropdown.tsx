@@ -72,7 +72,7 @@ export function UserProfileDropdown({
   const defaultTrigger = (
     <button
       type="button"
-      className="size-12 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center select-none shadow-x-small shrink-0 cursor-pointer hover:opacity-90 transition-opacity border-0"
+      className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center select-none shadow-x-small shrink-0 cursor-pointer hover:opacity-90 transition-opacity border-0"
       title="User Profile Menu"
     >
       {getInitials()}
