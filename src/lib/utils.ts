@@ -107,6 +107,7 @@ const EXACT_STATUS_MAP: Record<string, { bg: string; text: string; dot: string }
 
   // Gray / Neutral / Inactive / Draft
   "draft": STATUS_BADGE_STYLES.neutral,
+  "awaiting docs": STATUS_BADGE_STYLES.warning,
   "case closed": STATUS_BADGE_STYLES.neutral,
   "application withdrawn": STATUS_BADGE_STYLES.neutral,
   "withdrawn": STATUS_BADGE_STYLES.neutral,
@@ -127,8 +128,8 @@ export function getStatusBadgeStyle(statusStr: string): { bg: string; text: stri
 export type CasePipelineStage = "PRE-COS" | "COS MANAGEMENT" | "VISA" | "ACTIVE" | "CLOSED";
 
 export function classifyCaseStage(c: any): CasePipelineStage {
-  const status = String(c.case_status || c.status || "").toLowerCase().replace(/_/g, " ").trim();
-  const migration = String(c.migration_stage || c.migration || "").toLowerCase().replace(/_/g, " ").trim();
+  const status = String(c.status || c.case_status || "").toLowerCase().replace(/_/g, " ").trim();
+  const migration = String(c.migration || c.migration_stage || "").toLowerCase().replace(/_/g, " ").trim();
 
   // 1. Closed or Archived cases
   if (
@@ -141,7 +142,18 @@ export function classifyCaseStage(c: any): CasePipelineStage {
     return "CLOSED";
   }
 
-  // 2. CoS Management (assigned CoS, CoS allocation)
+  // 2. Visa (Refused, Pending decision) - evaluated before CoS to correctly prioritize refusal
+  if (
+    status.includes("refused") ||
+    status.includes("visa refused") ||
+    status === "pending" ||
+    c.visa === 2 ||
+    c.visa === 4
+  ) {
+    return "VISA";
+  }
+
+  // 3. CoS Management (assigned CoS, CoS allocation)
   if (
     status.includes("assigned") ||
     status === "cos management" ||
@@ -151,7 +163,7 @@ export function classifyCaseStage(c: any): CasePipelineStage {
     return "COS MANAGEMENT";
   }
 
-  // 3. Pre-CoS (Drafting, awaiting applicant docs, eligibility assessment)
+  // 4. Pre-CoS (Drafting, awaiting applicant docs, eligibility assessment)
   if (
     status.includes("draft") ||
     status.includes("awaiting") ||
@@ -160,17 +172,6 @@ export function classifyCaseStage(c: any): CasePipelineStage {
     migration.includes("departure")
   ) {
     return "PRE-COS";
-  }
-
-  // 4. Visa (Refused, Pending decision)
-  if (
-    status.includes("refused") ||
-    status.includes("visa refused") ||
-    status === "pending" ||
-    c.visa === 2 ||
-    c.visa === 4
-  ) {
-    return "VISA";
   }
 
   // 5. Active (Approved, Active, Granted, Done, In UK, Active Compliance)
@@ -204,31 +205,25 @@ export function getCaseAction(c: any, completedActions?: Set<string>): { action:
     return { action: "No action required", actionColor: "gray" };
   }
 
-  const status = String(c.case_status || c.status || "").toLowerCase().replace(/_/g, " ").trim();
+  const status = String(c.status || c.case_status || "").toLowerCase().replace(/_/g, " ").trim();
+  const migration = String(c.migration || c.migration_stage || "").toLowerCase().replace(/_/g, " ").trim();
 
-  if (status.includes("refused")) {
+  if (status.includes("refused") || c.visa === 2) {
     return { action: "Review and report", actionColor: "red" };
   }
-  if (status.includes("awaiting") || status === "pending") {
+  if (status.includes("awaiting") || status === "pending" || status.includes("draft")) {
     return { action: "Upload passport", actionColor: "blue" };
   }
-
-  const modAction = (Number(c.id) || 0) % 6;
-  switch (modAction) {
-    case 0:
-      return { action: "No action required", actionColor: "gray" };
-    case 1:
-      return { action: "Check RTW", actionColor: "red" };
-    case 2:
-      return { action: "Upload passport", actionColor: "blue" };
-    case 3:
-      return { action: "Review and report", actionColor: "red" };
-    case 4:
-      return { action: "Schedule RTW check", actionColor: "yellow" };
-    case 5:
-      return { action: "Finalise offboarding", actionColor: "red" };
-    default:
-      return { action: "No action required", actionColor: "gray" };
+  if (migration.includes("rtw pending") || migration.includes("arrived")) {
+    return { action: "Check RTW", actionColor: "red" };
   }
+  if (migration.includes("compliance") || migration.includes("in uk") || status.includes("approved")) {
+    return { action: "Schedule RTW check", actionColor: "yellow" };
+  }
+  if (migration.includes("departure") || status.includes("closed") || status.includes("withdrawn")) {
+    return { action: "Finalise offboarding", actionColor: "red" };
+  }
+
+  return { action: "No action required", actionColor: "gray" };
 }
 

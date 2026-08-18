@@ -1,9 +1,10 @@
 import { formatFullName, getInitials, getCaseAction } from "./utils";
 import { getCountryInfo } from "./country";
 import { CASE_STATUSES } from "@/app/(app)/cases/case-status-data";
+import { RawCaseRecord, VISA_OUTCOME_CODES } from "@/types/api";
 
 export interface CaseRow {
-  id?: number;
+  id?: number | string;
   roleId?: number;
   caseId: string;
   country: string;
@@ -30,8 +31,8 @@ export interface CaseRow {
   is_active?: boolean;
 }
 
-export function getStatusDetails(rawStatus: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
-  if (!rawStatus) return { label: "Visa Approved", color: "success" };
+export function getStatusDetails(rawStatus?: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
+  if (!rawStatus) return { label: "Visa Approved", color: "gray" };
   const norm = rawStatus.toLowerCase().replace(/_/g, " ").trim();
   if (norm === "granted" || norm === "visa approved" || norm === "assigned" || norm === "cos assigned" || norm === "active" || norm === "done") {
     return { label: "Visa Approved", color: "success" };
@@ -61,10 +62,10 @@ export function getStatusDetails(rawStatus: string): { label: string; color: "su
     return { label: found.label, color };
   }
 
-  return { label: rawStatus, color: "success" };
+  return { label: rawStatus, color: "gray" };
 }
 
-export function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
+export function mapBackendCaseToRow(c: RawCaseRecord, completedActions?: Set<string>): CaseRow {
   const name = formatFullName(c.first_name, c.last_name);
   const initials = getInitials(name);
 
@@ -126,21 +127,27 @@ export function mapBackendCaseToRow(c: any, completedActions?: Set<string>): Cas
   };
 }
 
-export function getMappedCasesWithOverrides(rawCases: any[]): CaseRow[] {
+export function getMappedCasesWithOverrides(rawCases: RawCaseRecord[]): CaseRow[] {
   let overrides: Record<string, string> = {};
   let completedActions = new Set<string>();
   if (typeof window !== "undefined") {
     try {
       const saved = localStorage.getItem("viems_case_status_overrides");
       if (saved) overrides = JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) {
+      console.error("Corrupt viems_case_status_overrides in localStorage, clearing key:", e);
+      try { localStorage.removeItem("viems_case_status_overrides"); } catch (_) {}
+    }
     try {
       const savedActions = localStorage.getItem("viems_completed_actions");
       if (savedActions) {
         const parsed = JSON.parse(savedActions);
         if (Array.isArray(parsed)) completedActions = new Set(parsed.map(String));
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("Corrupt viems_completed_actions in localStorage, clearing key:", e);
+      try { localStorage.removeItem("viems_completed_actions"); } catch (_) {}
+    }
   }
 
   return rawCases.map((c) => {
@@ -164,7 +171,7 @@ export function getMappedCasesWithOverrides(rawCases: any[]): CaseRow[] {
   });
 }
 
-export function isCaseRefused(c: CaseRow | any): boolean {
+export function isCaseRefused(c: CaseRow | RawCaseRecord): boolean {
   if (!c) return false;
   const s = String(c.status || c.case_status || "").toLowerCase();
   const m = String(c.migration || c.migration_stage || "").toLowerCase();
@@ -173,6 +180,6 @@ export function isCaseRefused(c: CaseRow | any): boolean {
     s.includes("refused") ||
     m === "visa refused" ||
     m.includes("refused") ||
-    c.visa === 2
+    c.visa === VISA_OUTCOME_CODES.REFUSED
   );
 }

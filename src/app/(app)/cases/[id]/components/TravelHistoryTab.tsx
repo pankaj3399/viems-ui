@@ -19,19 +19,7 @@ interface TravelHistoryRow {
   method: string;
 }
 
-interface RawTravelHistoryRecord {
-  id?: number | string;
-  date?: string;
-  travelDate?: string;
-  direction?: string;
-  type?: string;
-  port?: string;
-  location?: string;
-  routeFlight?: string;
-  flightNumber?: string;
-  method?: string;
-  transport?: string;
-}
+import { RawTravelHistoryRecord } from "@/types/api";
 
 interface TravelHistoryTabProps {
   migrant?: { id?: string | number; [key: string]: unknown } | null;
@@ -55,8 +43,9 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
             const rawDate = r.date || r.travelDate || "";
             const d = rawDate ? new Date(rawDate) : null;
             const dateValue = d && !isNaN(d.getTime()) ? d.getTime() : 0;
+            const numId = typeof r.id === "number" ? r.id : (r.id !== undefined && r.id !== null && !isNaN(Number(r.id)) ? Number(r.id) : null);
             return {
-              id: typeof r.id === "number" ? r.id : Number(r.id) || idx + 1,
+              id: numId !== null ? numId : idx + 1,
               direction: (r.direction || r.type || "IN").toUpperCase() === "OUT" ? "OUT" : "IN",
               date: r.date || r.travelDate || "—",
               dateValue,

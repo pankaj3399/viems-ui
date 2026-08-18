@@ -23,33 +23,7 @@ interface CaseHistoryRow {
   immigrationType: "in_uk" | "left_uk" | "outside";
 }
 
-interface RawCaseRecord {
-  id?: number | string;
-  caseIdDisplay?: string;
-  caseNumber?: string;
-  created_at?: string;
-  creation_date?: string;
-  job_title?: string;
-  visaType?: string;
-  personal?: {
-    jobTitle?: string;
-    groupName?: string;
-  };
-  group_name?: string;
-  case_status?: string;
-  status?: string;
-  migration?: string;
-  flightEntered?: {
-    isEntered?: boolean;
-  };
-}
-
-interface MigrantCasesResponse {
-  cases?: RawCaseRecord[];
-  data?: {
-    cases?: RawCaseRecord[];
-  };
-}
+import { RawCaseRecord, MigrantCasesResponse } from "@/types/api";
 
 interface CasesTabProps {
   migrant?: { id?: string | number; [key: string]: unknown } | null;

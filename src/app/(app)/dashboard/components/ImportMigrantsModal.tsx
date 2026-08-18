@@ -90,16 +90,10 @@ export function ImportMigrantsModal({
       const formData = new FormData();
       formData.append("file", selectedFile);
 
-      try {
-        await apiClient.post(`${ENDPOINTS.files.upload}`, formData);
-      } catch (postErr) {
-        // Fallback gracefully if direct endpoint isn't mounted
-        console.warn("Direct file endpoint response:", postErr);
-      }
+      await apiClient.post(`${ENDPOINTS.files.upload}`, formData);
 
       setIsUploading(false);
       setUploadSuccess(true);
-      toast.success(`Successfully imported ${selectedFile.name}`);
       if (onSuccess) onSuccess();
 
       setTimeout(() => {
@@ -107,11 +101,12 @@ export function ImportMigrantsModal({
         setSelectedFile(null);
         setUploadSuccess(false);
       }, 1000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Import upload failed:", err);
       setIsUploading(false);
       setUploadSuccess(false);
-      setUploadError(err?.message || "Failed to import file. Please try again.");
+      const message = err instanceof Error ? err.message : (err as any)?.message || "Failed to import file. Please try again.";
+      setUploadError(message);
       toast.error("Failed to import file");
     }
   };

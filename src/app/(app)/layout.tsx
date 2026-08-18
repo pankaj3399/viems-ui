@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { isAuthenticated, removeToken } from "@/lib/auth";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { UserProfileResponse } from "@/types/api";
 import Sidebar from "@/components/sidebar";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { NotificationsPopover } from "@/components/NotificationsPopover";
@@ -20,7 +21,7 @@ export default function ProtectedAppLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = React.useState(true);
-  const [userInfo, setUserInfo] = React.useState<any>(null);
+  const [userInfo, setUserInfo] = React.useState<UserProfileResponse | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
 
   React.useEffect(() => {
@@ -52,7 +53,7 @@ export default function ProtectedAppLayout({
     // 2. Fetch User Profile Info
     const fetchProfile = async () => {
       try {
-        const response = await apiClient.get(ENDPOINTS.users.userInfo);
+        const response = await apiClient.get<UserProfileResponse>(ENDPOINTS.users.userInfo);
         setUserInfo(response);
       } catch (error) {
         setUserInfo({ id: 1, name: "Taylor Johnson", email: "taylor@axstudios.com", role: { value: "superadmin" } });

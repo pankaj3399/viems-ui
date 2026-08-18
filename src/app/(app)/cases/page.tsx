@@ -155,40 +155,6 @@ export default function CasesPage() {
     setFilterPanelOpen(false);
   };
 
-  // Sync with searchParams on navigation
-  React.useEffect(() => {
-    const statusParam = searchParams?.get("status");
-    const stageParam = searchParams?.get("stage");
-    const countryParam = searchParams?.get("country");
-    const caseIdParam = searchParams?.get("caseId");
-
-    if (statusParam) {
-      const s = statusParam.toLowerCase();
-      if (s === "active" || s === "approved") {
-        setStatusFilter("Visa Approved");
-      } else if (s === "awaiting_decision" || s === "pending") {
-        setStatusFilter("Awaiting applicant docs");
-      } else if (s === "refused") {
-        setStatusFilter("Visa Refused");
-        setActiveTab("refusals");
-      } else {
-        setStatusFilter(statusParam);
-      }
-    }
-
-    if (stageParam) {
-      setStageFilter(stageParam);
-    }
-
-    if (countryParam) {
-      setCountryFilter(countryParam);
-    }
-
-    if (caseIdParam) {
-      setCaseIdFilter(caseIdParam);
-    }
-  }, [searchParams]);
-
   // Modal states
   const [statusModalOpen, setStatusModalOpen] = React.useState(false);
   const [statusModalRow, setStatusModalRow] = React.useState<CaseRow | null>(null);
@@ -209,14 +175,20 @@ export default function CasesPage() {
   const loadCases = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<{ data: any[]; count: number }>(
+      const response = await apiClient.get<any>(
         ENDPOINTS.cases.base
       );
 
-      const mapped = getMappedCasesWithOverrides(response.data);
+      const rawData = response && (Array.isArray(response) ? response : Array.isArray((response as any).data) ? (response as any).data : null);
+      if (!rawData) {
+        throw new Error("Invalid response payload from cases endpoint");
+      }
+
+      const mapped = getMappedCasesWithOverrides(rawData);
       setCases(mapped);
     } catch (err) {
       console.error("Failed to fetch cases:", err);
+      toast.error("Failed to load cases. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -234,7 +206,8 @@ export default function CasesPage() {
       if (activeTab === "refusals") {
         return isRefused;
       } else if (activeTab === "cases") {
-        if (statusFilter === "Visa Refused" || statusFilter === "refused" || stageFilter === "VISA") {
+        const normStage = stageFilter ? stageFilter.toUpperCase().replace(/_/g, " ").trim() : null;
+        if (statusFilter === "Visa Refused" || statusFilter === "refused" || normStage === "VISA") {
           return true;
         }
         return !isRefused;
@@ -363,8 +336,9 @@ export default function CasesPage() {
       );
       const matchesCaseId = !caseIdFilter || item.caseId.toLowerCase().includes(caseIdFilter.toLowerCase());
 
-      const matchesStage = !stageFilter || stageFilter === "all" || (
-        classifyCaseStage(item) === stageFilter
+      const normStage = stageFilter ? stageFilter.toUpperCase().replace(/_/g, " ").trim() : null;
+      const matchesStage = !normStage || normStage === "ALL" || (
+        classifyCaseStage(item) === normStage
       );
 
       const matchesQuick = !quickFilter || (
@@ -648,7 +622,7 @@ export default function CasesPage() {
     }
   };
 
-  const handleActionCompleted = (completedId?: number) => {
+  const handleActionCompleted = (completedId?: number | string) => {
     const idToSave = completedId || actionModalRow?.id;
     const caseIdToSave = actionModalRow?.caseId;
 
@@ -864,7 +838,7 @@ export default function CasesPage() {
             )}
             <span>Refusals</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() === "VISA REFUSED" || c.status.toLowerCase() === "visa refused").length}
+              {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => isCaseRefused(c)).length}
             </div>
           </Button>
         </div>

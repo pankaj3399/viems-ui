@@ -56,6 +56,14 @@ interface MigrantRow {
   actionColor: "blue" | "red" | "yellow" | "gray";
 }
 
+function getErrorStatusCode(error: unknown): number | undefined {
+  if (typeof error === "object" && error !== null) {
+    const err = error as { status?: number; response?: { status?: number } };
+    return err.status ?? err.response?.status;
+  }
+  return undefined;
+}
+
 const DEFAULT_MIGRANTS: MigrantRow[] = [];
 
 export default function MigrantsPage() {
@@ -806,11 +814,7 @@ export default function MigrantsPage() {
                   success = true;
                 } catch (caseErr: unknown) {
                   console.error("Initial case status update failed:", caseErr);
-                  const statusCode =
-                    typeof caseErr === "object" && caseErr !== null
-                      ? (caseErr as { status?: number; response?: { status?: number } }).status ||
-                        (caseErr as { status?: number; response?: { status?: number } }).response?.status
-                      : undefined;
+                  const statusCode = getErrorStatusCode(caseErr);
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.patch(ENDPOINTS.migrants.byId(selectedRow.id), {
                       case_status: newStatus,
@@ -856,11 +860,7 @@ export default function MigrantsPage() {
                   success = true;
                 } catch (refErr: unknown) {
                   console.error("Initial migrant credibility update failed:", refErr);
-                  const statusCode =
-                    typeof refErr === "object" && refErr !== null
-                      ? (refErr as { status?: number; response?: { status?: number } }).status ||
-                        (refErr as { status?: number; response?: { status?: number } }).response?.status
-                      : undefined;
+                  const statusCode = getErrorStatusCode(refErr);
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
                       outcome: "Refused",
@@ -904,11 +904,7 @@ export default function MigrantsPage() {
                   success = true;
                 } catch (archErr: unknown) {
                   console.error("Initial case archive failed:", archErr);
-                  const statusCode =
-                    typeof archErr === "object" && archErr !== null
-                      ? (archErr as { status?: number; response?: { status?: number } }).status ||
-                        (archErr as { status?: number; response?: { status?: number } }).response?.status
-                      : undefined;
+                  const statusCode = getErrorStatusCode(archErr);
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.delete(`${ENDPOINTS.migrants.base}/to-archive`, {
                       data: { data: [{ id: selectedRow.id }] },
@@ -951,11 +947,7 @@ export default function MigrantsPage() {
                   success = true;
                 } catch (delErr: unknown) {
                   console.error("Initial case delete failed:", delErr);
-                  const statusCode =
-                    typeof delErr === "object" && delErr !== null
-                      ? (delErr as { status?: number; response?: { status?: number } }).status ||
-                        (delErr as { status?: number; response?: { status?: number } }).response?.status
-                      : undefined;
+                  const statusCode = getErrorStatusCode(delErr);
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.delete(`${ENDPOINTS.migrants.base}/archive`, {
                       data: { data: [{ id: selectedRow.id }] },

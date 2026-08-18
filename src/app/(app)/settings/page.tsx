@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { UserProfileResponse, UserSettingsResponse } from "@/types/api";
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = React.useState<
@@ -59,7 +60,7 @@ export default function SettingsPage() {
   const [notifReminders, setNotifReminders] = React.useState<[boolean, boolean]>([true, true]);
   const [notifSystem, setNotifSystem] = React.useState<[boolean, boolean]>([true, true]);
 
-  const [currentUserId, setCurrentUserId] = React.useState<number | string>(1);
+  const [currentUserId, setCurrentUserId] = React.useState<number | string | undefined>(undefined);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
@@ -83,7 +84,7 @@ export default function SettingsPage() {
         setLoading(true);
         // Fetch user profile info
         try {
-          const userRes = await apiClient.get<any>(ENDPOINTS.users.userInfo);
+          const userRes = await apiClient.get<UserProfileResponse>(ENDPOINTS.users.userInfo);
           if (userRes) {
             if (userRes.id) setCurrentUserId(userRes.id);
             const fn = userRes.first_name || firstName;
@@ -124,7 +125,7 @@ export default function SettingsPage() {
 
         // Fetch & validate notification preferences from settings endpoint
         try {
-          const settingsRes = await apiClient.get<any>(ENDPOINTS.users.settings);
+          const settingsRes = await apiClient.get<UserSettingsResponse>(ENDPOINTS.users.settings);
           if (settingsRes) {
             if (settingsRes.id) setCurrentUserId(settingsRes.id);
             if (settingsRes.digestFrequency && ["Real-time", "Daily", "Weekly", "Off"].includes(settingsRes.digestFrequency)) {
