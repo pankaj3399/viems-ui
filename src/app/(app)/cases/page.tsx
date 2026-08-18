@@ -42,7 +42,7 @@ import { CaseActionModal } from "./components/CaseActionModal";
 import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
 import { formatFullName, getInitials, classifyCaseStage, getCaseAction } from "@/lib/utils";
-import { CaseRow, mapBackendCaseToRow, getMappedCasesWithOverrides } from "@/lib/case-mapper";
+import { CaseRow, mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefused } from "@/lib/case-mapper";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { getCountryInfo } from "@/lib/country";
 import { Flag } from "@/components/ui/flag";
@@ -229,27 +229,19 @@ export default function CasesPage() {
   // Filter cases by tab first
   const tabCases = React.useMemo(() => {
     return cases.filter((item) => {
-      const isRefused =
-        item.status.toUpperCase() === "VISA REFUSED" ||
-        item.status.toLowerCase() === "visa refused";
+      const isRefused = isCaseRefused(item);
 
       if (activeTab === "refusals") {
         return isRefused;
       } else if (activeTab === "cases") {
-        if (
-          statusFilter === "Visa Refused" ||
-          statusFilter === "refused" ||
-          stageFilter === "VISA" ||
-          needsActionOnly ||
-          quickFilter === "needs_action"
-        ) {
+        if (statusFilter === "Visa Refused" || statusFilter === "refused" || stageFilter === "VISA") {
           return true;
         }
         return !isRefused;
       }
       return true; // groups shows all
     });
-  }, [cases, activeTab, statusFilter, stageFilter, needsActionOnly, quickFilter]);
+  }, [cases, activeTab, statusFilter, stageFilter]);
 
   // Derive unique countries and statuses for filter dropdowns
   const uniqueCountries = React.useMemo(() => {
@@ -834,7 +826,7 @@ export default function CasesPage() {
             />
             <span>Cases</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {activeTab === "cases" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() !== "VISA REFUSED" && c.status.toLowerCase() !== "visa refused").length}
+              {activeTab === "cases" ? filteredCases.length : cases.filter((c) => !isCaseRefused(c)).length}
             </div>
           </Button>
           <Button

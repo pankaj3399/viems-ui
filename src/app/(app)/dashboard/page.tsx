@@ -15,7 +15,7 @@ import {
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { formatFullName, getInitials, classifyCaseStage, getCaseAction } from "@/lib/utils";
-import { mapBackendCaseToRow, getMappedCasesWithOverrides } from "@/lib/case-mapper";
+import { mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefused } from "@/lib/case-mapper";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { useRouter } from "next/navigation";
 import { ImportMigrantsModal } from "./components/ImportMigrantsModal";
@@ -262,8 +262,13 @@ export default function DashboardPage() {
   const [userInfo, setUserInfo] = React.useState<UserProfile | null>(null);
   const [logs, setLogs] = React.useState<LogEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [mounted, setMounted] = React.useState(false);
   const [activeTaskTab, setActiveTaskTab] = React.useState<"open" | "missing">("open");
   const [hoveredPipelineSegment, setHoveredPipelineSegment] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Modals & Calendar Navigation State
   const [importModalOpen, setImportModalOpen] = React.useState(false);
@@ -401,11 +406,11 @@ export default function DashboardPage() {
   // ── Mapped Cases (Unified with Cases Page) ────────────────────────────────
   const mappedCases = React.useMemo(() => {
     return getMappedCasesWithOverrides(casesList);
-  }, [casesList]);
+  }, [casesList, mounted]);
 
   // ── Real Dynamic Metrics ─────────────────────────────────────────────────
   const activeCasesCount = React.useMemo(() => {
-    return mappedCases.filter((c) => c.status !== "Case closed" && c.migration !== "CASE CLOSED").length;
+    return mappedCases.filter((c) => !isCaseRefused(c)).length;
   }, [mappedCases]);
 
   const visaApprovedCount = React.useMemo(() => {
@@ -418,7 +423,7 @@ export default function DashboardPage() {
 
   const totalTasksCount = React.useMemo(() => {
     return mappedCases.filter(
-      (c) => c.actionColor !== "gray" && c.action !== "No action required" && c.status !== "Visa Refused"
+      (c) => !isCaseRefused(c) && c.actionColor !== "gray" && c.action !== "No action required"
     ).length;
   }, [mappedCases]);
 

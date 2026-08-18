@@ -163,3 +163,16 @@ export function getMappedCasesWithOverrides(rawCases: any[]): CaseRow[] {
     return row;
   });
 }
+
+export function isCaseRefused(c: CaseRow | any): boolean {
+  if (!c) return false;
+  const s = String(c.status || c.case_status || "").toLowerCase();
+  const m = String(c.migration || c.migration_stage || "").toLowerCase();
+  return (
+    s === "visa refused" ||
+    s.includes("refused") ||
+    m === "visa refused" ||
+    m.includes("refused") ||
+    c.visa === 2
+  );
+}
