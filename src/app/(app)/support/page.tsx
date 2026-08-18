@@ -18,11 +18,11 @@ export default function SupportPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    toast.info(`Searching support articles for "${searchQuery}"...`);
+    toast.info("Knowledge base search coming soon.");
   };
 
   return (
-    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-24 select-none">
+    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-24">
       {/* Top Banner / Header */}
       <div className="bg-white border-b border-[#EBEBEB] px-6 lg:px-12 py-8">
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -55,6 +55,7 @@ export default function SupportPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search help articles, visa guidelines, RTW compliance procedures..."
+                aria-label="Search knowledge base"
                 className="w-full h-[44px] pl-11 pr-4 text-[14px] text-[#171717] bg-[#F7F7F7] border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
               />
             </div>

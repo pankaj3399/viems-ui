@@ -23,8 +23,36 @@ interface CaseHistoryRow {
   immigrationType: "in_uk" | "left_uk" | "outside";
 }
 
+interface RawCaseRecord {
+  id?: number | string;
+  caseIdDisplay?: string;
+  caseNumber?: string;
+  created_at?: string;
+  creation_date?: string;
+  job_title?: string;
+  visaType?: string;
+  personal?: {
+    jobTitle?: string;
+    groupName?: string;
+  };
+  group_name?: string;
+  case_status?: string;
+  status?: string;
+  migration?: string;
+  flightEntered?: {
+    isEntered?: boolean;
+  };
+}
+
+interface MigrantCasesResponse {
+  cases?: RawCaseRecord[];
+  data?: {
+    cases?: RawCaseRecord[];
+  };
+}
+
 interface CasesTabProps {
-  migrant?: any;
+  migrant?: { id?: string | number; [key: string]: unknown } | null;
   migrantId?: string;
 }
 
@@ -44,18 +72,27 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
       if (!resolvedMigrantId) return;
       try {
         setLoading(true);
-        let casesData: any[] = [];
+        let casesData: RawCaseRecord[] = [];
         try {
-          const res = await apiClient.get<any>(ENDPOINTS.migrants.byId(resolvedMigrantId));
-          const mCases = res?.cases || res?.data?.cases;
-          casesData = Array.isArray(mCases) ? mCases : (Array.isArray(res) ? res : res?.data || []);
+          const res = await apiClient.get<MigrantCasesResponse | RawCaseRecord[]>(ENDPOINTS.migrants.byId(resolvedMigrantId));
+          if (Array.isArray(res)) {
+            casesData = res;
+          } else if (res && typeof res === "object") {
+            const mCases = (res as MigrantCasesResponse).cases || (res as MigrantCasesResponse).data?.cases;
+            casesData = Array.isArray(mCases) ? mCases : [];
+          }
         } catch {
-          const res = await apiClient.get<any>(ENDPOINTS.cases.base);
-          casesData = Array.isArray(res) ? res : res?.data || res?.cases || [];
+          const res = await apiClient.get<MigrantCasesResponse | RawCaseRecord[]>(ENDPOINTS.cases.base);
+          if (Array.isArray(res)) {
+            casesData = res;
+          } else if (res && typeof res === "object") {
+            const mCases = (res as MigrantCasesResponse).cases || (res as MigrantCasesResponse).data?.cases;
+            casesData = Array.isArray(mCases) ? mCases : [];
+          }
         }
 
         if (Array.isArray(casesData) && casesData.length > 0) {
-          const mapped: CaseHistoryRow[] = casesData.map((c: any) => {
+          const mapped: CaseHistoryRow[] = casesData.map((c: RawCaseRecord) => {
             const rawStatus = c.case_status || c.status || "PENDING";
             const isAppr = rawStatus.toUpperCase().includes("APPROVED");
             const isEntered = Boolean(c.flightEntered?.isEntered);

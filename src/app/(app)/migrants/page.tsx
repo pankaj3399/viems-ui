@@ -804,9 +804,13 @@ export default function MigrantsPage() {
                     status: newStatus,
                   });
                   success = true;
-                } catch (caseErr: any) {
+                } catch (caseErr: unknown) {
                   console.error("Initial case status update failed:", caseErr);
-                  const statusCode = caseErr?.status || caseErr?.response?.status;
+                  const statusCode =
+                    typeof caseErr === "object" && caseErr !== null
+                      ? (caseErr as { status?: number; response?: { status?: number } }).status ||
+                        (caseErr as { status?: number; response?: { status?: number } }).response?.status
+                      : undefined;
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.patch(ENDPOINTS.migrants.byId(selectedRow.id), {
                       case_status: newStatus,
@@ -821,9 +825,10 @@ export default function MigrantsPage() {
                   toast.success("Case status updated successfully");
                   fetchCasesData();
                 }
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error("Failed to update status in backend:", err);
-                toast.error(err?.message || "Failed to update case status");
+                const message = err instanceof Error ? err.message : "Failed to update case status";
+                toast.error(message);
               }
             }}
           />
@@ -849,9 +854,13 @@ export default function MigrantsPage() {
                     refusalDate: new Date().toISOString(),
                   });
                   success = true;
-                } catch (refErr: any) {
+                } catch (refErr: unknown) {
                   console.error("Initial migrant credibility update failed:", refErr);
-                  const statusCode = refErr?.status || refErr?.response?.status;
+                  const statusCode =
+                    typeof refErr === "object" && refErr !== null
+                      ? (refErr as { status?: number; response?: { status?: number } }).status ||
+                        (refErr as { status?: number; response?: { status?: number } }).response?.status
+                      : undefined;
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.patch(ENDPOINTS.cases.byId(selectedRow.id), {
                       outcome: "Refused",
@@ -866,9 +875,10 @@ export default function MigrantsPage() {
                   toast.success("Case marked as visa refused");
                   fetchCasesData();
                 }
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error("Failed to mark visa refused:", err);
-                toast.error(err?.message || "Failed to mark visa as refused");
+                const message = err instanceof Error ? err.message : "Failed to mark visa as refused";
+                toast.error(message);
               }
             }}
           />
@@ -892,9 +902,13 @@ export default function MigrantsPage() {
                     data: { data: [{ id: selectedRow.id }] },
                   });
                   success = true;
-                } catch (archErr: any) {
+                } catch (archErr: unknown) {
                   console.error("Initial case archive failed:", archErr);
-                  const statusCode = archErr?.status || archErr?.response?.status;
+                  const statusCode =
+                    typeof archErr === "object" && archErr !== null
+                      ? (archErr as { status?: number; response?: { status?: number } }).status ||
+                        (archErr as { status?: number; response?: { status?: number } }).response?.status
+                      : undefined;
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.delete(`${ENDPOINTS.migrants.base}/to-archive`, {
                       data: { data: [{ id: selectedRow.id }] },
@@ -908,9 +922,10 @@ export default function MigrantsPage() {
                   toast.success("Case archived successfully");
                   fetchCasesData();
                 }
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error("Failed to archive case:", err);
-                toast.error(err?.message || "Failed to archive case");
+                const message = err instanceof Error ? err.message : "Failed to archive case";
+                toast.error(message);
               }
             }}
           />
@@ -934,9 +949,13 @@ export default function MigrantsPage() {
                     data: { data: [{ id: selectedRow.id }] },
                   });
                   success = true;
-                } catch (delErr: any) {
+                } catch (delErr: unknown) {
                   console.error("Initial case delete failed:", delErr);
-                  const statusCode = delErr?.status || delErr?.response?.status;
+                  const statusCode =
+                    typeof delErr === "object" && delErr !== null
+                      ? (delErr as { status?: number; response?: { status?: number } }).status ||
+                        (delErr as { status?: number; response?: { status?: number } }).response?.status
+                      : undefined;
                   if (statusCode === 404 || statusCode === 405) {
                     await apiClient.delete(`${ENDPOINTS.migrants.base}/archive`, {
                       data: { data: [{ id: selectedRow.id }] },
@@ -950,9 +969,10 @@ export default function MigrantsPage() {
                   toast.success("Case deleted successfully");
                   fetchCasesData();
                 }
-              } catch (err: any) {
+              } catch (err: unknown) {
                 console.error("Failed to delete case:", err);
-                toast.error(err?.message || "Failed to delete case");
+                const message = err instanceof Error ? err.message : "Failed to delete case";
+                toast.error(message);
               }
             }}
           />

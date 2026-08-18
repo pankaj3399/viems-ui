@@ -11,6 +11,7 @@ import {
   RiNotification3Fill,
   RiListSettingsLine,
   RiSettings3Line,
+  RiSettings3Fill,
   RiUserSettingsLine,
   RiGroupLine,
   RiCalendarLine,
@@ -58,6 +59,7 @@ export default function SettingsPage() {
   const [notifReminders, setNotifReminders] = React.useState<[boolean, boolean]>([true, true]);
   const [notifSystem, setNotifSystem] = React.useState<[boolean, boolean]>([true, true]);
 
+  const [currentUserId, setCurrentUserId] = React.useState<number | string>(1);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
 
@@ -74,76 +76,88 @@ export default function SettingsPage() {
     language: "English (UK)",
   });
 
-  // Fetch current user settings from NestJS backend API
+  // Fetch current user info and settings from NestJS backend API
   React.useEffect(() => {
     async function fetchUserSettings() {
       try {
         setLoading(true);
-        const res = await apiClient.get<any>(ENDPOINTS.users.userInfo);
-        if (res) {
-          const fn = res.first_name || firstName;
-          const ln = res.last_name || lastName;
-          const em = res.email || email;
-          const ph = res.phone || phone;
-          const db = res.dob || dob;
-          const gn = res.gender || gender;
-          const tz = res.timezone || timezone;
-          const df = res.dateFormat || dateFormat;
-          const lg = res.language || language;
+        // Fetch user profile info
+        try {
+          const userRes = await apiClient.get<any>(ENDPOINTS.users.userInfo);
+          if (userRes) {
+            if (userRes.id) setCurrentUserId(userRes.id);
+            const fn = userRes.first_name || firstName;
+            const ln = userRes.last_name || lastName;
+            const em = userRes.email || email;
+            const ph = userRes.phone || phone;
+            const db = userRes.dob || dob;
+            const gn = userRes.gender || gender;
+            const tz = userRes.timezone || timezone;
+            const df = userRes.dateFormat || dateFormat;
+            const lg = userRes.language || language;
 
-          setFirstName(fn);
-          setLastName(ln);
-          setEmail(em);
-          setPhone(ph);
-          setDob(db);
-          setGender(gn);
-          setTimezone(tz);
-          setDateFormat(df);
-          setLanguage(lg);
+            setFirstName(fn);
+            setLastName(ln);
+            setEmail(em);
+            setPhone(ph);
+            setDob(db);
+            setGender(gn);
+            setTimezone(tz);
+            setDateFormat(df);
+            setLanguage(lg);
 
-          // Load & validate notification preferences if present
-          if (res.digestFrequency && ["Real-time", "Daily", "Weekly", "Off"].includes(res.digestFrequency)) {
-            setDigestFrequency(res.digestFrequency);
+            setProfileSnapshot({
+              firstName: fn,
+              lastName: ln,
+              email: em,
+              phone: ph,
+              dob: db,
+              gender: gn,
+              timezone: tz,
+              dateFormat: df,
+              language: lg,
+            });
           }
-          if (Array.isArray(res.notifMentions) && res.notifMentions.length === 2) {
-            setNotifMentions([Boolean(res.notifMentions[0]), Boolean(res.notifMentions[1])]);
-          }
-          if (Array.isArray(res.notifStatusChanges) && res.notifStatusChanges.length === 2) {
-            setNotifStatusChanges([Boolean(res.notifStatusChanges[0]), Boolean(res.notifStatusChanges[1])]);
-          }
-          if (Array.isArray(res.notifUrgentAlerts) && res.notifUrgentAlerts.length === 2) {
-            setNotifUrgentAlerts([Boolean(res.notifUrgentAlerts[0]), Boolean(res.notifUrgentAlerts[1])]);
-          }
-          if (Array.isArray(res.notifExpiryWarnings) && res.notifExpiryWarnings.length === 2) {
-            setNotifExpiryWarnings([Boolean(res.notifExpiryWarnings[0]), Boolean(res.notifExpiryWarnings[1])]);
-          }
-          if (Array.isArray(res.notifMigrantActions) && res.notifMigrantActions.length === 2) {
-            setNotifMigrantActions([Boolean(res.notifMigrantActions[0]), Boolean(res.notifMigrantActions[1])]);
-          }
-          if (Array.isArray(res.notifDocUploads) && res.notifDocUploads.length === 2) {
-            setNotifDocUploads([Boolean(res.notifDocUploads[0]), Boolean(res.notifDocUploads[1])]);
-          }
-          if (Array.isArray(res.notifReminders) && res.notifReminders.length === 2) {
-            setNotifReminders([Boolean(res.notifReminders[0]), Boolean(res.notifReminders[1])]);
-          }
-          if (Array.isArray(res.notifSystem) && res.notifSystem.length === 2) {
-            setNotifSystem([Boolean(res.notifSystem[0]), Boolean(res.notifSystem[1])]);
-          }
-
-          setProfileSnapshot({
-            firstName: fn,
-            lastName: ln,
-            email: em,
-            phone: ph,
-            dob: db,
-            gender: gn,
-            timezone: tz,
-            dateFormat: df,
-            language: lg,
-          });
+        } catch (err) {
+          console.warn("Using default profile info:", err);
         }
-      } catch (err) {
-        console.warn("Using default settings profile (offline note):", err);
+
+        // Fetch & validate notification preferences from settings endpoint
+        try {
+          const settingsRes = await apiClient.get<any>(ENDPOINTS.users.settings);
+          if (settingsRes) {
+            if (settingsRes.id) setCurrentUserId(settingsRes.id);
+            if (settingsRes.digestFrequency && ["Real-time", "Daily", "Weekly", "Off"].includes(settingsRes.digestFrequency)) {
+              setDigestFrequency(settingsRes.digestFrequency);
+            }
+            if (Array.isArray(settingsRes.notifMentions) && settingsRes.notifMentions.length === 2) {
+              setNotifMentions([Boolean(settingsRes.notifMentions[0]), Boolean(settingsRes.notifMentions[1])]);
+            }
+            if (Array.isArray(settingsRes.notifStatusChanges) && settingsRes.notifStatusChanges.length === 2) {
+              setNotifStatusChanges([Boolean(settingsRes.notifStatusChanges[0]), Boolean(settingsRes.notifStatusChanges[1])]);
+            }
+            if (Array.isArray(settingsRes.notifUrgentAlerts) && settingsRes.notifUrgentAlerts.length === 2) {
+              setNotifUrgentAlerts([Boolean(settingsRes.notifUrgentAlerts[0]), Boolean(settingsRes.notifUrgentAlerts[1])]);
+            }
+            if (Array.isArray(settingsRes.notifExpiryWarnings) && settingsRes.notifExpiryWarnings.length === 2) {
+              setNotifExpiryWarnings([Boolean(settingsRes.notifExpiryWarnings[0]), Boolean(settingsRes.notifExpiryWarnings[1])]);
+            }
+            if (Array.isArray(settingsRes.notifMigrantActions) && settingsRes.notifMigrantActions.length === 2) {
+              setNotifMigrantActions([Boolean(settingsRes.notifMigrantActions[0]), Boolean(settingsRes.notifMigrantActions[1])]);
+            }
+            if (Array.isArray(settingsRes.notifDocUploads) && settingsRes.notifDocUploads.length === 2) {
+              setNotifDocUploads([Boolean(settingsRes.notifDocUploads[0]), Boolean(settingsRes.notifDocUploads[1])]);
+            }
+            if (Array.isArray(settingsRes.notifReminders) && settingsRes.notifReminders.length === 2) {
+              setNotifReminders([Boolean(settingsRes.notifReminders[0]), Boolean(settingsRes.notifReminders[1])]);
+            }
+            if (Array.isArray(settingsRes.notifSystem) && settingsRes.notifSystem.length === 2) {
+              setNotifSystem([Boolean(settingsRes.notifSystem[0]), Boolean(settingsRes.notifSystem[1])]);
+            }
+          }
+        } catch (err) {
+          console.warn("Using default settings profile:", err);
+        }
       } finally {
         setLoading(false);
       }
@@ -167,6 +181,7 @@ export default function SettingsPage() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading || saving) return;
+    if (activeTab === "TEAM") return;
 
     setSaving(true);
     try {
@@ -207,7 +222,8 @@ export default function SettingsPage() {
         setConfirmPassword("");
         toast.success("Password updated successfully.");
       } else if (activeTab === "NOTIFICATIONS") {
-        await apiClient.patch(ENDPOINTS.users.settings, {
+        const patchUrl = currentUserId ? ENDPOINTS.users.settingsById(currentUserId) : ENDPOINTS.users.settings;
+        await apiClient.patch(patchUrl, {
           digestFrequency,
           notifMentions,
           notifStatusChanges,
@@ -319,9 +335,7 @@ export default function SettingsPage() {
               }`}
             >
               {activeTab === "PREFERENCES" ? (
-                <svg width="20" height="20" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-5 text-[#171717]">
-                  <path d="M5.68934 2.17484L7.64459 0.21959C7.78524 0.0789866 7.97597 0 8.17484 0C8.37371 0 8.56444 0.0789866 8.70509 0.21959L10.6603 2.17484H13.4248C13.6238 2.17484 13.8145 2.25386 13.9552 2.39451C14.0958 2.53516 14.1748 2.72593 14.1748 2.92484V5.68934L16.1301 7.64459C16.2707 7.78524 16.3497 7.97597 16.3497 8.17484C16.3497 8.37371 16.2707 8.56444 16.1301 8.70509L14.1748 10.6603V13.4248C14.1748 13.6238 14.0958 13.8145 13.9552 13.9552C13.8145 14.0958 13.6238 14.1748 13.4248 14.1748H10.6603L8.70509 16.1301C8.56444 16.2707 8.37371 16.3497 7.64459 16.1301L5.68934 14.1748H2.92484C2.72593 14.1748 2.53516 14.0958 2.39451 2.39451C2.53516 2.25386 2.72593 2.17484 2.92484 2.17484H5.68934ZM8.17484 10.4248C8.77158 10.4248 9.34387 10.1878 9.76583 9.76583C10.1878 9.34387 10.4248 8.77158 10.4248 8.17484C10.4248 7.5781 10.1878 7.00581 9.76583 6.58385C9.34387 6.16189 8.77158 5.92484 8.17484 5.92484C7.5781 5.92484 7.00581 6.16189 6.58385 6.58385C6.16189 7.00581 5.92484 7.5781 5.92484 8.17484C5.92484 8.77158 6.16189 9.34387 6.58385 9.76583C7.00581 10.1878 7.5781 10.4248 8.17484 10.4248V10.4248Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
-                </svg>
+                <RiSettings3Fill className="size-5 text-[#171717]" />
               ) : (
                 <RiSettings3Line className="size-5 text-[#5C5C5C]" />
               )}
@@ -648,7 +662,7 @@ export default function SettingsPage() {
                 {/* Notifications Channels Section */}
                 <div className="flex flex-col gap-3">
                   <div>
-                    <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">Notifications channels</h2>
+                    <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">Notification channels</h2>
                     <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">Choose which notifications you receive by email and push notifications.</p>
                   </div>
                   <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 shadow-sm">
@@ -928,30 +942,32 @@ export default function SettingsPage() {
             )}
 
             {/* Footer Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-2">
-              {activeTab === "PROFILE" && (
+            {activeTab !== "TEAM" && (
+              <div className="flex items-center justify-end gap-3 pt-2">
+                {activeTab === "PROFILE" && (
+                  <button
+                    type="button"
+                    onClick={handleCancelProfile}
+                    className="px-4 py-2 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
-                  type="button"
-                  onClick={handleCancelProfile}
-                  className="px-4 py-2 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+                  type="submit"
+                  disabled={loading || saving}
+                  className="px-5 py-2.5 rounded-[10px] text-[14px] font-medium bg-[#171717] text-white hover:bg-[#262626] transition-colors cursor-pointer shadow-sm disabled:opacity-50"
                 >
-                  Cancel
+                  {saving
+                    ? "Saving..."
+                    : activeTab === "SECURITY"
+                    ? "Update password"
+                    : activeTab === "NOTIFICATIONS"
+                    ? "Save preferences"
+                    : "Save changes"}
                 </button>
-              )}
-              <button
-                type="submit"
-                disabled={loading || saving}
-                className="px-5 py-2.5 rounded-[10px] text-[14px] font-medium bg-[#171717] text-white hover:bg-[#262626] transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-              >
-                {saving
-                  ? "Saving..."
-                  : activeTab === "SECURITY"
-                  ? "Update password"
-                  : activeTab === "NOTIFICATIONS"
-                  ? "Save preferences"
-                  : "Save changes"}
-              </button>
-            </div>
+              </div>
+            )}
           </form>
         </div>
       </div>
