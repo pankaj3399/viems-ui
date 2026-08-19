@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Users } from "lucide-react";
 import {
   RiSearchLine,
@@ -41,7 +41,8 @@ import { DeleteCaseModal } from "./components/DeleteCaseModal";
 import { CaseActionModal } from "./components/CaseActionModal";
 import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName, getInitials } from "@/lib/utils";
+import { formatFullName, getInitials, classifyCaseStage, getCaseAction } from "@/lib/utils";
+import { CaseRow, mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefused } from "@/lib/case-mapper";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { getCountryInfo } from "@/lib/country";
 import { Flag } from "@/components/ui/flag";
@@ -80,187 +81,41 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
     </svg>
   )
 );
-interface CaseRow {
-  id?: number;
-  roleId?: number;
-  caseId: string;
-  country: string;
-  countryCode: string;
-  countryHalf: string;
-  flag: string;
-  name: string;
-  group: string;
-  avatarText?: string;
-  avatarUrl?: string;
-  status: string;
-  statusColor: "warning" | "success" | "info" | "error" | "gray";
-  migration: string;
-  action: string;
-  actionColor: "blue" | "red" | "yellow" | "gray";
-  passportNumber?: string;
-  refusalDate?: string;
-  refusalReason?: string;
-  outcome?: string | null;       // preserve server outcome on PATCH
-  cosStatusValue?: string | null; // preserve server cosStatus on PATCH
-}
 
-
-function getStatusDetails(rawStatus: string): { label: string; color: "success" | "warning" | "error" | "info" | "gray" } {
-  if (!rawStatus) return { label: "Visa Approved", color: "success" };
-  const norm = rawStatus.toLowerCase().replace(/_/g, " ").trim();
-  if (norm === "granted" || norm === "visa approved" || norm === "assigned" || norm === "cos assigned" || norm === "active") {
-    return { label: "Visa Approved", color: "success" };
-  }
-  if (norm === "refused" || norm === "visa refused") {
-    return { label: "Visa Refused", color: "error" };
-  }
-  if (norm === "in progress" || norm === "in_progress" || norm === "drafting cos") {
-    return { label: "Drafting CoS", color: "info" };
-  }
-  if (norm === "pending" || norm === "awaiting applicant docs") {
-    return { label: "Awaiting applicant docs", color: "warning" };
-  }
-  if (norm === "done" || norm === "withdrawn" || norm === "closed") {
-    return { label: "Case closed", color: "gray" };
-  }
-
-  const found = CASE_STATUSES.find(
-    (s) => s.value.toLowerCase().replace(/_/g, " ").trim() === norm || s.label.toLowerCase().trim() === norm
-  );
-  if (found) {
-    const color = found.dotColor === "#1FC16B" ? "success"
-      : found.dotColor === "#F6B51E" ? "warning"
-      : found.dotColor === "#335CFF" ? "info"
-      : found.dotColor === "#FB3748" ? "error"
-      : "gray";
-    return { label: found.label, color };
-  }
-
-  return { label: rawStatus, color: "success" };
-}
-
-function mapBackendCaseToRow(c: any, completedActions?: Set<string>): CaseRow {
-  const name = formatFullName(c.first_name, c.last_name);
-  const initials = getInitials(name);
-
-  const { label: status, color: statusColor } = getStatusDetails(c.case_status);
-
-  // Parse country info (full, code, half, flag)
-  const { code: countryCode, full: countryName, half: countryHalf, flag } = getCountryInfo(c.nationality_value);
-
-  // Migration stage mapping
-  let migration = "ACTIVE COMPLIANCE";
-  if (status === "Visa Refused") {
-    migration = "VISA REFUSED";
-  } else if (status === "Awaiting applicant docs") {
-    migration = "PENDING VISA";
-  } else if (status === "Visa Approved") {
-    migration = "ARRIVED - RTW PENDING";
-  } else {
-    // Distribute remaining among ACTIVE COMPLIANCE, IN UK, and LEFT UK based on c.id
-    const mod = (c.id || 0) % 3;
-    migration = mod === 0 ? "ACTIVE COMPLIANCE" : mod === 1 ? "IN UK" : "LEFT UK";
-  }
-
-  // Action mapping based on status or case ID distribution for rich QA testing
-  let action = "No action required";
-  let actionColor: "blue" | "red" | "yellow" | "gray" = "gray";
-
-  const isActionDone = completedActions && (
-    completedActions.has(String(c.id)) ||
-    completedActions.has(String(c.caseIdNumber)) ||
-    completedActions.has(String(c.caseNumber)) ||
-    completedActions.has(String(c.caseIdDisplay))
-  );
-
-  if (isActionDone) {
-    action = "No action required";
-    actionColor = "gray";
-  } else if (status === "Visa Refused") {
-    action = "Review and report";
-    actionColor = "red";
-  } else if (status === "Awaiting applicant docs") {
-    action = "Upload passport";
-    actionColor = "blue";
-  } else {
-    // Variety of actions based on c.id to enable testing all 5 action modal types
-    const modAction = (c.id || 0) % 6;
-    switch (modAction) {
-      case 0:
-        action = "No action required";
-        actionColor = "gray";
-        break;
-      case 1:
-        action = "Check RTW";
-        actionColor = "red";
-        break;
-      case 2:
-        action = "Upload passport";
-        actionColor = "blue";
-        break;
-      case 3:
-        action = "Review and report";
-        actionColor = "red";
-        break;
-      case 4:
-        action = "Schedule RTW check";
-        actionColor = "yellow";
-        break;
-      case 5:
-        action = "Finalise offboarding";
-        actionColor = "red";
-        break;
-      default:
-        action = "No action required";
-        actionColor = "gray";
-    }
-  }
-
-  const passportNumber = c.passport_number || c.passportNumber || "—";
-  const refusalDate = c.refusal_date || c.refusalDate || "—";
-  const refusalReason = c.refusal_reason || c.refusalReason || "—";
-  const assignedGroup = c.group_name || "No Group";
-
-  return {
-    id: c.id,
-    roleId: c.role || 1,
-    caseId: c.caseIdDisplay || c.caseNumber || `${c.id}`,
-    country: countryName,
-    countryCode,
-    countryHalf,
-    flag,
-    name,
-    group: assignedGroup,
-    avatarText: initials || "UM",
-    avatarUrl: undefined,
-    status,
-    statusColor,
-    migration,
-    action,
-    actionColor,
-    passportNumber,
-    refusalDate,
-    refusalReason,
-    outcome: c.outcome ?? null,
-    cosStatusValue: c.cosStatus ?? null,
-  };
-}
 
 export default function CasesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialStatusParam = searchParams?.get("status") || null;
+  const initialStageParam = searchParams?.get("stage") || null;
+  const initialCountryParam = searchParams?.get("country") || null;
+  const initialCaseIdParam = searchParams?.get("caseId") || null;
+  const initialQuickParam = searchParams?.get("quick") || null;
+  const initialNeedsActionParam = searchParams?.get("needsAction") === "true" || initialQuickParam === "needs_action";
+
   const [activeTab, setActiveTab] = React.useState<"cases" | "groups" | "refusals">("cases");
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [needsActionOnly, setNeedsActionOnly] = React.useState(false);
+  const [needsActionOnly, setNeedsActionOnly] = React.useState(initialNeedsActionParam);
 
-  // Filter states
-  const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
-  const [migrationFilter, setMigrationFilter] = React.useState<string | null>(null);
+  // Filter states initialized from URL searchParams
+  const [countryFilter, setCountryFilter] = React.useState<string | null>(initialCountryParam);
+  const [statusFilter, setStatusFilter] = React.useState<string | null>(() => {
+    if (!initialStatusParam) return null;
+    const s = initialStatusParam.toLowerCase();
+    if (s === "active" || s === "approved") return "Visa Approved";
+    if (s === "awaiting_decision" || s === "pending") return "Awaiting applicant docs";
+    if (s === "refused") return "Visa Refused";
+    return initialStatusParam;
+  });
+  const [migrationFilter, setMigrationFilter] = React.useState<string | null>(
+    () => searchParams?.get("migration") || null
+  );
+  const [stageFilter, setStageFilter] = React.useState<string | null>(initialStageParam);
   const [severityFilter, setSeverityFilter] = React.useState<string | null>(null);
-  const [caseIdFilter, setCaseIdFilter] = React.useState<string | null>(null);
-  const [quickFilter, setQuickFilter] = React.useState<string | null>(null);
+  const [caseIdFilter, setCaseIdFilter] = React.useState<string | null>(initialCaseIdParam);
+  const [quickFilter, setQuickFilter] = React.useState<string | null>(initialQuickParam);
 
   // Popover filter panel states
   const [filterPanelOpen, setFilterPanelOpen] = React.useState(false);
@@ -292,9 +147,11 @@ export default function CasesPage() {
     setStatusFilter(null);
     setCountryFilter(null);
     setMigrationFilter(null);
+    setStageFilter(null);
     setSeverityFilter(null);
     setCaseIdFilter(null);
     setQuickFilter(null);
+    setNeedsActionOnly(false);
     setFilterPanelOpen(false);
   };
 
@@ -318,49 +175,20 @@ export default function CasesPage() {
   const loadCases = React.useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get<{ data: any[]; count: number }>(
+      const response = await apiClient.get<any>(
         ENDPOINTS.cases.base
       );
 
-      let overrides: Record<string, string> = {};
-      try {
-        const saved = localStorage.getItem("viems_case_status_overrides");
-        if (saved) overrides = JSON.parse(saved);
-      } catch (e) {}
+      const rawData = response && (Array.isArray(response) ? response : Array.isArray((response as any).data) ? (response as any).data : null);
+      if (!rawData) {
+        throw new Error("Invalid response payload from cases endpoint");
+      }
 
-      let completedActions = new Set<string>();
-      try {
-        const savedActions = localStorage.getItem("viems_completed_actions");
-        if (savedActions) {
-          const parsed = JSON.parse(savedActions);
-          if (Array.isArray(parsed)) {
-            completedActions = new Set(parsed.map(String));
-          }
-        }
-      } catch (e) {}
-
-      const mapped = response.data.map((c) => {
-        const row = mapBackendCaseToRow(c, completedActions);
-        const overrideKey = c.id || c.caseNumber || row.caseId;
-        if (overrideKey && overrides[overrideKey]) {
-          const overrideStatus = overrides[overrideKey];
-          const foundOption = CASE_STATUSES.find(
-            (s) => s.value === overrideStatus || s.label === overrideStatus
-          );
-          if (foundOption) {
-            row.status = foundOption.label;
-            row.statusColor = foundOption.dotColor === "#1FC16B" ? "success"
-              : foundOption.dotColor === "#F6B51E" ? "warning"
-              : foundOption.dotColor === "#335CFF" ? "info"
-              : foundOption.dotColor === "#FB3748" ? "error"
-              : "gray";
-          }
-        }
-        return row;
-      });
+      const mapped = getMappedCasesWithOverrides(rawData);
       setCases(mapped);
     } catch (err) {
       console.error("Failed to fetch cases:", err);
+      toast.error("Failed to load cases. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -373,18 +201,20 @@ export default function CasesPage() {
   // Filter cases by tab first
   const tabCases = React.useMemo(() => {
     return cases.filter((item) => {
-      const isRefused =
-        item.status.toUpperCase() === "VISA REFUSED" ||
-        item.status.toLowerCase() === "visa refused";
+      const isRefused = isCaseRefused(item);
 
       if (activeTab === "refusals") {
         return isRefused;
       } else if (activeTab === "cases") {
+        const normStage = stageFilter ? stageFilter.toUpperCase().replace(/_/g, " ").trim() : null;
+        if (statusFilter === "Visa Refused" || statusFilter === "refused" || normStage === "VISA") {
+          return true;
+        }
         return !isRefused;
       }
       return true; // groups shows all
     });
-  }, [cases, activeTab]);
+  }, [cases, activeTab, statusFilter, stageFilter]);
 
   // Derive unique countries and statuses for filter dropdowns
   const uniqueCountries = React.useMemo(() => {
@@ -485,11 +315,18 @@ export default function CasesPage() {
         countryFilter.toLowerCase().includes(item.countryCode.toLowerCase()) ||
         countryFilter.toLowerCase().includes(item.country.toLowerCase())
       );
-      const matchesStatus = !statusFilter || item.status === statusFilter;
+
+      const matchesStatus = !statusFilter || statusFilter === "all" || (
+        statusFilter.toLowerCase() === "active" ? (item.status === "Visa Approved" || item.migration === "ACTIVE COMPLIANCE" || item.migration === "IN UK") :
+        statusFilter.toLowerCase() === "approved" ? (item.status === "Visa Approved") :
+        statusFilter.toLowerCase() === "awaiting_decision" ? (item.status === "Awaiting applicant docs" || item.status === "Drafting CoS") :
+        statusFilter.toLowerCase() === "refused" ? (item.status.toLowerCase().includes("refused")) :
+        item.status.toLowerCase() === statusFilter.toLowerCase()
+      );
       
-      const matchesMigration = !migrationFilter || (
+      const matchesMigration = !migrationFilter || migrationFilter === "all" || (
         migrationFilter === "ACTIVE COMPLIANCE" ? (item.migration === "ACTIVE COMPLIANCE" || item.migration === "IN UK") :
-        item.migration === migrationFilter
+        item.migration.toLowerCase() === migrationFilter.toLowerCase()
       );
       const matchesSeverity = !severityFilter || (
         severityFilter === "RED" ? item.actionColor === "red" :
@@ -499,6 +336,11 @@ export default function CasesPage() {
       );
       const matchesCaseId = !caseIdFilter || item.caseId.toLowerCase().includes(caseIdFilter.toLowerCase());
 
+      const normStage = stageFilter ? stageFilter.toUpperCase().replace(/_/g, " ").trim() : null;
+      const matchesStage = !normStage || normStage === "ALL" || (
+        classifyCaseStage(item) === normStage
+      );
+
       const matchesQuick = !quickFilter || (
         quickFilter === "needs_action" ? (item.actionColor !== "gray" && item.action !== "No action required") :
         quickFilter === "awaiting_upload" ? item.action === "Upload passport" :
@@ -506,15 +348,12 @@ export default function CasesPage() {
       );
 
       if (needsActionOnly) {
-        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick && item.actionColor !== "gray" && item.action !== "No action required";
+        return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesStage && matchesSeverity && matchesCaseId && matchesQuick && item.actionColor !== "gray" && item.action !== "No action required";
       }
-      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesSeverity && matchesCaseId && matchesQuick;
+      return matchesSearch && matchesCountry && matchesStatus && matchesMigration && matchesStage && matchesSeverity && matchesCaseId && matchesQuick;
     });
-    if (searchQuery && searchQuery.trim()) {
-      console.log("[DEBUG filteredCases] result.length:", result.length, "first 5:", result.slice(0, 5).map(c => ({ name: c.name, group: c.group, caseId: c.caseId })));
-    }
     return result;
-  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, severityFilter, caseIdFilter, quickFilter]);
+  }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, stageFilter, severityFilter, caseIdFilter, quickFilter]);
 
   const groupedData = React.useMemo(() => {
     const groupsMap = new Map<string, CaseRow[]>();
@@ -783,7 +622,7 @@ export default function CasesPage() {
     }
   };
 
-  const handleActionCompleted = (completedId?: number) => {
+  const handleActionCompleted = (completedId?: number | string) => {
     const idToSave = completedId || actionModalRow?.id;
     const caseIdToSave = actionModalRow?.caseId;
 
@@ -961,7 +800,7 @@ export default function CasesPage() {
             />
             <span>Cases</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {activeTab === "cases" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() !== "VISA REFUSED" && c.status.toLowerCase() !== "visa refused").length}
+              {activeTab === "cases" ? filteredCases.length : cases.filter((c) => !isCaseRefused(c)).length}
             </div>
           </Button>
           <Button
@@ -999,7 +838,7 @@ export default function CasesPage() {
             )}
             <span>Refusals</span>
             <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => c.status.toUpperCase() === "VISA REFUSED" || c.status.toLowerCase() === "visa refused").length}
+              {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => isCaseRefused(c)).length}
             </div>
           </Button>
         </div>

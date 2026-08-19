@@ -19,8 +19,10 @@ interface TravelHistoryRow {
   method: string;
 }
 
+import { RawTravelHistoryRecord } from "@/types/api";
+
 interface TravelHistoryTabProps {
-  migrant?: any;
+  migrant?: { id?: string | number; [key: string]: unknown } | null;
 }
 
 export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
@@ -35,14 +37,15 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
       if (!migrant?.id) return;
       try {
         setLoading(true);
-        const res = await apiClient.get<any>(ENDPOINTS.migrants.travelHistory(migrant.id));
+        const res = await apiClient.get<RawTravelHistoryRecord[]>(ENDPOINTS.migrants.travelHistory(migrant.id));
         if (active && Array.isArray(res)) {
-          const mapped: TravelHistoryRow[] = res.map((r: any, idx: number) => {
+          const mapped: TravelHistoryRow[] = res.map((r: RawTravelHistoryRecord, idx: number) => {
             const rawDate = r.date || r.travelDate || "";
             const d = rawDate ? new Date(rawDate) : null;
             const dateValue = d && !isNaN(d.getTime()) ? d.getTime() : 0;
+            const numId = typeof r.id === "number" ? r.id : (r.id !== undefined && r.id !== null && !isNaN(Number(r.id)) ? Number(r.id) : null);
             return {
-              id: r.id || idx + 1,
+              id: numId !== null ? numId : idx + 1,
               direction: (r.direction || r.type || "IN").toUpperCase() === "OUT" ? "OUT" : "IN",
               date: r.date || r.travelDate || "—",
               dateValue,
@@ -53,7 +56,7 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
           });
           setRecords(mapped);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (active) console.error("Failed to load travel history:", err);
       } finally {
         if (active) setLoading(false);

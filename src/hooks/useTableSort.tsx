@@ -1,28 +1,53 @@
 import * as React from "react";
 import { RiArrowUpSLine, RiArrowDownSLine, RiExpandUpDownFill } from "@remixicon/react";
 
+interface SortState<T> {
+  field: keyof T | null;
+  direction: "asc" | "desc";
+}
+
 export function useTableSort<T>(
   initialField: keyof T | null = null,
   initialDirection: "asc" | "desc" = "asc"
 ) {
-  const [sortField, setSortField] = React.useState<keyof T | null>(initialField);
-  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">(initialDirection);
+  const [sortState, setSortState] = React.useState<SortState<T>>({
+    field: initialField,
+    direction: initialDirection,
+  });
 
   const handleSort = React.useCallback((field: keyof T) => {
-    setSortField((prevField) => {
-      if (prevField === field) {
-        setSortDirection((prevDir) => (prevDir === "asc" ? "desc" : "asc"));
-        return field;
+    setSortState((prev) => {
+      if (prev.field === field) {
+        return {
+          field,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
       }
-      setSortDirection("asc");
-      return field;
+      return {
+        field,
+        direction: "asc",
+      };
     });
+  }, []);
+
+  const setSortField = React.useCallback((field: React.SetStateAction<keyof T | null>) => {
+    setSortState((prev) => ({
+      ...prev,
+      field: typeof field === "function" ? (field as (p: keyof T | null) => keyof T | null)(prev.field) : field,
+    }));
+  }, []);
+
+  const setSortDirection = React.useCallback((direction: React.SetStateAction<"asc" | "desc">) => {
+    setSortState((prev) => ({
+      ...prev,
+      direction: typeof direction === "function" ? (direction as (p: "asc" | "desc") => "asc" | "desc")(prev.direction) : direction,
+    }));
   }, []);
 
   const renderSortIcon = React.useCallback(
     (field: keyof T) => {
-      if (sortField === field) {
-        return sortDirection === "asc" ? (
+      if (sortState.field === field) {
+        return sortState.direction === "asc" ? (
           <RiArrowUpSLine className="size-3.5 text-[#171717]" />
         ) : (
           <RiArrowDownSLine className="size-3.5 text-[#171717]" />
@@ -30,13 +55,13 @@ export function useTableSort<T>(
       }
       return <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />;
     },
-    [sortField, sortDirection]
+    [sortState.field, sortState.direction]
   );
 
   return {
-    sortField,
+    sortField: sortState.field,
     setSortField,
-    sortDirection,
+    sortDirection: sortState.direction,
     setSortDirection,
     handleSort,
     renderSortIcon,

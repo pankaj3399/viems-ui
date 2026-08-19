@@ -353,3 +353,105 @@ export interface InitStartData {
   };
   [key: string]: unknown;
 }
+
+// ─── Case & Travel History Raw / Payload Types ──────────────────────────────
+
+export const VISA_OUTCOME_CODES = {
+  GRANTED: 1,
+  REFUSED: 2,
+  WITHDRAWN: 3,
+  PENDING: 4,
+} as const;
+
+export interface RawCaseRecord {
+  id?: number | string;
+  role?: number;
+  caseIdDisplay?: string;
+  caseNumber?: string;
+  caseIdNumber?: number | string;
+  first_name?: string;
+  last_name?: string;
+  created_at?: string;
+  creation_date?: string;
+  job_title?: string;
+  visaType?: string;
+  visa?: number;
+  personal?: {
+    jobTitle?: string;
+    groupName?: string;
+  };
+  group_name?: string;
+  nationality_value?: string;
+  nationality_title?: string;
+  country?: string;
+  case_status?: string;
+  status?: string;
+  migration?: string;
+  migration_stage?: string;
+  is_active?: boolean;
+  passport_number?: string;
+  passportNumber?: string;
+  refusal_date?: string;
+  refusalDate?: string;
+  refusal_reason?: string;
+  refusalReason?: string;
+  outcome?: string | null;
+  cosStatus?: string | null;
+  cosStatusValue?: string | null;
+  flightEntered?: {
+    isEntered?: boolean;
+  };
+}
+
+export interface MigrantCasesResponse {
+  cases?: RawCaseRecord[];
+  data?: {
+    cases?: RawCaseRecord[];
+  };
+}
+
+export interface RawTravelHistoryRecord {
+  id?: number | string;
+  date?: string;
+  travelDate?: string;
+  direction?: string;
+  type?: string;
+  port?: string;
+  location?: string;
+  routeFlight?: string;
+  flightNumber?: string;
+  method?: string;
+  transport?: string;
+}
+
+export interface UserProfileResponse {
+  id?: number | string;
+  first_name?: string;
+  last_name?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  timezone?: string;
+  dateFormat?: string;
+  language?: string;
+  role?: {
+    value?: string;
+    title?: string;
+  };
+}
+
+export interface UserSettingsResponse {
+  id?: number | string;
+  digestFrequency?: "Real-time" | "Daily" | "Weekly" | "Off";
+  notifMentions?: [boolean, boolean];
+  notifStatusChanges?: [boolean, boolean];
+  notifUrgentAlerts?: [boolean, boolean];
+  notifExpiryWarnings?: [boolean, boolean];
+  notifMigrantActions?: [boolean, boolean];
+  notifDocUploads?: [boolean, boolean];
+  notifReminders?: [boolean, boolean];
+  notifSystem?: [boolean, boolean];
+}
+

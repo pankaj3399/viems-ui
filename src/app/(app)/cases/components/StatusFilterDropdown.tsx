@@ -40,7 +40,11 @@ export function StatusFilterDropdown({
   }, [open, value]);
 
   const getDotColor = (status: string) => {
-    const color = statusColors[status] || "#7D52F4";
+    const normalizedStatus = (status || "").toLowerCase().replace(/_/g, " ").trim();
+    const matchedKey = Object.keys(statusColors).find(
+      (k) => k.toLowerCase().replace(/_/g, " ").trim() === normalizedStatus
+    );
+    const color = (matchedKey ? statusColors[matchedKey] : statusColors[status]) || "#7D52F4";
     if (color.startsWith("#")) {
       return color;
     }

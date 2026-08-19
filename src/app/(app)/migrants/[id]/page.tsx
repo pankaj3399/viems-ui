@@ -482,9 +482,13 @@ export default function MigrantDetailPage() {
                 status: newStatus,
               });
               success = true;
-            } catch (caseErr: any) {
+            } catch (caseErr: unknown) {
               console.error("Initial case endpoint update failed:", caseErr);
-              const statusCode = caseErr?.status || caseErr?.response?.status;
+              const statusCode =
+                typeof caseErr === "object" && caseErr !== null
+                  ? (caseErr as { status?: number; response?: { status?: number } }).status ||
+                    (caseErr as { status?: number; response?: { status?: number } }).response?.status
+                  : undefined;
               if (statusCode === 404 || statusCode === 405) {
                 await apiClient.patch(ENDPOINTS.migrants.byId(id), {
                   case_status: newStatus,
@@ -499,9 +503,10 @@ export default function MigrantDetailPage() {
               toast.success("Migrant status updated successfully");
               loadMigrantDetail();
             }
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error("Failed to update status:", err);
-            toast.error(err?.message || "Failed to update status");
+            const message = err instanceof Error ? err.message : "Failed to update status";
+            toast.error(message);
           }
         }}
       />

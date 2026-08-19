@@ -3,13 +3,13 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RiUpload2Line, RiCloseLine, RiFileTextLine, RiSparklingFill } from "@remixicon/react";
+import { RiUpload2Line, RiCloseLine, RiFileTextLine } from "@remixicon/react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 
-interface CaseRow {
-  id?: number;
+export interface CaseActionRow {
+  id?: number | string;
   roleId?: number;
   caseId: string;
   name: string;
@@ -17,13 +17,14 @@ interface CaseRow {
   avatarUrl?: string;
   action: string;
   actionColor: "blue" | "red" | "yellow" | "gray";
+  statusColor?: "warning" | "success" | "info" | "error" | "gray";
 }
 
 interface CaseActionModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  row: CaseRow | null;
-  onSuccess?: (caseId?: number) => void;
+  row: CaseActionRow | null;
+  onSuccess?: (caseId?: number | string) => void;
 }
 
 export function CaseActionModal({
@@ -279,8 +280,6 @@ export function CaseActionModal({
               accept=".jpeg,.jpg,.png,.pdf"
               className="hidden"
             />
-
-            <RiSparklingFill className="size-4 text-[#7D52F4] absolute top-[18px] right-[18px] opacity-80" />
 
             {selectedFile ? (
               <div className="flex items-center gap-[12px] py-xs">
