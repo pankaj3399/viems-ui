@@ -249,7 +249,7 @@ export function MigrantPersonalDetailsCard({
     { label: "Marital Status", value: personalInfo?.maritalStatus || "—" },
     {
       label: "Nationality",
-      custom: natCode ? (
+      custom: natCode && natCode !== "UN" ? (
         <div className="flex items-center gap-[6px] justify-end">
           <Flag country={natCode} className="size-5 rounded-full object-cover shrink-0" />
           <span className="text-[14px] font-medium text-[#171717]">{natCode}</span>
@@ -260,7 +260,7 @@ export function MigrantPersonalDetailsCard({
     },
     {
       label: "Country of Birth",
-      custom: birthCountryCode ? (
+      custom: birthCountryCode && birthCountryCode !== "UN" ? (
         <div className="flex items-center gap-[6px] justify-end">
           <Flag country={birthCountryCode} className="size-5 rounded-full object-cover shrink-0" />
           <span className="text-[14px] font-medium text-[#171717]">{birthCountryCode}</span>

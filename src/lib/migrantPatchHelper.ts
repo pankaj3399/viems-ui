@@ -3,20 +3,29 @@
  * Consolidates common fields across EditContactDetailsModal, EditHomeAddressModal, and EditPersonalDetailsModal.
  */
 export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}): any {
+  const pInfo = migrantData?.personalInfo || migrantData?.user?.personalInfo || {};
+  const nameParts = (migrantData?.name || pInfo.fullName || "").trim().split(/\s+/);
+  const fallbackFirst = nameParts[0] || "";
+  const fallbackLast = nameParts.slice(1).join(" ") || "";
+
   const firstName =
     overrides.first_name !== undefined
       ? overrides.first_name
       : migrantData?.first_name ||
-        migrantData?.user?.personalInfo?.firstName ||
+        pInfo.firstName ||
+        migrantData?.firstName ||
         migrantData?.user?.firstName ||
+        fallbackFirst ||
         "";
 
   const lastName =
     overrides.last_name !== undefined
       ? overrides.last_name
       : migrantData?.last_name ||
-        migrantData?.user?.personalInfo?.lastName ||
+        pInfo.lastName ||
+        migrantData?.lastName ||
         migrantData?.user?.lastName ||
+        fallbackLast ||
         "";
 
   const rawStageName =
@@ -29,30 +38,69 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
       .replace(/[^a-zA-Z0-9]/g, "")
       .toLowerCase() || `migrant${migrantData?.id || ""}`;
 
-  const existingContacts = migrantData?.contacts || {};
+  const existingContacts = migrantData?.contacts || migrantData?.contact || {};
   const contactsOverride = overrides.contacts || {};
+
+  const userEmail =
+    overrides.user?.email ||
+    migrantData?.user?.email ||
+    migrantData?.email ||
+    migrantData?.contact?.email ||
+    existingContacts.contact_email ||
+    `${(cleanStageName || "user")}${migrantData?.id || Date.now()}@viems.internal`;
+
+  const rawGender =
+    overrides.gender !== undefined
+      ? overrides.gender
+      : migrantData?.gender ??
+        pInfo.gender ??
+        pInfo.sex ??
+        migrantData?.sex ??
+        null;
+
+  const rawDob =
+    overrides.date_of_birth !== undefined
+      ? overrides.date_of_birth
+      : migrantData?.date_of_birth ??
+        pInfo.dob ??
+        pInfo.dateOfBirth ??
+        migrantData?.dateOfBirth ??
+        null;
+
+  const rawNationality =
+    overrides.nationality !== undefined
+      ? overrides.nationality
+      : pInfo.nationality?.id ??
+        pInfo.nationalityCode ??
+        pInfo.nationality ??
+        migrantData?.nationality?.id ??
+        (typeof migrantData?.nationality === "number" ? migrantData.nationality : null);
 
   const payload: any = {
     ...overrides,
     first_name: firstName,
     last_name: lastName,
-    gender:
-      overrides.gender !== undefined
-        ? overrides.gender
-        : migrantData?.gender ?? migrantData?.user?.personalInfo?.sex ?? null,
-    date_of_birth:
-      overrides.date_of_birth !== undefined
-        ? overrides.date_of_birth
-        : migrantData?.date_of_birth ?? migrantData?.user?.personalInfo?.dateOfBirth ?? null,
-    nationality:
-      overrides.nationality !== undefined
-        ? overrides.nationality
-        : migrantData?.nationality?.id ??
-          (typeof migrantData?.nationality === "number" ? migrantData.nationality : null),
+    user: {
+      email: userEmail,
+      ...(migrantData?.user || {}),
+      ...(overrides.user || {}),
+      personalInfo: {
+        firstName,
+        lastName,
+        dateOfBirth: rawDob,
+        sex: rawGender,
+        nationality: rawNationality,
+        ...(migrantData?.user?.personalInfo || {}),
+        ...(overrides.user?.personalInfo || {}),
+      },
+    },
+    gender: rawGender,
+    date_of_birth: rawDob,
+    nationality: rawNationality,
     place_of_birth:
       overrides.place_of_birth !== undefined
         ? overrides.place_of_birth
-        : migrantData?.place_of_birth ?? null,
+        : migrantData?.place_of_birth ?? pInfo.cityOfBirth ?? null,
     stage_name: cleanStageName,
     with_stage_name:
       overrides.with_stage_name !== undefined
@@ -64,7 +112,7 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
       contact_email:
         contactsOverride.contact_email !== undefined
           ? contactsOverride.contact_email
-          : existingContacts.contact_email || migrantData?.user?.email || "",
+          : existingContacts.contact_email || existingContacts.email || migrantData?.user?.email || "",
       address_line_1:
         contactsOverride.address_line_1 !== undefined
           ? contactsOverride.address_line_1

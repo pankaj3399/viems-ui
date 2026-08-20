@@ -26,6 +26,7 @@ interface EditContactDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   migrantId: string;
+  initialData?: any;
   onSuccess: () => void;
 }
 
@@ -33,6 +34,7 @@ export function EditContactDetailsModal({
   open,
   onOpenChange,
   migrantId,
+  initialData,
   onSuccess,
 }: EditContactDetailsModalProps) {
   // Primary Contact states
@@ -52,6 +54,39 @@ export function EditContactDetailsModal({
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
 
+  const populateFromObject = React.useCallback((m: any) => {
+    if (!m) return;
+    setMigrantData(m);
+    
+    // Primary Contact mapping
+    setWorkEmail(m.user?.email || m.contact?.email || m.workEmail || m.email || "");
+    setPersonalEmail(m.contacts?.contact_email || m.contact?.email || m.personalEmail || "");
+    setMobilePhone(m.contacts?.phone_1 || m.contact?.phone || m.phone || m.mobilePhone || "");
+
+    // Load emergency contacts from localStorage or object
+    try {
+      const stored = localStorage.getItem(`emergency_${migrantId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setEmergencyName(parsed.name || "");
+        setEmergencyRelationship(parsed.relationship || "Spouse");
+        setEmergencyEmail(parsed.email || "");
+        setEmergencyPhone(parsed.phone || "");
+      } else if (m.emergencyContact) {
+        setEmergencyName(m.emergencyContact.name || "");
+        setEmergencyRelationship(m.emergencyContact.relationship || "Spouse");
+        setEmergencyEmail(m.emergencyContact.email || "");
+        setEmergencyPhone(m.emergencyContact.phone || "");
+      }
+    } catch {}
+  }, [migrantId]);
+
+  React.useEffect(() => {
+    if (initialData && open) {
+      populateFromObject(initialData);
+    }
+  }, [initialData, open, populateFromObject]);
+
   // Load existing details
   React.useEffect(() => {
     async function loadData() {
@@ -60,41 +95,46 @@ export function EditContactDetailsModal({
       try {
         setIsLoading(true);
 
-        // Fetch current migrant details
-        const migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
-        if (migrant) {
-          setMigrantData(migrant);
-          
-          // Primary Contact mapping
-          setWorkEmail(migrant.user?.email || "");
-          setPersonalEmail(migrant.contacts?.contact_email || "");
-          setMobilePhone(migrant.contacts?.phone_1 || "");
+        // If initialData is already available, avoid overriding with mismatched ID lookup
+        if (initialData && (initialData.contact?.email || initialData.contacts?.contact_email || initialData.email)) {
+          return;
+        }
 
-          // Load emergency contacts from localStorage
-          const stored = localStorage.getItem(`emergency_${migrantId}`);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            setEmergencyName(parsed.name || "");
-            setEmergencyRelationship(parsed.relationship || "Spouse");
-            setEmergencyEmail(parsed.email || "");
-            setEmergencyPhone(parsed.phone || "");
-          } else {
-            setEmergencyName("");
-            setEmergencyRelationship("");
-            setEmergencyEmail("");
-            setEmergencyPhone("");
+        // Fetch current migrant details safely by checking case first
+        let migrant: any = null;
+        try {
+          const caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(migrantId));
+          if (caseData && (caseData.id || caseData.caseNumber || caseData.migrant)) {
+            const realMigrantId = caseData.migrant?.id || caseData.migrant_id || caseData.migrantId;
+            if (realMigrantId) {
+              try {
+                migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(realMigrantId));
+              } catch {}
+            }
+            if (!migrant) {
+              migrant = caseData.migrant || caseData;
+            }
           }
+        } catch {}
+
+        if (!migrant) {
+          try {
+            migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
+          } catch {}
+        }
+
+        if (migrant) {
+          populateFromObject(migrant);
         }
       } catch (err) {
         console.error("Failed to load contacts details:", err);
-        toast.error("Failed to load contact details");
       } finally {
         setIsLoading(false);
       }
     }
 
     loadData();
-  }, [open, migrantId]);
+  }, [open, migrantId, initialData, populateFromObject]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,13 +186,15 @@ export function EditContactDetailsModal({
           <h3 className="text-label-md font-medium text-[#171717] leading-[24px]">
             Contact details
           </h3>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => onOpenChange(false)}
-            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer"
+            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
           >
             <XIcon className="size-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Form Body */}

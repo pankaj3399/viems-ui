@@ -1495,7 +1495,7 @@ export default function CasesPage() {
 
                         <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
                           <CaseRowMenu
-                            onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
+                            onViewDetails={() => router.push(`/cases/${row.id}`)}
                             onChangeStatus={() => {
                               setStatusModalRow(row);
                               setStatusModalOpen(true);
@@ -1720,7 +1720,7 @@ export default function CasesPage() {
 
                         <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
                           <CaseRowMenu
-                            onViewDetails={() => router.push(`/cases/${row.caseId.replace('/', '-')}`)}
+                            onViewDetails={() => router.push(`/cases/${row.id}`)}
                             onChangeStatus={() => {
                               setStatusModalRow(row);
                               setStatusModalOpen(true);

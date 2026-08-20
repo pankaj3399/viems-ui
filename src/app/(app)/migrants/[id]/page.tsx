@@ -61,22 +61,65 @@ function sanitizeFirstAndLastName(rawFirst: string, rawLast: string) {
 
 function mapBackendMigrantToDetail(c: any) {
   const m = c.migrant || c;
-  const pInfo = m.user?.personalInfo || {};
+  const pInfo = m.personalInfo || m.user?.personalInfo || c.personalInfo || c.user?.personalInfo || {};
   const activePassport = Array.isArray(m.passports)
     ? m.passports.find((p: any) => p.is_actual) || m.passports[0] || {}
     : m.passport || {};
 
-  const rawFirstName = m.first_name || pInfo.firstName || m.firstName || "";
-  const rawLastName = m.last_name || pInfo.lastName || m.lastName || "";
+  const rawFirstName =
+    m.first_name ||
+    pInfo.firstName ||
+    pInfo.first_name ||
+    m.firstName ||
+    c.first_name ||
+    c.firstName ||
+    c.migrant?.firstName ||
+    c.migrant?.first_name ||
+    "";
+  const rawLastName =
+    m.last_name ||
+    pInfo.lastName ||
+    pInfo.last_name ||
+    m.lastName ||
+    c.last_name ||
+    c.lastName ||
+    c.migrant?.lastName ||
+    c.migrant?.last_name ||
+    "";
   const { firstName, lastName } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
-  const name = formatFullName(firstName, lastName) || m.stage_name || m.stageName || "Unknown Migrant";
+  const name =
+    formatFullName(firstName, lastName) ||
+    c.name ||
+    m.name ||
+    m.stage_name ||
+    m.stageName ||
+    c.stage_name ||
+    c.stageName ||
+    "Unknown Migrant";
 
-  const rawGender = m.gender || pInfo.sex || m.sex || "";
+  const rawGender =
+    m.gender ||
+    m.sex ||
+    pInfo.sex ||
+    pInfo.gender ||
+    c.gender ||
+    c.personal?.gender ||
+    c.personal?.sex ||
+    "";
   const genderDisplay = rawGender
     ? rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()
     : "—";
 
-  const rawDob = m.date_of_birth || pInfo.dateOfBirth || m.dateOfBirth || "";
+  const rawDob =
+    m.date_of_birth ||
+    m.dateOfBirth ||
+    m.dob ||
+    pInfo.dateOfBirth ||
+    pInfo.date_of_birth ||
+    pInfo.dob ||
+    c.date_of_birth ||
+    c.dateOfBirth ||
+    "";
   const dobDisplay = rawDob
     ? isNaN(new Date(rawDob).getTime())
       ? rawDob
@@ -129,9 +172,12 @@ function mapBackendMigrantToDetail(c: any) {
     m.nationality?.title ||
     pInfo.nationality?.name ||
     pInfo.nationality?.value ||
+    pInfo.nationality?.title ||
     pInfo.nationalityCode ||
     (typeof m.nationality === "string" ? m.nationality : "") ||
     c.nationality_value ||
+    c.nationality_title ||
+    c.country ||
     "";
   const { code: nationalityCode, full: nationalityFull, flag: nationalityFlag } =
     getCountryInfo(rawNationality);
@@ -232,7 +278,8 @@ function mapBackendMigrantToDetail(c: any) {
   const fullHomeAddress = addressLines.length > 0 ? addressLines.join("\n") : "";
 
   // Emergency contact from localStorage or database
-  const migrantIdStr = String(m.id || c.id || "");
+  const realMigrantId = c.migrant?.id || c.migrant_id || m.id || c.id || "";
+  const migrantIdStr = String(realMigrantId);
   let emergency = {
     name: "",
     relationship: "",
@@ -251,8 +298,9 @@ function mapBackendMigrantToDetail(c: any) {
   }
 
   return {
-    id: c.id || m.id || 1,
+    id: m.id || c.id || 1,
     migrantId: migrantIdStr,
+    caseNumericId: c.id,
     name,
     avatar: m.avatar || m.photo_url || pInfo.avatars?.[0]?.url || "",
     avatarText: getInitials(name) || "—",
@@ -340,18 +388,49 @@ export default function MigrantDetailPage() {
       let migrantData: any = null;
       let caseData: any = null;
 
+      // 1. Try fetching as Case first
       try {
-        migrantData = await apiClient.get<any>(ENDPOINTS.migrants.byId(id));
+        const caseRes = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
+        if (caseRes && (caseRes.id || caseRes.caseNumber || caseRes.migrant || caseRes.personal)) {
+          caseData = caseRes;
+        }
       } catch (e) {}
 
-      try {
-        caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
-      } catch (e) {}
+      if (caseData) {
+        // ID is a Case ID: lookup the linked migrant ID specifically
+        const linkedMigrantId = caseData.migrant?.id || caseData.migrant_id || caseData.migrantId;
+        if (linkedMigrantId) {
+          try {
+            migrantData = await apiClient.get<any>(ENDPOINTS.migrants.byId(linkedMigrantId));
+          } catch (e) {}
+        }
+      } else {
+        // ID is a Migrant ID
+        try {
+          migrantData = await apiClient.get<any>(ENDPOINTS.migrants.byId(id));
+        } catch (e) {}
+
+        if (migrantData) {
+          try {
+            const casesRes = await apiClient.get<any>(`${ENDPOINTS.cases.base}?migrant_id=${id}`);
+            const casesArr = Array.isArray(casesRes) ? casesRes : casesRes?.data || [];
+            if (casesArr.length > 0) {
+              caseData = casesArr[0];
+            }
+          } catch (e) {}
+
+          if (!caseData && Array.isArray(migrantData.cases) && migrantData.cases.length > 0) {
+            caseData = migrantData.cases[0];
+          }
+        }
+      }
 
       const combined = {
         ...(caseData || {}),
-        ...(migrantData || {}),
-        migrant: migrantData || caseData?.migrant || caseData,
+        migrant: {
+          ...(caseData?.migrant || {}),
+          ...(migrantData || {}),
+        },
         id,
       };
 
@@ -463,7 +542,7 @@ export default function MigrantDetailPage() {
                 caseId={migrant.caseId}
                 employer={migrant.employer}
                 status={migrant.approvalStatus}
-                onViewCase={() => router.push(`/cases/${id}`)}
+                onViewCase={() => router.push(`/cases/${migrant.caseNumericId || id}`)}
               />
             </div>
 
@@ -493,7 +572,7 @@ export default function MigrantDetailPage() {
             onEditPassport={() => setIsPersonalModalOpen(true)}
           />
         ) : activeTab === "Cases" ? (
-          <CasesTab migrant={migrant} migrantId={id} />
+          <CasesTab migrant={migrant} migrantId={migrant.migrantId || id} />
         ) : (
           <TravelHistoryTab migrant={migrant} />
         )}
@@ -527,7 +606,7 @@ export default function MigrantDetailPage() {
                       .response?.status
                   : undefined;
               if (statusCode === 404 || statusCode === 405) {
-                await apiClient.patch(ENDPOINTS.migrants.byId(id), {
+                await apiClient.patch(ENDPOINTS.migrants.byId(migrant.migrantId || id), {
                   case_status: newStatus,
                   status: newStatus,
                 });
@@ -551,7 +630,7 @@ export default function MigrantDetailPage() {
       <AddNoteModal
         isOpen={isAddNoteOpen}
         onClose={() => setIsAddNoteOpen(false)}
-        caseId={id}
+        caseId={migrant.caseNumericId || id}
         onNoteAdded={() => {
           toast.success("Note added to migrant profile");
           loadMigrantDetail();
@@ -560,19 +639,22 @@ export default function MigrantDetailPage() {
       <EditPersonalDetailsModal
         open={isPersonalModalOpen}
         onOpenChange={setIsPersonalModalOpen}
-        migrantId={id}
+        migrantId={migrant.migrantId || id}
+        initialData={migrant}
         onSuccess={() => loadMigrantDetail()}
       />
       <EditHomeAddressModal
         open={isAddressModalOpen}
         onOpenChange={setIsAddressModalOpen}
-        migrantId={id}
+        migrantId={migrant.migrantId || id}
+        initialData={migrant}
         onSuccess={() => loadMigrantDetail()}
       />
       <EditContactDetailsModal
         open={isContactModalOpen}
         onOpenChange={setIsContactModalOpen}
-        migrantId={id}
+        migrantId={migrant.migrantId || id}
+        initialData={migrant}
         onSuccess={() => loadMigrantDetail()}
       />
       <ArchiveCaseModal

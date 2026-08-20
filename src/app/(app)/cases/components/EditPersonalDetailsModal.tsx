@@ -125,21 +125,25 @@ export function EditPersonalDetailsModal({
   const populateFromObject = React.useCallback((m: any) => {
     if (!m) return;
     setMigrantData(m);
-    const pInfo = m.user?.personalInfo || m.personalInfo || {};
-    setFirstName(m.first_name || pInfo.firstName || m.firstName || "");
-    setLastName(m.last_name || pInfo.lastName || m.lastName || "");
-    setDob(formatDisplayDate(pInfo.dateOfBirth || m.date_of_birth || m.dateOfBirth || ""));
-    setGender(pInfo.sex || m.gender || m.sex || "");
-    setMaritalStatus(m.marital_status || m.maritalStatus || pInfo.maritalStatus || "");
-    setCountryOfBirth(m.country_of_birth || m.countryOfBirth || pInfo.countryOfBirth || "");
+    const pInfo = m.personalInfo || m.user?.personalInfo || {};
+    const firstNameVal = m.first_name || pInfo.firstName || m.firstName || "";
+    const lastNameVal = m.last_name || pInfo.lastName || m.lastName || "";
+    setFirstName(firstNameVal);
+    setLastName(lastNameVal);
+    setDob(formatDisplayDate(pInfo.dob || pInfo.dateOfBirth || m.date_of_birth || m.dateOfBirth || ""));
+    setGender(pInfo.gender || pInfo.sex || m.gender || m.sex || "");
+    setMaritalStatus(pInfo.maritalStatus || m.marital_status || m.maritalStatus || "");
+    setCountryOfBirth(pInfo.countryOfBirth || pInfo.countryOfBirthCode || m.country_of_birth || m.countryOfBirth || "");
     
     if (pInfo.nationality?.id) {
       setNationality(pInfo.nationality.id.toString());
     } else if (pInfo.nationalityCode) {
       setNationality(pInfo.nationalityCode);
+    } else if (pInfo.nationality) {
+      setNationality(pInfo.nationality);
     }
 
-    setCityOfBirth(m.place_of_birth || m.city_of_birth || pInfo.cityOfBirth || "");
+    setCityOfBirth(pInfo.cityOfBirth || m.place_of_birth || m.city_of_birth || "");
     setStageName(m.stage_name || "");
     setWithStageName(Boolean(m.with_stage_name));
     setContacts(m.contacts || null);
@@ -182,18 +186,31 @@ export function EditPersonalDetailsModal({
           // Keep defaults
         }
 
-        // 2. Fetch migrant profile safely
+        // If initialData is already available and populated, avoid overriding with mismatched ID lookup
+        if (initialData && (initialData.personalInfo?.firstName || initialData.firstName || initialData.name)) {
+          return;
+        }
+
+        // 2. Fetch migrant profile safely by checking case first
         let migrant: any = null;
         try {
-          migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
-        } catch {
-          try {
-            const caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(migrantId));
-            if (caseData?.migrant) {
-              migrant = caseData.migrant;
-            } else if (caseData) {
-              migrant = caseData;
+          const caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(migrantId));
+          if (caseData && (caseData.id || caseData.caseNumber || caseData.migrant)) {
+            const realMigrantId = caseData.migrant?.id || caseData.migrant_id || caseData.migrantId;
+            if (realMigrantId) {
+              try {
+                migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(realMigrantId));
+              } catch {}
             }
+            if (!migrant) {
+              migrant = caseData.migrant || caseData;
+            }
+          }
+        } catch {}
+
+        if (!migrant) {
+          try {
+            migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
           } catch {}
         }
 
@@ -208,7 +225,7 @@ export function EditPersonalDetailsModal({
     }
 
     loadData();
-  }, [open, migrantId, populateFromObject]);
+  }, [open, migrantId, initialData, populateFromObject]);
 
   const handleUploadClick = () => {
     const input = document.createElement("input");
@@ -295,13 +312,15 @@ export function EditPersonalDetailsModal({
           <h3 className="text-label-md font-medium text-[#171717] leading-[24px]">
             Personal details
           </h3>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => onOpenChange(false)}
-            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer"
+            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
           >
             <XIcon className="size-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Scrollable Form Content */}
@@ -316,14 +335,14 @@ export function EditPersonalDetailsModal({
                 Upload a passport and AI will auto-fill these fields for you.
               </span>
             </div>
-            <button
+            <Button
               type="button"
               onClick={handleUploadClick}
-              className="flex items-center gap-xs px-md py-[6px] h-8 bg-[#171717] hover:bg-neutral-800 text-white rounded-[8px] text-[14px] font-medium leading-[20px] tracking-[-0.006em] transition-all cursor-pointer select-none"
+              className="flex items-center gap-xs px-md py-[6px] h-8 bg-[#171717] hover:bg-neutral-800 text-white rounded-[8px] text-[14px] font-medium leading-[20px] tracking-[-0.006em] transition-all cursor-pointer select-none border-0"
             >
               <Upload className="size-3.5 text-white" />
               Upload
-            </button>
+            </Button>
           </div>
 
           {isLoading ? (

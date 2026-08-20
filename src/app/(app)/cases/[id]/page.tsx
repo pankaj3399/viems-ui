@@ -901,18 +901,21 @@ export default function MigrantOverviewPage() {
             open={isPersonalModalOpen}
             onOpenChange={setIsPersonalModalOpen}
             migrantId={migrant.migrantId}
+            initialData={migrant}
             onSuccess={loadCaseDetail}
           />
           <EditHomeAddressModal
             open={isAddressModalOpen}
             onOpenChange={setIsAddressModalOpen}
             migrantId={migrant.migrantId}
+            initialData={migrant}
             onSuccess={loadCaseDetail}
           />
           <EditContactDetailsModal
             open={isContactModalOpen}
             onOpenChange={setIsContactModalOpen}
             migrantId={migrant.migrantId}
+            initialData={migrant}
             onSuccess={loadCaseDetail}
           />
           <EditEmploymentDetailsModal
