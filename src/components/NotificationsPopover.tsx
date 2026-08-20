@@ -4,13 +4,6 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
-  RiAtLine,
-  RiFocus2Line,
-  RiRecordCircleLine,
-  RiFileListLine,
-  RiChatSmile2Line,
-  RiFileUploadLine,
-  RiFileChartLine,
   RiSettings2Line,
   RiMoreFill,
   RiNotification3Line,
@@ -25,6 +18,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import {
+  getReadIds,
+  persistReadId,
+  persistAllRead,
+  removeReadId,
+  formatTimeAgo,
+  getIconForEntity,
+  getTargetUrl,
+  type LogEntry,
+  type LogsResponse,
+} from "@/lib/notifications";
 
 interface NotificationItem {
   id: string;
@@ -40,93 +44,6 @@ interface NotificationItem {
   isHighlighted?: boolean;
 }
 
-const STORAGE_KEY_READ_NOTIFS = "viems_read_notification_ids";
-
-function getReadIds(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_READ_NOTIFS);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistReadId(id: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = getReadIds();
-    if (!current.includes(id)) {
-      localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify([...current, id]));
-      window.dispatchEvent(new Event("viems_notifications_updated"));
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function persistAllRead(ids: string[]) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = getReadIds();
-    const next = Array.from(new Set([...current, ...ids]));
-    localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(next));
-    window.dispatchEvent(new Event("viems_notifications_updated"));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function formatTimeAgo(dateStr?: string): string {
-  if (!dateStr) return "Recently";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return "Recently";
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins} min ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-function getIconForEntity(entityName?: string, action?: string) {
-  const e = (entityName || "").toLowerCase();
-  const a = (action || "").toLowerCase();
-  if (e.includes("file") || a.includes("file") || a.includes("upload") || a.includes("doc")) return RiFileUploadLine;
-  if (e.includes("task") || a.includes("task") || e.includes("rtw")) return RiFocus2Line;
-  if (e.includes("user") || e.includes("employee") || a.includes("mention")) return RiAtLine;
-  if (a.includes("status") || a.includes("stage") || a.includes("change")) return RiRecordCircleLine;
-  if (e.includes("report") || a.includes("report")) return RiFileChartLine;
-  if (e.includes("message") || a.includes("message")) return RiChatSmile2Line;
-  return RiFileListLine;
-}
-
-function getTargetUrl(entityName?: string, entityIdentifier?: string, action?: string): string {
-  const e = (entityName || "").toLowerCase();
-  const id = entityIdentifier ? entityIdentifier.replace(/^#/, "") : "";
-  if (e.includes("case") || e.includes("sponsorship")) {
-    return id ? `/cases/${id}` : "/cases";
-  }
-  if (e.includes("migrant") || e.includes("worker") || e.includes("applicant")) {
-    return id ? `/migrants/${id}` : "/migrants";
-  }
-  if (e.includes("file") || e.includes("doc") || e.includes("upload")) {
-    return "/compliance/documents";
-  }
-  if (e.includes("task") || e.includes("rtw") || e.includes("check")) {
-    return "/compliance/rtw-checks";
-  }
-  if (e.includes("log") || e.includes("audit")) {
-    return "/compliance/logs";
-  }
-  return id ? `/cases/${id}` : "/cases";
-}
-
 export function NotificationsPopover() {
   const router = useRouter();
   const [notifications, setNotifications] = React.useState<NotificationItem[]>([]);
@@ -135,10 +52,10 @@ export function NotificationsPopover() {
   const fetchNotifications = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<any>(ENDPOINTS.logs.base, {
+      const res = await apiClient.get<LogsResponse>(ENDPOINTS.logs.base, {
         params: { take: "15", sort_by: "date.desc" },
       });
-      const rawLogs: any[] = Array.isArray(res) ? res : res?.logs ?? res?.data ?? [];
+      const rawLogs: LogEntry[] = Array.isArray(res) ? res : res?.logs ?? res?.data ?? [];
       const readIds = getReadIds();
 
       if (rawLogs.length > 0) {
@@ -202,7 +119,7 @@ export function NotificationsPopover() {
     };
   }, [fetchNotifications]);
 
-  const hasUnread = notifications.some((n) => n.isUnread || n.hasBlueDot);
+  const hasUnread = notifications.some((n) => n.isUnread);
 
   const handleMarkAllRead = () => {
     const allIds = notifications.map((n) => n.id);
@@ -225,9 +142,7 @@ export function NotificationsPopover() {
     if (item.isUnread) {
       persistReadId(item.id);
     } else {
-      const current = getReadIds().filter((id) => id !== item.id);
-      localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(current));
-      window.dispatchEvent(new Event("viems_notifications_updated"));
+      removeReadId(item.id);
     }
     setNotifications((prev) =>
       prev.map((n) => (n.id === item.id ? { ...n, isUnread: !n.isUnread } : n))
@@ -299,10 +214,18 @@ export function NotificationsPopover() {
                     <div className="w-[404px] border-t border-[#EBEBEB] mx-auto" />
                   )}
                   <div
-                    className={`w-full min-h-[124px] p-[16px] rounded-[12px] flex items-start gap-[16px] transition-colors relative cursor-pointer ${
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleItemClick(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleItemClick(item);
+                      }
+                    }}
+                    className={`w-full min-h-[124px] p-[16px] rounded-[12px] flex items-start gap-[16px] transition-colors relative cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#7D52F4]/30 ${
                       item.isHighlighted ? "bg-[#F5F5F5]" : "bg-white hover:bg-[#F9F9F9]"
                     }`}
-                    onClick={() => handleItemClick(item)}
                   >
                     {/* Icon */}
                     <div className="size-[36px] rounded-full bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center shrink-0">
@@ -337,6 +260,7 @@ export function NotificationsPopover() {
                           <DropdownMenu>
                             <DropdownMenuTrigger
                               onClick={(e) => e.stopPropagation()}
+                              aria-label="Notification item options"
                               className="absolute right-0 top-0 size-5 text-[#A4A4A4] hover:text-[#171717] flex items-center justify-center cursor-pointer border-0 bg-transparent outline-none"
                               title="Options"
                             >

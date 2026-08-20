@@ -5,6 +5,12 @@ import { RiCloseLine, RiMailLine, RiUserLine } from "@remixicon/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,6 +39,14 @@ interface EditMemberModalProps {
   onClose: () => void;
   onUpdateMember: (updatedMember: TeamMember) => void;
 }
+
+const STANDARD_ROLES = [
+  "Admin",
+  "Authorising Officer",
+  "Compliance Officer",
+  "HR Manager",
+  "Invited",
+];
 
 // Normalizer: ensures every string is properly formatted with first letter capitalized
 export function normalizeRoleDisplay(role: string): string {
@@ -91,17 +105,7 @@ export function EditMemberModal({
     }
   }, [member]);
 
-  // Handle escape key
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen || !member) return null;
+  if (!member) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,8 +146,6 @@ export function EditMemberModal({
           email: email.trim(),
           jobTitle: role,
           userStatus: rawStatus,
-        }).catch((err) => {
-          console.warn("Backend PATCH failed, updated local state:", err);
         });
       }
 
@@ -157,20 +159,13 @@ export function EditMemberModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity duration-200"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+  const isCustomRole = !STANDARD_ROLES.includes(role);
 
-      {/* Modal Container */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="relative w-full max-w-[460px] bg-white border border-[#EBEBEB] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] rounded-[20px] overflow-visible z-50 flex flex-col animate-in zoom-in-95 duration-200"
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-[460px] p-0 bg-white border border-[#EBEBEB] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] rounded-[20px] overflow-visible gap-0 z-50 flex flex-col"
       >
         {/* Close Button */}
         <button
@@ -186,24 +181,28 @@ export function EditMemberModal({
           <div className="p-[24px] flex flex-col gap-[20px]">
             {/* Header Title */}
             <div className="flex flex-col gap-[4px] pr-8">
-              <h3 className="text-[20px] font-medium leading-[28px] text-[#171717] font-aeonik-medium">
+              <DialogTitle className="text-[20px] font-medium leading-[28px] text-[#171717] font-aeonik-medium">
                 Edit Team Member
-              </h3>
-              <p className="text-[13px] text-[#5C5C5C] leading-[18px]">
+              </DialogTitle>
+              <DialogDescription className="text-[13px] text-[#5C5C5C] leading-[18px]">
                 Update member details, role permissions, and SMS access privileges.
-              </p>
+              </DialogDescription>
             </div>
 
             {/* Form Fields */}
             <div className="flex flex-col gap-[14px]">
               {/* Full Name */}
               <div className="flex flex-col gap-[6px]">
-                <label className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]">
+                <label
+                  htmlFor="edit-member-name"
+                  className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]"
+                >
                   Full Name
                 </label>
                 <div className="h-10 px-3 bg-white border border-[#EBEBEB] rounded-[10px] flex items-center gap-2 shadow-x-small focus-within:border-[#171717] transition-all">
                   <RiUserLine className="size-4 text-[#A4A4A4] shrink-0" />
                   <input
+                    id="edit-member-name"
                     type="text"
                     required
                     placeholder="e.g. Sarah Kim"
@@ -216,12 +215,16 @@ export function EditMemberModal({
 
               {/* Email Address */}
               <div className="flex flex-col gap-[6px]">
-                <label className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]">
+                <label
+                  htmlFor="edit-member-email"
+                  className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]"
+                >
                   Email Address
                 </label>
                 <div className="h-10 px-3 bg-white border border-[#EBEBEB] rounded-[10px] flex items-center gap-2 shadow-x-small focus-within:border-[#171717] transition-all">
                   <RiMailLine className="size-4 text-[#A4A4A4] shrink-0" />
                   <input
+                    id="edit-member-email"
                     type="email"
                     required
                     placeholder="name@viems.io"
@@ -236,7 +239,10 @@ export function EditMemberModal({
               <div className="grid grid-cols-2 gap-3">
                 {/* System Role Dropdown */}
                 <div className="flex flex-col gap-[6px]">
-                  <label className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]">
+                  <label
+                    htmlFor="edit-member-role"
+                    className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]"
+                  >
                     Role
                   </label>
                   <Select
@@ -245,22 +251,33 @@ export function EditMemberModal({
                       if (val) setRole(val);
                     }}
                   >
-                    <SelectTrigger className="w-full h-10 rounded-[10px] border-[#EBEBEB] bg-white text-[14px] text-[#171717] shadow-x-small font-normal">
+                    <SelectTrigger
+                      id="edit-member-role"
+                      className="w-full h-10 rounded-[10px] border-[#EBEBEB] bg-white text-[14px] text-[#171717] shadow-x-small font-normal"
+                    >
                       <SelectValue placeholder="Select Role" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-[60]">
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Authorising Officer">Authorising Officer</SelectItem>
-                      <SelectItem value="Compliance Officer">Compliance Officer</SelectItem>
-                      <SelectItem value="HR Manager">HR Manager</SelectItem>
-                      <SelectItem value="Invited">Invited</SelectItem>
+                      {STANDARD_ROLES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {r}
+                        </SelectItem>
+                      ))}
+                      {isCustomRole && (
+                        <SelectItem value={role}>
+                          {role}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 {/* SMS Role Dropdown */}
                 <div className="flex flex-col gap-[6px]">
-                  <label className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]">
+                  <label
+                    htmlFor="edit-member-sms-role"
+                    className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]"
+                  >
                     SMS Role
                   </label>
                   <Select
@@ -269,7 +286,10 @@ export function EditMemberModal({
                       if (val) setSmsRole(val);
                     }}
                   >
-                    <SelectTrigger className="w-full h-10 rounded-[10px] border-[#EBEBEB] bg-white text-[14px] text-[#171717] shadow-x-small font-normal">
+                    <SelectTrigger
+                      id="edit-member-sms-role"
+                      className="w-full h-10 rounded-[10px] border-[#EBEBEB] bg-white text-[14px] text-[#171717] shadow-x-small font-normal"
+                    >
                       <SelectValue placeholder="SMS Role" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-[60]">
@@ -284,7 +304,10 @@ export function EditMemberModal({
 
               {/* Membership Status Dropdown */}
               <div className="flex flex-col gap-[6px]">
-                <label className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]">
+                <label
+                  htmlFor="edit-member-status"
+                  className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.02em]"
+                >
                   Membership Status
                 </label>
                 <Select
@@ -295,7 +318,10 @@ export function EditMemberModal({
                     }
                   }}
                 >
-                  <SelectTrigger className="w-full h-10 rounded-[10px] border-[#EBEBEB] bg-white text-[14px] text-[#171717] shadow-x-small font-normal">
+                  <SelectTrigger
+                    id="edit-member-status"
+                    className="w-full h-10 rounded-[10px] border-[#EBEBEB] bg-white text-[14px] text-[#171717] shadow-x-small font-normal"
+                  >
                     <SelectValue placeholder="Select Status" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-[60]">
@@ -328,7 +354,7 @@ export function EditMemberModal({
             </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

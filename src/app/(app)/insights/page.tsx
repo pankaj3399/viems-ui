@@ -43,7 +43,6 @@ function toTitleCase(str: string): string {
     ax: "AX",
     sms: "SMS",
     rtw: "RTW",
-    all: "All Cases",
   };
 
   return str
@@ -193,63 +192,95 @@ function getCaseDate(c: CaseItem): Date | null {
   return null;
 }
 
-function matchesStatus(caseStatus: string | undefined, targetStatus: string): boolean {
-  if (!caseStatus) return false;
+function resolveCanonicalStatus(caseStatus: string | undefined): string | null {
+  if (!caseStatus) return null;
   const normCase = caseStatus.toLowerCase().replace(/[\s_-]+/g, " ").trim();
-  const normTarget = targetStatus.toLowerCase().replace(/[\s_-]+/g, " ").trim();
+  if (!normCase) return null;
 
-  if (normCase === normTarget) return true;
-
-  if (normTarget === "eligibility assessment") {
-    return normCase.includes("eligibility") || normCase.includes("assessment") || normCase === "screening";
+  if (normCase.includes("eligibility") || normCase.includes("assessment") || normCase === "screening") {
+    return "ELIGIBILITY ASSESSMENT";
   }
-  if (normTarget === "awaiting applicant docs") {
-    return normCase.includes("applicant doc") || normCase.includes("awaiting doc") || normCase === "pending";
+  if (normCase.includes("applicant doc") || normCase.includes("awaiting doc") || normCase === "pending") {
+    return "AWAITING APPLICANT DOCS";
   }
-  if (normTarget === "cleared for sponsorship") {
-    return normCase.includes("cleared") || normCase.includes("sponsorship cleared");
+  if (normCase.includes("cleared") || normCase.includes("sponsorship cleared")) {
+    return "CLEARED FOR SPONSORSHIP";
   }
-  if (normTarget === "ineligible / high risk" || normTarget === "ineligible high risk") {
-    return normCase.includes("ineligible") || normCase.includes("high risk");
+  if (normCase.includes("ineligible") || normCase.includes("high risk")) {
+    return "INELIGIBLE / HIGH RISK";
   }
-  if (normTarget === "drafting cos") {
-    return normCase.includes("drafting") || normCase === "cos draft" || normCase === "in progress";
+  if (normCase.includes("drafting") || normCase === "cos draft" || normCase === "in progress") {
+    return "DRAFTING COS";
   }
-  if (normTarget === "cos assigned") {
-    return normCase.includes("assigned") || normCase === "cos granted";
+  if (normCase.includes("assigned") || normCase === "cos granted") {
+    return "COS ASSIGNED";
   }
-  if (normTarget === "info requested") {
-    return normCase.includes("info request") || normCase.includes("information request");
+  if (normCase.includes("info request") || normCase.includes("information request")) {
+    return "INFO REQUESTED";
   }
-  if (normTarget === "awaiting ukvi decision") {
-    return normCase.includes("ukvi") || normCase.includes("awaiting decision") || normCase.includes("submitted");
+  if (normCase.includes("ukvi") || normCase.includes("awaiting decision") || normCase.includes("submitted")) {
+    return "AWAITING UKVI DECISION";
   }
-  if (normTarget === "ready for submission") {
-    return normCase.includes("ready") || normCase.includes("submission");
+  if (normCase.includes("ready") || normCase.includes("submission")) {
+    return "READY FOR SUBMISSION";
   }
-  if (normTarget === "awaiting biometrics") {
-    return normCase.includes("biometric");
+  if (normCase.includes("biometric")) {
+    return "AWAITING BIOMETRICS";
   }
-  if (normTarget === "awaiting interview") {
-    return normCase.includes("interview");
+  if (normCase.includes("interview")) {
+    return "AWAITING INTERVIEW";
   }
-  if (normTarget === "additional docs requested") {
-    return normCase.includes("additional doc");
+  if (normCase.includes("additional doc")) {
+    return "ADDITIONAL DOCS REQUESTED";
   }
-  if (normTarget === "visa approved") {
-    return normCase.includes("approved") || normCase.includes("granted") || normCase === "active";
+  if (normCase.includes("approved") || normCase.includes("granted") || normCase === "active") {
+    return "VISA APPROVED";
   }
-  if (normTarget === "visa refused") {
-    return normCase.includes("refused") || normCase.includes("rejected");
+  if (normCase.includes("refused") || normCase.includes("rejected")) {
+    return "VISA REFUSED";
   }
-  if (normTarget === "case closed") {
-    return normCase.includes("closed") || normCase.includes("archived") || normCase === "done";
+  if (normCase.includes("closed") || normCase.includes("archived") || normCase === "done") {
+    return "CASE CLOSED";
   }
-  if (normTarget === "application withdrawn") {
-    return normCase.includes("withdrawn") || normCase.includes("cancelled");
+  if (normCase.includes("withdrawn") || normCase.includes("cancelled")) {
+    return "APPLICATION WITHDRAWN";
   }
 
-  return normCase.includes(normTarget) || normTarget.includes(normCase);
+  return null;
+}
+
+function matchesStatus(caseStatus: string | undefined, targetStatus: string): boolean {
+  const resolved = resolveCanonicalStatus(caseStatus);
+  const normTarget = targetStatus.toUpperCase().replace(/[\s_-]+/g, " ").trim();
+  return resolved === normTarget;
+}
+
+function matchesGroup(c: CaseItem, selectedGroup: string): boolean {
+  const target = selectedGroup.toLowerCase();
+  return (
+    toTitleCase(c.group || c.group_name || "").toLowerCase() === target ||
+    (Boolean(c.group) && c.group!.toLowerCase() === target) ||
+    (Boolean(c.group_name) && c.group_name!.toLowerCase() === target)
+  );
+}
+
+function DrawerAvatar({ avatarUrl, name }: { avatarUrl?: string; name: string }) {
+  const [imageError, setImageError] = React.useState(false);
+
+  return (
+    <div className="size-[56px] rounded-full overflow-hidden bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[16px] shrink-0">
+      {avatarUrl && !imageError ? (
+        <img
+          src={avatarUrl}
+          alt={name}
+          onError={() => setImageError(true)}
+          className="size-full object-cover"
+        />
+      ) : (
+        getInitials(name || "Migrant")
+      )}
+    </div>
+  );
 }
 
 const MONTH_NAMES_SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -351,38 +382,24 @@ export default function InsightsPage() {
 
     // Group filtering
     if (selectedGroup && selectedGroup !== "all") {
-      dataset = dataset.filter(
-        (c) =>
-          toTitleCase(c.group || c.group_name || "").toLowerCase() === selectedGroup.toLowerCase() ||
-          (c.group && c.group.toLowerCase() === selectedGroup.toLowerCase()) ||
-          (c.group_name && c.group_name.toLowerCase() === selectedGroup.toLowerCase())
-      );
+      dataset = dataset.filter((c) => matchesGroup(c, selectedGroup));
     }
 
     if (dataset.length === 0 || activeFilter === "ALL") return dataset;
 
-    const datedCases = dataset.map((c) => ({ item: c, date: getCaseDate(c) }));
-    const validDates = datedCases
-      .filter((d) => d.date !== null)
-      .map((d) => d.date!.getTime());
-
-    if (validDates.length === 0) return dataset;
-
     const now = new Date();
-    const maxCaseDate = new Date(Math.max(...validDates));
-    const referenceDate = maxCaseDate > now ? maxCaseDate : now;
-
     const monthsMap: Record<string, number> = { "3M": 3, "6M": 6, "1Y": 12 };
     const months = monthsMap[activeFilter] || 6;
     const cutoff = new Date(
-      referenceDate.getFullYear(),
-      referenceDate.getMonth() - months,
-      referenceDate.getDate()
+      now.getFullYear(),
+      now.getMonth() - months,
+      now.getDate()
     );
 
-    return datedCases
-      .filter((d) => !d.date || d.date >= cutoff)
-      .map((d) => d.item);
+    return dataset.filter((c) => {
+      const d = getCaseDate(c);
+      return d !== null && d >= cutoff;
+    });
   }, [cases, selectedGroup, activeFilter]);
 
   // Cases filtered by Map Time Filter ('5D', '2W', '1M', '6M', '1Y')
@@ -390,12 +407,7 @@ export default function InsightsPage() {
     let dataset = [...cases];
 
     if (selectedGroup && selectedGroup !== "all") {
-      dataset = dataset.filter(
-        (c) =>
-          toTitleCase(c.group || c.group_name || "").toLowerCase() === selectedGroup.toLowerCase() ||
-          (c.group && c.group.toLowerCase() === selectedGroup.toLowerCase()) ||
-          (c.group_name && c.group_name.toLowerCase() === selectedGroup.toLowerCase())
-      );
+      dataset = dataset.filter((c) => matchesGroup(c, selectedGroup));
     }
 
     if (dataset.length === 0) return [];
@@ -410,21 +422,12 @@ export default function InsightsPage() {
 
     const days = daysMap[mapTimeFilter] || 30;
     const now = new Date();
+    const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
-    const datedCases = dataset.map((c) => ({ item: c, date: getCaseDate(c) }));
-    const validDates = datedCases
-      .filter((d) => d.date !== null)
-      .map((d) => d.date!.getTime());
-
-    const maxDate = validDates.length > 0 ? new Date(Math.max(...validDates)) : now;
-    const refDate = maxDate > now ? maxDate : now;
-    const cutoff = new Date(refDate.getTime() - days * 24 * 60 * 60 * 1000);
-
-    const matched = datedCases
-      .filter((d) => !d.date || d.date >= cutoff)
-      .map((d) => d.item);
-
-    return matched;
+    return dataset.filter((c) => {
+      const d = getCaseDate(c);
+      return d !== null && d >= cutoff;
+    });
   }, [cases, selectedGroup, mapTimeFilter]);
 
   // Dynamic Top Origins calculation from mapFilteredCases
@@ -446,57 +449,50 @@ export default function InsightsPage() {
         .map(([name, count]) => ({ name, count }));
     }
 
-    // If case records lack direct nationality, scale nationalities stat by ratio
     if (nationalities.length > 0) {
-      const daysMultiplier =
-        mapTimeFilter === "5D" ? 0.2 : mapTimeFilter === "2W" ? 0.5 : mapTimeFilter === "1M" ? 1 : mapTimeFilter === "6M" ? 2.5 : 4;
       return nationalities
         .filter((n) => n.nationality && n.nationality !== "Others" && n.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 7)
         .map((n) => ({
           name: toTitleCase(n.nationality),
-          count: Math.max(1, Math.round(n.value * daysMultiplier)),
+          count: n.value,
         }));
     }
 
     return [];
-  }, [mapFilteredCases, nationalities, mapTimeFilter]);
+  }, [mapFilteredCases, nationalities]);
 
-  // Synchronize hoveredOrigin when topOrigins change based on mapTimeFilter
-  React.useEffect(() => {
-    if (topOrigins.length > 0) {
-      if (!topOrigins.some((o) => o.name === hoveredOrigin)) {
-        setHoveredOrigin(topOrigins[0].name);
-      }
-    } else {
-      setHoveredOrigin(null);
+  const activeOriginName = React.useMemo(() => {
+    if (hoveredOrigin && topOrigins.some((o) => o.name === hoveredOrigin)) {
+      return hoveredOrigin;
     }
-  }, [topOrigins, hoveredOrigin]);
+    return topOrigins[0]?.name ?? null;
+  }, [hoveredOrigin, topOrigins]);
 
   // 1. Total cases & In progress count from real data
   const totalCases = filteredCases.length;
-  const inProgressCases = filteredCases.filter(
-    (c) =>
+  const inProgressCases = filteredCases.filter((c) => {
+    const resolved = resolveCanonicalStatus(c.case_status);
+    return (
       c.is_active ||
-      (c.case_status &&
-        (c.case_status.toLowerCase().includes("progress") ||
-          c.case_status.toLowerCase().includes("draft") ||
-          c.case_status.toLowerCase().includes("awaiting") ||
-          c.case_status.toLowerCase().includes("pending") ||
-          c.case_status.toLowerCase().includes("eligibility") ||
-          c.case_status.toLowerCase().includes("screening")))
-  ).length;
+      (resolved !== null &&
+        resolved !== "VISA APPROVED" &&
+        resolved !== "VISA REFUSED" &&
+        resolved !== "CASE CLOSED" &&
+        resolved !== "APPLICATION WITHDRAWN")
+    );
+  }).length;
 
   // 2. Approval Rate from real data
   const approvedCases = filteredCases.filter((c) => {
-    const s = (c.case_status || "").toUpperCase();
-    return s.includes("APPROVED") || s.includes("GRANTED") || s.includes("ASSIGNED") || s === "ACTIVE";
+    const resolved = resolveCanonicalStatus(c.case_status);
+    return resolved === "VISA APPROVED" || resolved === "COS ASSIGNED" || c.is_active;
   }).length;
 
   const refusedCases = filteredCases.filter((c) => {
-    const s = (c.case_status || "").toUpperCase();
-    return s.includes("REFUSED") || s.includes("REJECTED");
+    const resolved = resolveCanonicalStatus(c.case_status);
+    return resolved === "VISA REFUSED";
   }).length;
 
   const totalDecisions = approvedCases + refusedCases;
@@ -523,11 +519,19 @@ export default function InsightsPage() {
     if (durations.length > 0) {
       return Math.round(durations.reduce((a, b) => a + b, 0) / durations.length);
     }
-    return totalCases > 0 ? 34 : 0;
-  }, [filteredCases, totalCases]);
+    return null;
+  }, [filteredCases]);
 
   // 4. Compliance Rate from real data
-  const compliantCases = filteredCases.filter((c) => c.is_active || (c.case_status && !c.case_status.toLowerCase().includes("refused"))).length;
+  const compliantCases = filteredCases.filter((c) => {
+    if (c.is_active) return true;
+    const resolved = resolveCanonicalStatus(c.case_status);
+    return (
+      resolved === "VISA APPROVED" ||
+      resolved === "CLEARED FOR SPONSORSHIP" ||
+      resolved === "COS ASSIGNED"
+    );
+  }).length;
   const complianceRate = totalCases > 0 ? Math.round((compliantCases / totalCases) * 100) : 0;
 
   // 5. Active Migrants in UK from real data
@@ -538,28 +542,61 @@ export default function InsightsPage() {
 
   // Dynamic Stacked Bar Chart Data grouped by Month from real cases
   const chartData = React.useMemo(() => {
+    const now = new Date();
+    const currentMonthName = MONTH_NAMES_SHORT[now.getMonth()];
+
     if (filteredCases.length === 0) {
       return [
-        { name: "OCT", Approved: 0, Refused: 0, "In Progress": 0, total: 0 },
+        { name: currentMonthName, Approved: 0, Refused: 0, "In Progress": 0, total: 0 },
       ];
     }
 
-    const monthsCount = activeFilter === "3M" ? 3 : activeFilter === "6M" ? 6 : 12;
-    const now = new Date();
     const buckets: { name: string; year: number; month: number; Approved: number; Refused: number; "In Progress": number; total: number }[] = [];
 
-    for (let i = monthsCount - 1; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const name = MONTH_NAMES_SHORT[d.getMonth()];
-      buckets.push({
-        name,
-        year: d.getFullYear(),
-        month: d.getMonth(),
-        Approved: 0,
-        Refused: 0,
-        "In Progress": 0,
-        total: 0,
-      });
+    if (activeFilter === "ALL") {
+      const dates = filteredCases
+        .map((c) => getCaseDate(c))
+        .filter((d): d is Date => d !== null);
+
+      if (dates.length === 0) {
+        return [
+          { name: currentMonthName, Approved: 0, Refused: 0, "In Progress": 0, total: 0 },
+        ];
+      }
+
+      const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+
+      const start = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      const end = new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+
+      const cur = new Date(start);
+      while (cur <= end) {
+        buckets.push({
+          name: MONTH_NAMES_SHORT[cur.getMonth()],
+          year: cur.getFullYear(),
+          month: cur.getMonth(),
+          Approved: 0,
+          Refused: 0,
+          "In Progress": 0,
+          total: 0,
+        });
+        cur.setMonth(cur.getMonth() + 1);
+      }
+    } else {
+      const monthsCount = activeFilter === "3M" ? 3 : activeFilter === "6M" ? 6 : 12;
+      for (let i = monthsCount - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        buckets.push({
+          name: MONTH_NAMES_SHORT[d.getMonth()],
+          year: d.getFullYear(),
+          month: d.getMonth(),
+          Approved: 0,
+          Refused: 0,
+          "In Progress": 0,
+          total: 0,
+        });
+      }
     }
 
     filteredCases.forEach((c) => {
@@ -570,10 +607,10 @@ export default function InsightsPage() {
 
       const bucket = buckets.find((b) => b.year === y && b.month === m);
       if (bucket) {
-        const s = (c.case_status || "").toUpperCase();
-        if (s.includes("APPROVED") || s.includes("GRANTED") || s.includes("ASSIGNED") || s === "ACTIVE") {
+        const resolved = resolveCanonicalStatus(c.case_status);
+        if (resolved === "VISA APPROVED" || resolved === "COS ASSIGNED" || c.is_active) {
           bucket.Approved += 1;
-        } else if (s.includes("REFUSED") || s.includes("REJECTED")) {
+        } else if (resolved === "VISA REFUSED") {
           bucket.Refused += 1;
         } else {
           bucket["In Progress"] += 1;
@@ -597,7 +634,7 @@ export default function InsightsPage() {
       title: "TOTAL CASES",
       value: String(totalCases),
       subtext: `${inProgressCases} in progress`,
-      onClick: () => handleOpenStatusDrawer("ELIGIBILITY ASSESSMENT", "Total Cases"),
+      onClick: () => handleOpenStatusDrawer("ALL", "Total Cases"),
     },
     {
       title: "APPROVAL RATE",
@@ -607,9 +644,9 @@ export default function InsightsPage() {
     },
     {
       title: "AVG. PROCESSING TIME",
-      value: `${avgProcessingDays}d`,
+      value: avgProcessingDays !== null ? `${avgProcessingDays}d` : "—",
       subtext: "Screening to decision",
-      onClick: () => handleOpenStatusDrawer("ELIGIBILITY ASSESSMENT", "Screening To Decision"),
+      onClick: () => handleOpenStatusDrawer("ALL", "Screening To Decision"),
     },
     {
       title: "COMPLIANCE RATE",
@@ -778,7 +815,7 @@ export default function InsightsPage() {
   }, [filteredCases]);
 
   // Dynamic Case Pipeline calculation from real case data
-  const pipelineSegments = React.useMemo(() => {
+  const pipelineData = React.useMemo(() => {
     const s1 = filteredCases.filter((c) =>
       matchesStatus(c.case_status, "ELIGIBILITY ASSESSMENT") ||
       matchesStatus(c.case_status, "AWAITING APPLICANT DOCS") ||
@@ -802,14 +839,17 @@ export default function InsightsPage() {
       matchesStatus(c.case_status, "VISA APPROVED")
     ).length;
 
-    const total = s1 + s2 + s3 + s4 || 1;
+    const total = s1 + s2 + s3 + s4;
 
-    return [
-      { id: "screening", color: "bg-[#335CFF]", pct: Math.max(15, Math.round((s1 / total) * 100)), label: "SCREENING", count: s1, statusKey: "ELIGIBILITY ASSESSMENT" },
-      { id: "cos-mgmt", color: "bg-[#7D52F4]", pct: Math.max(15, Math.round((s2 / total) * 100)), label: "COS MANAGEMENT", count: s2, statusKey: "DRAFTING COS" },
-      { id: "visa", color: "bg-[#F6B51E]", pct: Math.max(20, Math.round((s3 / total) * 100)), label: "VISA PROCESSING", count: s3, statusKey: "AWAITING UKVI DECISION" },
-      { id: "approved", color: "bg-[#1FC16B]", pct: Math.max(20, Math.round((s4 / total) * 100)), label: "APPROVED", count: s4, statusKey: "VISA APPROVED" },
-    ];
+    return {
+      total,
+      segments: [
+        { id: "screening", color: "bg-[#335CFF]", pct: total > 0 ? (s1 / total) * 100 : 0, label: "SCREENING", count: s1, statusKey: "ELIGIBILITY ASSESSMENT" },
+        { id: "cos-mgmt", color: "bg-[#7D52F4]", pct: total > 0 ? (s2 / total) * 100 : 0, label: "COS MANAGEMENT", count: s2, statusKey: "DRAFTING COS" },
+        { id: "visa", color: "bg-[#F6B51E]", pct: total > 0 ? (s3 / total) * 100 : 0, label: "VISA PROCESSING", count: s3, statusKey: "AWAITING UKVI DECISION" },
+        { id: "approved", color: "bg-[#1FC16B]", pct: total > 0 ? (s4 / total) * 100 : 0, label: "APPROVED", count: s4, statusKey: "VISA APPROVED" },
+      ],
+    };
   }, [filteredCases]);
 
   // Dynamic Case Funnel Stages calculation from real case data
@@ -832,14 +872,16 @@ export default function InsightsPage() {
 
   // Processing Time Phases based on real data
   const processingPhases = React.useMemo(() => {
+    if (avgProcessingDays === null) return [];
+
     const sDays = Math.max(1, Math.round(avgProcessingDays * 0.15));
     const cDays = Math.max(1, Math.round(avgProcessingDays * 0.25));
     const vDays = Math.max(1, Math.round(avgProcessingDays * 0.6));
 
     return [
-      { label: "Screening", days: `${sDays}D`, color: "bg-[#335CFF]", pct: "24%" },
-      { label: "CoS Management", days: `${cDays}D`, color: "bg-[#7D52F4]", pct: "38%" },
-      { label: "Visa Processing", days: `${vDays}D`, color: "bg-[#F6B51E]", pct: "100%" },
+      { label: "Screening", days: `${sDays}D`, color: "bg-[#335CFF]", pct: "15%" },
+      { label: "CoS Management", days: `${cDays}D`, color: "bg-[#7D52F4]", pct: "25%" },
+      { label: "Visa Processing", days: `${vDays}D`, color: "bg-[#F6B51E]", pct: "60%" },
     ];
   }, [avgProcessingDays]);
 
@@ -853,21 +895,16 @@ export default function InsightsPage() {
 
   // Get real database cases for the selected status in the Drawer
   const drawerCases = React.useMemo(() => {
-    let matched = filteredCases.filter((c) => {
+    const matched = filteredCases.filter((c) => {
       if (selectedStatusKey === "Total Cases" || selectedStatusKey === "ALL") return true;
       return matchesStatus(c.case_status, selectedStatusKey);
     });
 
-    if (matched.length === 0 && selectedStatusKey !== "Total Cases") {
-      matched = cases.filter((c) => matchesStatus(c.case_status, selectedStatusKey));
-    }
-
     return matched.map((c, idx) => {
       const name = formatFullName(c.first_name, c.last_name) || c.name || `Applicant #${c.id || idx + 1}`;
       const group = toTitleCase(c.group || c.group_name || "General Group");
-      const caseNumber = c.caseNumber || c.caseId || (c.id ? `#${c.id}/2026` : `#${400 + idx}/2026`);
+      const caseNumber = c.caseNumber || c.caseId || (c.id ? `#${c.id}` : "—");
       const statusLabel = toTitleCase(c.case_status || selectedStatusKey);
-      const isApproved = statusLabel.toLowerCase().includes("approved");
 
       return {
         id: c.id || idx + 1,
@@ -877,13 +914,13 @@ export default function InsightsPage() {
         group,
         caseNumber,
         case_status: statusLabel,
-        secondaryStatus: c.is_active ? "ACTIVE COMPLIANCE" : isApproved ? "ARRIVED - RTW PENDING" : "OUTSIDE UK",
-        secondaryStatusDot: c.is_active ? "#1FC16B" : "#7B7B7B",
-        secondaryStatusColor: c.is_active ? "#0B4627" : "#7B7B7B",
+        secondaryStatus: c.secondaryStatus,
+        secondaryStatusDot: c.secondaryStatusDot,
+        secondaryStatusColor: c.secondaryStatusColor,
         avatarUrl: c.avatarUrl,
       };
     });
-  }, [selectedStatusKey, filteredCases, cases]);
+  }, [selectedStatusKey, filteredCases]);
 
   // Toggle series visibility in chart
   const toggleSeries = (series: keyof typeof visibleSeries) => {
@@ -932,11 +969,16 @@ export default function InsightsPage() {
             />
 
             {/* Segmented Filter Control */}
-            <div className="flex items-center bg-[#F5F5F5] p-[2px] rounded-full h-[32px]">
+            <div
+              role="group"
+              aria-label="Time range filter"
+              className="flex items-center bg-[#F5F5F5] p-[2px] rounded-full h-[32px]"
+            >
               {(["3M", "6M", "1Y", "ALL"] as const).map((filter) => (
                 <button
                   key={filter}
                   type="button"
+                  aria-pressed={activeFilter === filter}
                   onClick={() => setActiveFilter(filter)}
                   className={`h-full px-[12px] text-[12px] font-semibold rounded-full transition-all cursor-pointer border-0 ${
                     activeFilter === filter
@@ -1189,7 +1231,7 @@ export default function InsightsPage() {
 
               <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[20px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
                 {(() => {
-                  const segments = pipelineSegments;
+                  const { total, segments } = pipelineData;
                   const currentSegment = segments.find((s) => s.id === (hoveredPipelineSegment || "cos-mgmt")) ?? segments[1];
 
                   let left = 0;
@@ -1204,40 +1246,51 @@ export default function InsightsPage() {
                   return (
                     <div className="relative w-full pt-[36px] pb-[6px]">
                       {/* Floating Dark Tooltip with Tail */}
-                      <div
-                        className="absolute top-0 flex flex-col items-center -translate-x-1/2 pointer-events-none z-20 transition-all duration-300 ease-out"
-                        style={{ left: `${left}%` }}
-                      >
-                        <div className="bg-[#171717] text-white text-[11px] font-semibold px-2 py-1 rounded-[4px] flex items-center gap-[6px] shadow-md uppercase tracking-[0.02em] whitespace-nowrap">
-                          <span>{currentSegment.label}</span>
-                          <span className="text-[#A3A3A3] font-normal">•</span>
-                          <span>{currentSegment.count}</span>
+                      {total > 0 && (
+                        <div
+                          className="absolute top-0 flex flex-col items-center -translate-x-1/2 pointer-events-none z-20 transition-all duration-300 ease-out"
+                          style={{ left: `${left}%` }}
+                        >
+                          <div className="bg-[#171717] text-white text-[11px] font-semibold px-2 py-1 rounded-[4px] flex items-center gap-[6px] shadow-md uppercase tracking-[0.02em] whitespace-nowrap">
+                            <span>{currentSegment.label}</span>
+                            <span className="text-[#A3A3A3] font-normal">•</span>
+                            <span>{currentSegment.count}</span>
+                          </div>
+                          <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
                         </div>
-                        <div className="w-1.5 h-1.5 bg-[#171717] rotate-45 -mt-0.5" />
-                      </div>
+                      )}
 
                       {/* Multi-segment Progress Bar */}
-                      <div className="flex gap-[3px] w-full h-[12px] items-center">
-                        {segments.map((seg) => {
-                          const isActive = currentSegment.id === seg.id;
-                          return (
-                            <div
-                              key={seg.id}
-                              onClick={() => handleOpenStatusDrawer(seg.statusKey, seg.label)}
-                              onMouseEnter={() => setHoveredPipelineSegment(seg.id)}
-                              className="h-full flex items-center cursor-pointer group"
-                              style={{ width: `${seg.pct}%` }}
-                              title={`${seg.label}: ${seg.count} cases`}
-                            >
-                              <div
-                                className={`w-full h-[8px] rounded-full ${seg.color} transition-all duration-200 ${
-                                  isActive ? "h-[10px] shadow-sm brightness-105 ring-1 ring-black/10" : "opacity-90 hover:opacity-100 hover:h-[10px]"
-                                }`}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {total === 0 ? (
+                        <div className="w-full h-[12px] bg-[#F5F5F5] rounded-full flex items-center justify-center">
+                          <span className="text-[11px] text-[#7B7B7B]">No pipeline cases</span>
+                        </div>
+                      ) : (
+                        <div className="flex gap-[3px] w-full h-[12px] items-center">
+                          {segments.map((seg) => {
+                            const isActive = currentSegment.id === seg.id;
+                            return (
+                              <button
+                                key={seg.id}
+                                type="button"
+                                aria-label={`${seg.label}: ${seg.count} cases`}
+                                onClick={() => handleOpenStatusDrawer(seg.statusKey, seg.label)}
+                                onFocus={() => setHoveredPipelineSegment(seg.id)}
+                                onMouseEnter={() => setHoveredPipelineSegment(seg.id)}
+                                className="h-full flex items-center cursor-pointer group border-0 bg-transparent p-0 min-w-[4px]"
+                                style={{ width: `${seg.pct}%` }}
+                                title={`${seg.label}: ${seg.count} cases`}
+                              >
+                                <div
+                                  className={`w-full h-[8px] rounded-full ${seg.color} transition-all duration-200 ${
+                                    isActive ? "h-[10px] shadow-sm brightness-105 ring-1 ring-black/10" : "opacity-90 hover:opacity-100 hover:h-[10px]"
+                                  }`}
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -1291,24 +1344,30 @@ export default function InsightsPage() {
 
               <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[20px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex flex-col gap-[16px] w-full">
                 <span className="font-aeonik-medium text-[24px] text-[#171717] leading-none">
-                  {avgProcessingDays}d (avg)
+                  {avgProcessingDays !== null ? `${avgProcessingDays}d (avg)` : "—"}
                 </span>
 
                 <div className="flex flex-col gap-[12px]">
-                  {processingPhases.map((phase, idx) => (
-                    <div key={idx} className="flex flex-col gap-[6px]">
-                      <div className="flex items-center justify-between text-[13px]">
-                        <span className="text-[#5C5C5C] font-normal">{phase.label}</span>
-                        <span className="text-[#171717] font-medium">{phase.days}</span>
+                  {processingPhases.length === 0 ? (
+                    <span className="text-[13px] text-[#7B7B7B]">
+                      No processing time data available in this period.
+                    </span>
+                  ) : (
+                    processingPhases.map((phase, idx) => (
+                      <div key={idx} className="flex flex-col gap-[6px]">
+                        <div className="flex items-center justify-between text-[13px]">
+                          <span className="text-[#5C5C5C] font-normal">{phase.label}</span>
+                          <span className="text-[#171717] font-medium">{phase.days}</span>
+                        </div>
+                        <div className="h-[4px] w-full bg-[#F5F5F5] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${phase.color}`}
+                            style={{ width: phase.pct }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-[4px] w-full bg-[#F5F5F5] rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${phase.color}`}
-                          style={{ width: phase.pct }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1340,7 +1399,7 @@ export default function InsightsPage() {
                 
                 {(() => {
                   const originsList = topOrigins;
-                  const activeItem = originsList.find((o) => o.name === hoveredOrigin) || originsList[0];
+                  const activeItem = originsList.find((o) => o.name === activeOriginName) || originsList[0];
                   const activeCoords = activeItem ? getCoords(activeItem.name) : null;
 
                   return (
@@ -1348,7 +1407,7 @@ export default function InsightsPage() {
                       {originsList.map((origin) => {
                         const coords = getCoords(origin.name);
                         if (!coords) return null;
-                        const isHovered = hoveredOrigin === origin.name;
+                        const isHovered = activeOriginName === origin.name;
                         const isActive = activeItem?.name === origin.name;
 
                         return (
@@ -1358,6 +1417,7 @@ export default function InsightsPage() {
                             aria-label={`${origin.name}: ${origin.count} cases`}
                             className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2 border-0 bg-transparent"
                             style={{ left: coords.left, top: coords.top }}
+                            onFocus={() => setHoveredOrigin(origin.name)}
                             onMouseEnter={() => setHoveredOrigin(origin.name)}
                             onClick={() => router.push(`/cases?country=${encodeURIComponent(origin.name)}`)}
                           >
@@ -1399,11 +1459,16 @@ export default function InsightsPage() {
               </div>
 
               {/* Bottom Time Range Segment for Map */}
-              <div className="flex items-center bg-[#F5F5F5] p-[2px] rounded-full h-[26px] mt-4 z-10">
+              <div
+                role="group"
+                aria-label="Map time range filter"
+                className="flex items-center bg-[#F5F5F5] p-[2px] rounded-full h-[26px] mt-4 z-10"
+              >
                 {(["5D", "2W", "1M", "6M", "1Y"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
+                    aria-pressed={mapTimeFilter === t}
                     onClick={() => setMapTimeFilter(t)}
                     className={`h-full px-[10px] text-[11px] font-semibold rounded-full transition-all cursor-pointer border-0 ${
                       mapTimeFilter === t
@@ -1442,13 +1507,15 @@ export default function InsightsPage() {
                   </div>
                 ) : (
                   topOrigins.map((origin) => {
-                    const isHovered = hoveredOrigin === origin.name;
+                    const isHovered = activeOriginName === origin.name;
                     return (
-                      <div 
-                        key={origin.name} 
-                        className={`flex items-center justify-between text-[14px] p-2 rounded-[8px] transition-all cursor-pointer ${
+                      <button
+                        key={origin.name}
+                        type="button"
+                        className={`flex items-center justify-between text-[14px] p-2 rounded-[8px] transition-all cursor-pointer border-0 bg-transparent w-full text-left ${
                           isHovered ? "bg-white shadow-sm border border-[#EBEBEB]" : "hover:bg-white/60"
                         }`}
+                        onFocus={() => setHoveredOrigin(origin.name)}
                         onMouseEnter={() => setHoveredOrigin(origin.name)}
                         onClick={() => router.push(`/cases?country=${encodeURIComponent(origin.name)}`)}
                       >
@@ -1461,7 +1528,7 @@ export default function InsightsPage() {
                         }`}>
                           {origin.count}
                         </span>
-                      </div>
+                      </button>
                     );
                   })
                 )}
@@ -1530,14 +1597,8 @@ export default function InsightsPage() {
                   }}
                   className="p-[16px_20px] border-b border-[#EBEBEB] flex items-start gap-[16px] hover:bg-[#FAFAFA] active:bg-[#F5F5F5] transition-colors cursor-pointer text-left w-full border-x-0 border-t-0 bg-transparent group"
                 >
-                  {/* 56px Avatar */}
-                  <div className="size-[56px] rounded-full overflow-hidden bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[16px] shrink-0">
-                    {c.avatarUrl ? (
-                      <img src={c.avatarUrl} alt={c.name} className="size-full object-cover" />
-                    ) : (
-                      getInitials(c.name || "Migrant")
-                    )}
-                  </div>
+                  {/* 56px Avatar with load error fallback */}
+                  <DrawerAvatar avatarUrl={c.avatarUrl} name={c.name} />
 
                   {/* Migrant Info & Badges */}
                   <div className="flex flex-col gap-[6px] flex-1 min-w-0">

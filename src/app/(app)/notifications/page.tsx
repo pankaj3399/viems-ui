@@ -5,13 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   RiSearch2Line,
   RiArrowDownSLine,
-  RiAtLine,
-  RiFocus2Line,
-  RiRecordCircleLine,
-  RiFileListLine,
-  RiChatSmile2Line,
-  RiFileUploadLine,
-  RiFileChartLine,
   RiArrowLeftSLine,
   RiArrowRightSLine,
   RiArrowLeftDoubleLine,
@@ -29,6 +22,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import {
+  getReadIds,
+  persistReadId,
+  persistAllRead,
+  removeReadId,
+  formatTimeAgo,
+  getGroupLabel,
+  getIconForEntity,
+  getCategoryForLog,
+  getTargetUrl,
+  type LogEntry,
+  type LogsResponse,
+} from "@/lib/notifications";
 
 interface PageNotificationItem {
   id: string;
@@ -41,116 +47,6 @@ interface PageNotificationItem {
   targetUrl: string;
   isUnread?: boolean;
   category: "mentions" | "tasks" | "cases" | "messages" | "documents";
-}
-
-const STORAGE_KEY_READ_NOTIFS = "viems_read_notification_ids";
-
-function getReadIds(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_READ_NOTIFS);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
-}
-
-function persistReadId(id: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = getReadIds();
-    if (!current.includes(id)) {
-      localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify([...current, id]));
-      window.dispatchEvent(new Event("viems_notifications_updated"));
-    }
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function persistAllRead(ids: string[]) {
-  if (typeof window === "undefined") return;
-  try {
-    const current = getReadIds();
-    const next = Array.from(new Set([...current, ...ids]));
-    localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(next));
-    window.dispatchEvent(new Event("viems_notifications_updated"));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function formatTimeAgo(dateStr?: string): string {
-  if (!dateStr) return "Recently";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return "Recently";
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins} min ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
-
-function getGroupLabel(dateStr?: string): string {
-  if (!dateStr) return "TODAY";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return "TODAY";
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) return "TODAY";
-  if (date.toDateString() === yesterday.toDateString()) return "YESTERDAY";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }).toUpperCase();
-}
-
-function getIconForEntity(entityName?: string, action?: string) {
-  const e = (entityName || "").toLowerCase();
-  const a = (action || "").toLowerCase();
-  if (e.includes("file") || a.includes("file") || a.includes("upload") || a.includes("doc")) return RiFileUploadLine;
-  if (e.includes("task") || a.includes("task") || e.includes("rtw")) return RiFocus2Line;
-  if (e.includes("user") || e.includes("employee") || a.includes("mention")) return RiAtLine;
-  if (a.includes("status") || a.includes("stage") || a.includes("change")) return RiRecordCircleLine;
-  if (e.includes("report") || a.includes("report")) return RiFileChartLine;
-  if (e.includes("message") || a.includes("message")) return RiChatSmile2Line;
-  return RiFileListLine;
-}
-
-function getCategoryForLog(entityName?: string, action?: string): "mentions" | "tasks" | "cases" | "messages" | "documents" {
-  const e = (entityName || "").toLowerCase();
-  const a = (action || "").toLowerCase();
-  if (e.includes("file") || a.includes("file") || a.includes("upload") || a.includes("doc")) return "documents";
-  if (e.includes("task") || a.includes("task") || e.includes("rtw")) return "tasks";
-  if (e.includes("user") || e.includes("note") || a.includes("mention")) return "mentions";
-  if (e.includes("chat") || e.includes("message")) return "messages";
-  return "cases";
-}
-
-function getTargetUrl(entityName?: string, entityIdentifier?: string, action?: string): string {
-  const e = (entityName || "").toLowerCase();
-  const id = entityIdentifier ? entityIdentifier.replace(/^#/, "") : "";
-  if (e.includes("case") || e.includes("sponsorship")) {
-    return id ? `/cases/${id}` : "/cases";
-  }
-  if (e.includes("migrant") || e.includes("worker") || e.includes("applicant")) {
-    return id ? `/migrants/${id}` : "/migrants";
-  }
-  if (e.includes("file") || e.includes("doc") || e.includes("upload")) {
-    return "/compliance/documents";
-  }
-  if (e.includes("task") || e.includes("rtw") || e.includes("check")) {
-    return "/compliance/rtw-checks";
-  }
-  if (e.includes("log") || e.includes("audit")) {
-    return "/compliance/logs";
-  }
-  return id ? `/cases/${id}` : "/cases";
 }
 
 export default function NotificationsPage() {
@@ -166,10 +62,10 @@ export default function NotificationsPage() {
   const fetchPageNotifications = React.useCallback(async () => {
     try {
       setLoading(true);
-      const res = await apiClient.get<any>(ENDPOINTS.logs.base, {
+      const res = await apiClient.get<LogsResponse>(ENDPOINTS.logs.base, {
         params: { take: "100", sort_by: "date.desc" },
       });
-      const rawLogs: any[] = Array.isArray(res) ? res : res?.logs ?? res?.data ?? [];
+      const rawLogs: LogEntry[] = Array.isArray(res) ? res : res?.logs ?? res?.data ?? [];
       const readIds = getReadIds();
 
       if (rawLogs.length > 0) {
@@ -253,9 +149,7 @@ export default function NotificationsPage() {
     if (item.isUnread) {
       persistReadId(item.id);
     } else {
-      const current = getReadIds().filter((id) => id !== item.id);
-      localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(current));
-      window.dispatchEvent(new Event("viems_notifications_updated"));
+      removeReadId(item.id);
     }
     setItems((prev) =>
       prev.map((i) => (i.id === item.id ? { ...i, isUnread: !i.isUnread } : i))
@@ -318,7 +212,7 @@ export default function NotificationsPage() {
             Notifications
           </h1>
           <p className="text-[14px] text-[#5C5C5C] tracking-[-0.006em] mt-1 leading-[20px] font-sans">
-            Create, track, and manage visa cases for individual or grouped applicants.
+            Track and manage activity across your cases, migrants, documents, and tasks.
           </p>
         </div>
         {items.length > 0 && hasUnread && (
@@ -339,6 +233,7 @@ export default function NotificationsPage() {
           <RiSearch2Line className="size-5 text-[#A4A4A4] shrink-0" />
           <input
             type="text"
+            aria-label="Search notifications"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search..."
@@ -431,8 +326,16 @@ export default function NotificationsPage() {
                   return (
                     <div
                       key={item.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleItemClick(item)}
-                      className="w-full text-left h-auto min-h-[104px] bg-white border border-[#EBEBEB] hover:border-neutral-300 rounded-[12px] p-[16px] flex items-start gap-[16px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] relative group"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleItemClick(item);
+                        }
+                      }}
+                      className="w-full text-left h-auto min-h-[104px] bg-white border border-[#EBEBEB] hover:border-neutral-300 rounded-[12px] p-[16px] flex items-start gap-[16px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] relative group focus:outline-none focus:ring-1 focus:ring-[#7D52F4]/30"
                     >
                       {/* Left Icon */}
                       <div className="size-[36px] rounded-full bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center shrink-0">
@@ -474,7 +377,10 @@ export default function NotificationsPage() {
                       {/* Action dropdown button */}
                       <div className="absolute right-3 top-3" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
-                          <DropdownMenuTrigger className="size-7 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-neutral-400 hover:text-neutral-800 transition-colors border-0 bg-transparent outline-none cursor-pointer">
+                          <DropdownMenuTrigger
+                            aria-label="Notification actions"
+                            className="size-7 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-neutral-400 hover:text-neutral-800 transition-colors border-0 bg-transparent outline-none cursor-pointer"
+                          >
                             <RiMoreFill className="size-4" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-[150px] bg-white border border-[#EBEBEB] rounded-[10px] p-1 shadow-card-large">
@@ -504,7 +410,7 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      {/* Pagination Footer Group [1.1] */}
+      {/* Pagination Footer Group */}
       <div className="flex items-center justify-between w-full h-[32px] mt-2 border-t border-[#EBEBEB] pt-[24px]">
         {/* Left: Page summary */}
         <span className="text-[14px] font-normal text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
@@ -527,7 +433,7 @@ export default function NotificationsPage() {
           {/* Prev page */}
           <button
             type="button"
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            onClick={() => setCurrentPage((p) => Math.max(1, safeCurrentPage - 1))}
             disabled={safeCurrentPage === 1}
             className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
             title="Previous page"
@@ -577,7 +483,7 @@ export default function NotificationsPage() {
           {/* Next page */}
           <button
             type="button"
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, safeCurrentPage + 1))}
             disabled={safeCurrentPage === totalPages}
             className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-40 transition-colors border-0 cursor-pointer"
             title="Next page"

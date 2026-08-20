@@ -153,7 +153,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
       ? [
           {
             name: "Team",
-            href: "/admin",
+            href: "/team",
             icon: RiTeamLine,
           },
         ]

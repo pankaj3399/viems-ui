@@ -27,13 +27,13 @@ export function GroupFilterDropdown({
   const [search, setSearch] = React.useState("");
   const [tempValue, setTempValue] = React.useState<string | null>(value);
 
-  // Sync temp value when popover opens
-  React.useEffect(() => {
-    if (open) {
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
       setTempValue(value);
       setSearch("");
     }
-  }, [open, value]);
+    setOpen(newOpen);
+  };
 
   const filteredGroups = React.useMemo(() => {
     if (!search) return groups;
@@ -53,9 +53,14 @@ export function GroupFilterDropdown({
     );
   }, [groups, value]);
 
-  const selectedLabel = selectedGroup ? selectedGroup.label : "All Cases";
+  const selectedLabel =
+    !value || value === "all"
+      ? "All Cases"
+      : selectedGroup
+      ? selectedGroup.label
+      : value;
 
-  const totalCount = groups.reduce(
+  const totalCount = filteredGroups.reduce(
     (acc, g) => (g.value !== "all" ? acc + (g.count || 0) : acc),
     0
   );
@@ -71,7 +76,7 @@ export function GroupFilterDropdown({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger render={
         <Button
           type="button"
@@ -116,10 +121,16 @@ export function GroupFilterDropdown({
         </div>
 
         {/* Options */}
-        <div className="max-h-[240px] overflow-y-auto py-xs">
+        <div
+          role="radiogroup"
+          aria-label="Filter cases by group"
+          className="max-h-[240px] overflow-y-auto py-xs"
+        >
           {/* All cases option */}
           <button
             type="button"
+            role="radio"
+            aria-checked={tempValue === null || tempValue === "all"}
             onClick={() => setTempValue(null)}
             className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
           >
@@ -149,6 +160,8 @@ export function GroupFilterDropdown({
                 <button
                   key={group.value}
                   type="button"
+                  role="radio"
+                  aria-checked={isSelected}
                   onClick={() => setTempValue(group.value)}
                   className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
                 >
