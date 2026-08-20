@@ -221,6 +221,30 @@ export interface Employee {
   updationDate: string;
 }
 
+export interface EmployeeResponse {
+  id: string | number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  jobTitle?: string;
+  userStatus?: string;
+  avatar?: string;
+  smsRole?: string;
+  user?: {
+    email?: string;
+    personalInfo?: {
+      firstName?: string;
+      lastName?: string;
+    };
+    role?: {
+      value?: string;
+    };
+    status?: {
+      value?: string;
+    };
+  };
+}
+
 // ─── File / Document ─────────────────────────────────────────────────────────
 
 export interface FileDocument {

@@ -32,6 +32,8 @@ import {
   RiGroupFill,
   RiEqualizerLine,
   RiEqualizerFill,
+  RiTeamLine,
+  RiTeamFill,
   RiArrowRightSLine,
   RiSettings2Line,
 } from "@remixicon/react";
@@ -150,9 +152,9 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     ...(!userInfo || isAdmin(userInfo)
       ? [
           {
-            name: "Admin",
-            href: "/admin",
-            icon: Sliders,
+            name: "Team",
+            href: "/team",
+            icon: RiTeamLine,
           },
         ]
       : []),
@@ -408,11 +410,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                   ) : (
                     <RiPieChartLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
-                ) : item.name === "Admin" ? (
+                ) : item.name === "Team" || item.name === "Admin" ? (
                   isActive ? (
-                    <RiEqualizerFill className="size-5 shrink-0 text-white transition-colors" />
+                    <RiTeamFill className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiEqualizerLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiTeamLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : (
                   <Icon
