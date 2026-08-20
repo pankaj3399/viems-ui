@@ -9,7 +9,6 @@ import {
   RiTimer2Line,
   RiRepeatLine,
   RiUploadCloud2Line,
-  RiSparkling2Line,
 } from "@remixicon/react";
 
 interface TimelineEvent {
@@ -111,7 +110,7 @@ const initialTimelineData: TimelineGroup[] = [
         time: "01:12 PM",
         actorName: "System",
         actorType: "ai",
-        icon: RiSparkling2Line,
+        icon: RiFileTextLine,
       },
       {
         id: "e7",

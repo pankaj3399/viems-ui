@@ -36,8 +36,10 @@ import {
   RiTeamFill,
   RiArrowRightSLine,
   RiSettings2Line,
+  RiLayoutRightLine,
 } from "@remixicon/react";
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
+import { LogoIcon } from "@/components/Logo";
 
 const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
   active ? (
@@ -208,52 +210,52 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
         isOpen ? "w-64" : "w-20"
       }`}
     >
-      {/* Sidebar Header */}
+      {/* Header Card [Sidebar] [1.0] */}
       <div
-        className={`h-[88px] w-full flex items-center bg-[#171717] shrink-0 transition-all duration-300 relative ${
-          isOpen ? "px-6 justify-between" : "justify-center"
+        className={`h-16 w-full flex items-center bg-[#171717] rounded-[10px] shrink-0 transition-all duration-300 isolate select-none ${
+          isOpen ? "py-3 pl-2 pr-[18px] gap-2 justify-between" : "p-2 justify-center"
         }`}
       >
         <button
           type="button"
-          className={`flex items-center gap-3 bg-transparent border-0 text-left p-0 ${!isOpen && onToggle ? "cursor-pointer" : ""}`}
-          onClick={!isOpen ? onToggle : undefined}
-          title={!isOpen ? "Expand Sidebar" : undefined}
+          className={`flex items-center gap-2 bg-transparent border-0 text-left p-0 min-w-0 ${
+            !isOpen && onToggle ? "cursor-pointer" : "cursor-pointer"
+          }`}
+          onClick={() => {
+            if (!isOpen && onToggle) {
+              onToggle();
+            } else {
+              router.push("/dashboard");
+            }
+          }}
+          title={!isOpen ? "Expand Sidebar" : "viems"}
         >
-          {/* Header Card [Sidebar] [1.0] */}
-          <div className="size-10 rounded-full bg-[#262626] shrink-0" />
-          <span
-            className={`text-title-aeonik text-white whitespace-nowrap transition-all duration-300 ${
+          {/* Group 636: Viems Logo SVG (41px x 33px) */}
+          <LogoIcon width={41} height={33} className="shrink-0 text-brand-medium" />
+
+          {/* Text: viems (Aeonik 500, 24px, #FFFFFF) */}
+          <div
+            className={`flex flex-col justify-center items-start transition-all duration-300 ${
               isOpen
-                ? "opacity-100 translate-x-0"
-                : "opacity-0 -translate-x-2 pointer-events-none w-0 overflow-hidden"
+                ? "w-[141px] opacity-100 translate-x-0"
+                : "w-0 opacity-0 -translate-x-2 pointer-events-none overflow-hidden"
             }`}
           >
-            Viems
-          </span>
+            <span className="font-aeonik-medium font-medium text-[24px] leading-[32px] text-white tracking-[-0.01em] select-none">
+              viems
+            </span>
+          </div>
         </button>
 
         {isOpen && onToggle && (
           <button
             type="button"
             onClick={onToggle}
-            className="size-10 rounded-[10px] hover:bg-white/5 flex items-center justify-center text-neutral-400 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
+            className="size-6 rounded-[6px] p-0.5 flex items-center justify-center text-[#A4A4A4] hover:text-white hover:bg-white/5 cursor-pointer transition-colors border-0 bg-transparent shrink-0"
             title="Collapse Sidebar"
+            aria-label="Collapse Sidebar"
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#A4A4A4"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="shrink-0"
-            >
-              <rect width="18" height="18" x="3" y="3" rx="3" />
-              <path d="M9 3v18" />
-            </svg>
+            <RiLayoutRightLine className="size-5 shrink-0" />
           </button>
         )}
       </div>

@@ -12,7 +12,6 @@ import {
   ChevronRight,
   FileText,
   RefreshCw,
-  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentItem } from "./types";
@@ -414,15 +413,17 @@ export function FilePreviewModal({
                     </h3>
                     <div className="bg-[#F9FAFB] rounded-[12px] p-3.5 flex items-center gap-3 border border-[#F3F4F6]">
                       <div className="size-10 rounded-full bg-neutral-800 text-white font-medium flex items-center justify-center shrink-0">
-                        TJ
+                        {document.migrantName ? document.migrantName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "VI"}
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className="text-[14px] font-semibold text-[#171717] truncate">
-                          Taylor Johnson
+                          {document.migrantName || document.name}
                         </span>
-                        <span className="text-[12px] text-[#6B7280] font-normal truncate">
-                          #438/2026 · AX Studios
-                        </span>
+                        {(document.caseNumber || document.employer) && (
+                          <span className="text-[12px] text-[#6B7280] font-normal truncate">
+                            {[document.caseNumber, document.employer].filter(Boolean).join(" · ")}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -483,7 +484,7 @@ export function FilePreviewModal({
                     {/* Item 1 */}
                     <div className="flex items-start gap-3 relative z-10">
                       <div className="size-7 rounded-full bg-[#F3E8FF] text-[#7D52F4] flex items-center justify-center shrink-0 border border-white">
-                        <Sparkles className="size-3.5" />
+                        <FileText className="size-3.5" />
                       </div>
                       <div className="flex flex-col min-w-0 pt-0.5">
                         <span className="font-semibold text-[#171717]">

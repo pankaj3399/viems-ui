@@ -7,6 +7,7 @@ import {
   RiFile3Fill,
 } from "@remixicon/react";
 import { Flag } from "@/components/ui/flag";
+import { Button } from "@/components/ui/button";
 import { getInitials } from "@/lib/utils";
 import { FilePreviewModal } from "../../components/FilePreviewModal";
 
@@ -201,24 +202,27 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setIsPreviewOpen(true)}
               aria-label="Download passport document"
-              className="size-10 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
+              className="size-10 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer p-0"
               title="Download passport document"
             >
               <RiDownloadLine className="size-5" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="ghost"
               onClick={() => setIsPreviewOpen(true)}
               aria-label="Preview passport document"
               className="h-10 px-3.5 bg-[#F5F5F5] hover:bg-[#EBEBEB] rounded-[10px] flex items-center gap-1.5 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
             >
               <RiEyeLine className="size-5" />
               <span>Preview</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -232,13 +236,14 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
               Passport details
             </h2>
             {onEditPassport && (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={onEditPassport}
                 className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto font-sans"
               >
                 Edit
-              </button>
+              </Button>
             )}
           </div>
 
@@ -332,12 +337,15 @@ export function PassportTab({ migrant, onEditPassport }: PassportTabProps) {
         isOpen={isPreviewOpen}
         onClose={() => setIsPreviewOpen(false)}
         document={{
-          id: passportNumber,
-          name: `${fullName} - Passport Scan`,
-          subtitle: `${passportNumber}.pdf · 2.4 MB`,
+          id: passportNumber !== "—" ? passportNumber : String(migrant?.id || "passport"),
+          name: `${fullName !== "—" ? fullName : "Migrant"} - Passport Scan`,
+          subtitle: `${passportNumber !== "—" ? passportNumber : "passport"}.pdf · 2.4 MB`,
           category: "Passport & Identity Scan",
-          date: issueDate !== "—" ? issueDate : "22 Nov 2022",
+          date: issueDate !== "—" ? issueDate : undefined,
           status: "uploaded",
+          migrantName: fullName !== "—" ? fullName : undefined,
+          caseNumber: migrant?.caseId || undefined,
+          employer: migrant?.employer || undefined,
         }}
       />
     </div>

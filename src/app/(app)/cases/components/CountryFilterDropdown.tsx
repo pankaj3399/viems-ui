@@ -5,7 +5,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/flag";
-import { ChevronDown, Check, Search } from "lucide-react";
+import { RiArrowDownSLine, RiSearchLine } from "@remixicon/react";
 
 interface CountryOption {
   code: string;
@@ -58,7 +58,6 @@ export function CountryFilterDropdown({
   const selectedLabel = selectedCountry ? selectedCountry.label : value;
 
   const totalCount = countries.reduce((acc, c) => acc + (c.count || 0), 0);
-  const resultCount = filteredCountries.reduce((acc, c) => acc + (c.count || 0), 0);
 
   const handleApply = () => {
     onChange(tempValue);
@@ -77,12 +76,12 @@ export function CountryFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-auto min-w-[130px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 ${
+          className={`h-8 w-auto min-w-[125px] px-[10px] py-[6px] justify-between font-medium rounded-[8px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer ${
             open
-              ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
+              ? "border-[#171717] text-[#171717]"
               : value
-              ? "border-[#7D52F4] text-[#7D52F4] hover:text-[#7D52F4] hover:border-[#7D52F4]"
-              : "border-border text-[#5C5C5C]"
+              ? "border-[#171717] text-[#171717]"
+              : "border-[#EBEBEB] text-[#5C5C5C]"
           }`}
         >
           <span className="flex items-center gap-2 truncate">
@@ -91,37 +90,37 @@ export function CountryFilterDropdown({
             )}
             <span>{selectedLabel || "All countries"}</span>
           </span>
-          <ChevronDown
-            className={`size-5 shrink-0 transition-transform ${
-              open ? "rotate-180 text-[#7D52F4]" : "text-[#5C5C5C]"
+          <RiArrowDownSLine
+            className={`size-5 shrink-0 text-[#5C5C5C] transition-transform ${
+              open ? "rotate-180" : ""
             }`}
           />
         </Button>
       } />
 
-      <PopoverContent align="start" className="w-[260px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden flex flex-col">
+      <PopoverContent align="start" className="w-[290px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden flex flex-col">
         {/* Search */}
-        <div className="p-sm border-b border-neutral-100">
+        <div className="p-3 border-b border-neutral-100">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#A4A4A4]" />
+            <RiSearchLine className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4]" />
             <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search countries"
               autoFocus
-              className="w-full h-8 pl-8 pr-3 text-paragraph-sm bg-neutral-50 border border-border rounded-input placeholder-[#A4A4A4] focus-visible:border-[#7D52F4] focus-visible:ring-1 focus-visible:ring-[#7D52F4]/20 transition-all font-sans"
+              className="w-full h-8 pl-8 pr-3 text-[13px] bg-neutral-50 border border-border rounded-input placeholder-[#A4A4A4] focus-visible:border-brand-medium focus-visible:ring-1 focus-visible:ring-brand-medium/20 transition-all font-sans"
             />
           </div>
         </div>
 
         {/* Options */}
-        <div className="max-h-[240px] overflow-y-auto py-xs">
+        <div className="max-h-[260px] overflow-y-auto py-xs">
           {/* All countries option */}
-          <button
+          <button // ui-native-ok
             type="button"
             onClick={() => setTempValue(null)}
-            className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+            className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
           >
             <span className="flex items-center gap-sm">
               <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
@@ -129,53 +128,59 @@ export function CountryFilterDropdown({
               }`}>
                 {tempValue === null && <span className="size-2 rounded-full bg-[#7D52F4]" />}
               </span>
-              <span className="text-neutral-900 font-normal">All countries</span>
+              <span className="text-neutral-900 font-normal text-[14px]">All countries</span>
             </span>
           </button>
 
-          {filteredCountries.map((country) => (
-            <button
-              key={country.code}
-              type="button"
-              onClick={() => setTempValue(country.code)}
-              className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
-            >
-              <span className="flex items-center gap-sm min-w-0">
-                <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
-                  tempValue === country.code ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
-                }`}>
-                  {tempValue === country.code && <span className="size-2 rounded-full bg-[#7D52F4]" />}
+          {filteredCountries.map((country) => {
+            const isSelected = tempValue === country.code;
+
+            return (
+              <button // ui-native-ok
+                key={country.code}
+                type="button"
+                onClick={() => setTempValue(country.code)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+              >
+                <span className="flex items-center gap-sm min-w-0 pr-2">
+                  <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
+                    isSelected ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
+                  }`}>
+                    {isSelected && <span className="size-2 rounded-full bg-[#7D52F4]" />}
+                  </span>
+                  <Flag country={country.code} className="size-4 shrink-0" />
+                  <span className="truncate text-left text-neutral-900 font-normal text-[14px]">
+                    {country.label}
+                  </span>
                 </span>
-                <Flag country={country.code} className="size-4 shrink-0" />
-                <span className="truncate text-left text-neutral-900 font-normal">{country.label}</span>
-              </span>
-              {country.count !== undefined && (
-                <span className="text-subheading-2xs px-2 py-0.5 bg-[#E6F7F0] text-[#1FC16B] rounded-full font-medium shrink-0">
-                  {country.count}
-                </span>
-              )}
-            </button>
-          ))}
+                {country.count !== undefined && (
+                  <span className="text-[12px] px-2 py-0.5 rounded-full font-medium bg-[#F4F4F5] text-[#5C5C5C] shrink-0">
+                    {country.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
 
           {filteredCountries.length === 0 && (
-            <div className="px-lg py-xl text-paragraph-sm text-neutral-400 text-center">
+            <div className="px-4 py-6 text-paragraph-sm text-neutral-400 text-center">
               No countries found
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-lg py-lg border-t border-neutral-100">
-          <span className="text-paragraph-xs text-[#5C5C5C] font-normal">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-100 bg-white">
+          <span className="text-[13px] text-[#5C5C5C] font-normal whitespace-nowrap shrink-0">
             {totalCount} results
           </span>
-          <div className="flex items-center gap-sm">
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleCancel}
-              className="h-8 px-xl text-label-sm bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px]"
+              className="h-8 px-3 text-[13px] font-medium bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px] cursor-pointer"
             >
               Cancel
             </Button>
@@ -183,7 +188,7 @@ export function CountryFilterDropdown({
               type="button"
               size="sm"
               onClick={handleApply}
-              className="h-8 px-xl text-label-sm text-white rounded-[8px]"
+              className="h-8 px-4 text-[13px] font-medium bg-brand-medium hover:bg-brand-dark text-white rounded-[8px] border-0 cursor-pointer"
             >
               Apply
             </Button>

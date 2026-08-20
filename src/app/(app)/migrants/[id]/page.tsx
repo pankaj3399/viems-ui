@@ -3,43 +3,47 @@
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  RiLayoutGridLine,
-  RiLayoutGridFill,
-  RiFileTextLine,
-  RiFileTextFill,
+  RiLayoutMasonryLine,
+  RiLayoutMasonryFill,
+  RiPassportLine,
+  RiPassportFill,
+  RiFoldersLine,
+  RiFoldersFill,
   RiSuitcase2Line,
   RiSuitcase2Fill,
-  RiMapPinLine,
 } from "@remixicon/react";
-import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName, getInitials, getStatusBadgeStyle } from "@/lib/utils";
-import { getCountryInfo } from "@/lib/country";
 import { ENDPOINTS } from "@/lib/api-endpoints";
-import { CaseHeader } from "../../cases/[id]/components/CaseHeader";
-import { ProfileCard, MigrationStatusCard, PersonalDetailsCard } from "../../cases/[id]/components/OverviewCards";
-import { PassportTab } from "../../cases/[id]/components/PassportTab";
-import { CasesTab } from "../../cases/[id]/components/CasesTab";
-import { TravelHistoryTab } from "../../cases/[id]/components/TravelHistoryTab";
-import { EditPersonalDetailsModal } from "../../cases/components/EditPersonalDetailsModal";
-import { EditHomeAddressModal } from "../../cases/components/EditHomeAddressModal";
-import { EditContactDetailsModal } from "../../cases/components/EditContactDetailsModal";
-import { ChangeCaseStatusModal } from "../../cases/components/ChangeCaseStatusModal";
-import { AddNoteModal } from "../../cases/components/AddNoteModal";
+import { formatFullName, getInitials } from "@/lib/utils";
+import { getCountryInfo } from "@/lib/country";
 import { toast } from "sonner";
-import { Flag } from "@/components/ui/flag";
-
-const CasesTabIcon = ({ active, className }: { active?: boolean; className?: string }) => (
-  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M5.5 6.25V4C5.5 3.80109 5.57902 3.61032 5.71967 3.46967C5.86032 3.32902 6.05109 3.25 6.25 3.25H11.0605L12.5605 4.75H16.75C16.9489 4.75 17.1397 4.82902 17.2803 4.96967C17.421 5.11032 17.5 5.30109 17.5 5.5V13C17.5 13.1989 17.421 13.3897 17.2803 13.5303C17.1397 13.671 16.9489 13.75 16.75 13.75H14.5V16C14.5 16.1989 14.421 16.3897 14.2803 16.5303C14.1397 16.671 13.9489 16.75 13.75 16.75H3.25C3.05109 16.75 2.86032 16.671 2.71967 16.5303C2.57902 16.3897 2.5 16.1989 2.5 16V7C2.5 6.80109 2.57902 6.61032 2.71967 6.46967C2.86032 6.32902 3.05109 6.25 3.25 6.25H5.5ZM5.5 7.75H4V15.25H13V13.75H5.5V7.75Z" fill="currentColor"/>
-  </svg>
-);
+import { MigrantHeader } from "./components/MigrantHeader";
+import {
+  MigrantProfileCard,
+  MigrantMigrationStatusCard,
+  MigrantCaseStatusCard,
+  MigrantPersonalDetailsCard,
+  MigrantHomeAddressCard,
+  MigrantContactDetailsCard,
+} from "./components/MigrantOverviewCards";
+import { PassportTab } from "@/app/(app)/cases/[id]/components/PassportTab";
+import { CasesTab } from "@/app/(app)/cases/[id]/components/CasesTab";
+import { TravelHistoryTab } from "@/app/(app)/cases/[id]/components/TravelHistoryTab";
+import { EditPersonalDetailsModal } from "@/app/(app)/cases/components/EditPersonalDetailsModal";
+import { EditHomeAddressModal } from "@/app/(app)/cases/components/EditHomeAddressModal";
+import { EditContactDetailsModal } from "@/app/(app)/cases/components/EditContactDetailsModal";
+import { ChangeCaseStatusModal } from "@/app/(app)/cases/components/ChangeCaseStatusModal";
+import { AddNoteModal } from "@/app/(app)/cases/components/AddNoteModal";
+import { ArchiveCaseModal } from "@/app/(app)/cases/components/ArchiveCaseModal";
+import { DeleteCaseModal } from "@/app/(app)/cases/components/DeleteCaseModal";
+import { SmartUploadModal } from "@/app/(app)/cases/components/SmartUploadModal";
+import { Button } from "@/components/ui/button";
 
 const migrantTabs = [
-  { label: "Overview", iconLine: RiLayoutGridLine, iconFill: RiLayoutGridFill },
-  { label: "Passport", iconLine: RiFileTextLine, iconFill: RiFileTextFill },
-  { label: "Cases", iconLine: (props: React.SVGProps<SVGSVGElement>) => <CasesTabIcon active={false} {...props} />, iconFill: (props: React.SVGProps<SVGSVGElement>) => <CasesTabIcon active={true} {...props} /> },
-  { label: "UK Travel History", iconLine: RiSuitcase2Line, iconFill: RiSuitcase2Fill },
+  { label: "Overview", iconLine: RiLayoutMasonryLine, iconFill: RiLayoutMasonryFill },
+  { label: "Passport", iconLine: RiPassportLine, iconFill: RiPassportFill },
+  { label: "Cases", iconLine: RiFoldersLine, iconFill: RiFoldersFill },
+  { label: "Travel History", iconLine: RiSuitcase2Line, iconFill: RiSuitcase2Fill },
 ];
 
 function sanitizeFirstAndLastName(rawFirst: string, rawLast: string) {
@@ -59,26 +63,64 @@ function mapBackendMigrantToDetail(c: any) {
   const m = c.migrant || c;
   const pInfo = m.user?.personalInfo || {};
   const activePassport = Array.isArray(m.passports)
-    ? (m.passports.find((p: any) => p.is_actual) || m.passports[0] || {})
-    : (m.passport || {});
+    ? m.passports.find((p: any) => p.is_actual) || m.passports[0] || {}
+    : m.passport || {};
 
-  const rawFirstName = m.first_name || pInfo.firstName || m.firstName || "Taylor";
-  const rawLastName = m.last_name || pInfo.lastName || m.lastName || "Johnson";
+  const rawFirstName = m.first_name || pInfo.firstName || m.firstName || "";
+  const rawLastName = m.last_name || pInfo.lastName || m.lastName || "";
   const { firstName, lastName } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
-  const name = formatFullName(firstName, lastName) || "Taylor Johnson";
+  const name = formatFullName(firstName, lastName) || m.stage_name || m.stageName || "Unknown Migrant";
 
-  const rawGender = m.gender || pInfo.sex || m.sex || "Male";
-  const genderDisplay = rawGender ? (rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()) : "Male";
+  const rawGender = m.gender || pInfo.sex || m.sex || "";
+  const genderDisplay = rawGender
+    ? rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()
+    : "—";
 
-  const rawDob = m.date_of_birth || pInfo.dateOfBirth || m.dateOfBirth || "1990-06-14";
-  const dobDisplay = rawDob ? (isNaN(new Date(rawDob).getTime()) ? rawDob : new Date(rawDob).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "14 Jun 1990";
+  const rawDob = m.date_of_birth || pInfo.dateOfBirth || m.dateOfBirth || "";
+  const dobDisplay = rawDob
+    ? isNaN(new Date(rawDob).getTime())
+      ? rawDob
+      : new Date(rawDob).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+    : "—";
 
-  const passportNumber = activePassport.passport_number || m.passportNumber || activePassport.passportNumber || "LQ41932345";
-  const rawIssueDate = activePassport.issue_passport_date || m.issuePassportDate || activePassport.issuePassportDate || "2022-11-22";
-  const passportIssueDate = rawIssueDate ? (isNaN(new Date(rawIssueDate).getTime()) ? rawIssueDate : new Date(rawIssueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "22 Nov 2022";
+  const passportNumber =
+    activePassport.passport_number ||
+    m.passportNumber ||
+    activePassport.passportNumber ||
+    "";
+  const rawIssueDate =
+    activePassport.issue_passport_date ||
+    m.issuePassportDate ||
+    activePassport.issuePassportDate ||
+    "";
+  const passportIssueDate = rawIssueDate
+    ? isNaN(new Date(rawIssueDate).getTime())
+      ? rawIssueDate
+      : new Date(rawIssueDate).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+    : "—";
 
-  const rawExpiryDate = activePassport.expired_passport_date || m.expiredPassportDate || activePassport.expiredPassportDate || "2027-11-22";
-  const passportExpiryDate = rawExpiryDate ? (isNaN(new Date(rawExpiryDate).getTime()) ? rawExpiryDate : new Date(rawExpiryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })) : "22 Nov 2027";
+  const rawExpiryDate =
+    activePassport.expired_passport_date ||
+    m.expiredPassportDate ||
+    activePassport.expiredPassportDate ||
+    "";
+  const passportExpiryDate = rawExpiryDate
+    ? isNaN(new Date(rawExpiryDate).getTime())
+      ? rawExpiryDate
+      : new Date(rawExpiryDate).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+    : "—";
 
   const rawNationality =
     m.nationality_value ||
@@ -91,70 +133,184 @@ function mapBackendMigrantToDetail(c: any) {
     (typeof m.nationality === "string" ? m.nationality : "") ||
     c.nationality_value ||
     "";
-  const { code: nationalityCode, full: nationalityFull, flag: nationalityFlag } = getCountryInfo(rawNationality);
+  const { code: nationalityCode, full: nationalityFull, flag: nationalityFlag } =
+    getCountryInfo(rawNationality);
 
-  const rawCountryOfBirth = pInfo.countryOfBirth || pInfo.country_of_birth || m.country_of_birth || c.country_of_birth || "";
+  const rawCountryOfBirth =
+    pInfo.countryOfBirth ||
+    pInfo.country_of_birth ||
+    m.country_of_birth ||
+    c.country_of_birth ||
+    "";
   const { code: countryOfBirthCode } = getCountryInfo(rawCountryOfBirth);
 
-  const rawCityOfBirth = pInfo.cityOfBirth || pInfo.city_of_birth || m.city_of_birth || c.city_of_birth || "";
+  const rawCityOfBirth =
+    pInfo.cityOfBirth ||
+    pInfo.city_of_birth ||
+    m.city_of_birth ||
+    c.city_of_birth ||
+    m.place_of_birth ||
+    "";
+
+  // Location
+  let location = "OUTSIDE UK";
+  if (c.flightEntered?.isEntered || m.flightEntered?.isEntered) {
+    location = "IN UK";
+  }
+
+  // Visa Status & Calculation
+  let visaStatus = "VISA INACTIVE";
+  const visaStartDate = c.decision?.granted?.visaStartDate || c.flightVisa?.visaStartDate || c.visaStartDate;
+  const visaEndDate = c.decision?.granted?.visaEndDate || c.flightVisa?.visaEndDate || c.visaEndDate;
+
+  let daysLeft = 0;
+  let totalDays = 0;
+
+  if (visaEndDate) {
+    const end = new Date(visaEndDate);
+    if (end > new Date()) {
+      visaStatus = "VISA ACTIVE";
+    }
+    if (visaStartDate) {
+      const start = new Date(visaStartDate);
+      totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    daysLeft = Math.max(0, Math.ceil((end.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)));
+  }
+
+  // Renewal Window
+  let renewalWindow = "—";
+  if (visaEndDate) {
+    const end = new Date(visaEndDate);
+    if (!isNaN(end.getTime())) {
+      const renewalDate = new Date(end);
+      renewalDate.setMonth(renewalDate.getMonth() - 2);
+      renewalWindow = `Starts ${renewalDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}`;
+    }
+  }
+
+  // Case & Approval Status
+  let approvalStatus = "PENDING";
+  if (c.decision?.id === "Granted") {
+    approvalStatus = "VISA APPROVED";
+  } else if (c.decision?.id === "Refused") {
+    approvalStatus = "VISA REFUSED";
+  } else if (c.case_status || c.status) {
+    const s = (c.case_status || c.status).toUpperCase().replace(/_/g, " ");
+    if (s.includes("APPROVED") || s.includes("GRANTED")) approvalStatus = "VISA APPROVED";
+    else if (s.includes("REFUSED")) approvalStatus = "VISA REFUSED";
+    else approvalStatus = s;
+  }
+
+  // Employer / Group
+  const employer = c.personal?.groupName || c.group_name || c.employer || m.employer || m.group_name || m.lead?.group?.name || "—";
+
+  // Case ID & CoS
+  const caseIdDisplay = c.caseIdNumber && c.relatedYear
+    ? `${c.caseIdNumber}/${c.relatedYear}`
+    : c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/2026` : "—");
+
+  const cosRef = c.cosStatus?.assigned?.cosNumber || c.cosNumber || c.cosReference || m.cases?.[0]?.cosNumber || "";
+  const socCode = c.personal?.jobSocCode || c.personal?.socCode || c.socCode || m.cases?.[0]?.jobSocCode || "";
+  const jobTitle = c.personal?.jobTitle || c.category?.name || c.visaType || m.cases?.[0]?.jobTitle || m.jobTitle || "";
+
+  // Address
+  const addressLine1 = m.contacts?.address_line_1 || "";
+  const addressLine2 = m.contacts?.address_line_2 || "";
+  const cityName = m.contacts?.city?.name || m.contacts?.city || "";
+  const stateName = m.contacts?.state?.name || m.contacts?.state || "";
+  const zipCode = m.contacts?.zip_code || "";
+  const countryName = m.contacts?.country?.name || m.contacts?.country || "";
+
+  const addressLines = [
+    addressLine1,
+    addressLine2,
+    [cityName, stateName, zipCode].filter(Boolean).join(" ").trim(),
+    countryName,
+  ].filter(Boolean);
+
+  const fullHomeAddress = addressLines.length > 0 ? addressLines.join("\n") : "";
+
+  // Emergency contact from localStorage or database
+  const migrantIdStr = String(m.id || c.id || "");
+  let emergency = {
+    name: "",
+    relationship: "",
+    phone: "",
+    email: "",
+  };
+  if (typeof window !== "undefined" && migrantIdStr) {
+    const stored = localStorage.getItem(`emergency_${migrantIdStr}`);
+    if (stored) {
+      try {
+        emergency = JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse emergency contact:", e);
+      }
+    }
+  }
 
   return {
-    id: c.id || 1,
+    id: c.id || m.id || 1,
+    migrantId: migrantIdStr,
     name,
-    avatar: m.avatar || "/sample-files/avatar.png",
-    caseId: c.caseIdDisplay || c.caseNumber || `${c.id || 430}/2026`,
-    cosRef: c.cosNumber || "COS 2026-00430",
-    approvalStatus: c.case_status || "VISA APPROVED",
-    visaStatus: "VISA ACTIVE",
-    location: "IN UK",
-    employer: c.group_name || "AX Studios",
+    avatar: m.avatar || m.photo_url || pInfo.avatars?.[0]?.url || "",
+    avatarText: getInitials(name) || "—",
+    caseId: caseIdDisplay,
+    cosRef,
+    approvalStatus,
+    visaStatus,
+    location,
+    employer,
     personalInfo: {
       fullName: name,
       firstName,
       lastName,
       gender: genderDisplay,
       dob: dobDisplay,
-      maritalStatus: "Married",
+      maritalStatus: m.marital_status || m.maritalStatus || pInfo.maritalStatus || "—",
       nationality: nationalityFull,
       nationalityCode: nationalityCode,
       nationalityFlag: nationalityFlag,
-      countryOfBirthCode: countryOfBirthCode !== "UN" ? countryOfBirthCode : nationalityCode,
+      countryOfBirthCode:
+        countryOfBirthCode && countryOfBirthCode !== "UN" ? countryOfBirthCode : nationalityCode,
       cityOfBirth: rawCityOfBirth || "—",
-      employer: c.group_name || "AX Studios",
-      jobTitle: "Creative Worker",
-      address: ["742 Evergreen Terrace", "Los Angeles, CA 90026"],
+      employer,
+      jobTitle: jobTitle || "—",
+      address: addressLines,
     },
     passport: {
-      number: passportNumber,
+      number: passportNumber || "—",
       issueDate: passportIssueDate,
       expiryDate: passportExpiryDate,
     },
     cos: {
-      status: "ASSIGNED",
-      reference: c.cosNumber || "COS 2026-00430",
-      salary: "£38,500 / year",
-      startDate: "15 Mar 2026",
-      socCode: "3416",
+      status: c.cosStatus?.id || (approvalStatus === "VISA APPROVED" ? "ASSIGNED" : "DRAFT"),
+      reference: cosRef,
+      salary: c.personal?.jobPay ? `$${c.personal.jobPay}` : "",
+      startDate: visaStartDate ? new Date(visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "",
+      socCode,
+      jobTitle,
     },
     visa: {
-      daysLeft: 325,
-      totalDays: 365,
-      startDate: "15 Mar 2026",
-      endDate: "31 Mar 2027",
-      renewalWindow: "Starts Jan 2027",
-      visaType: "Creative Worker",
+      daysLeft,
+      totalDays: totalDays || 365,
+      startDate: visaStartDate ? new Date(visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+      endDate: visaEndDate ? new Date(visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+      renewalWindow,
+      visaType: c.personal?.visaType || c.visaType || c.category?.name || "—",
     },
     contact: {
-      email: m.email || "taylor.j@email.com",
-      phone: "+44 7700 123456",
-      homeAddress: "742 Evergreen Terrace, Los Angeles, CA 90026",
-      lastConfirmed: "Not yet verified",
+      email: m.user?.email || m.contacts?.contact_email || m.email || "—",
+      phone: m.contacts?.phone_1 || m.phone || "—",
+      homeAddress: fullHomeAddress,
+      lastConfirmed: m.contacts?.lastConfirmed || "Not yet verified",
     },
     emergencyContact: {
-      name: "Morgan Johnson",
-      relationship: "Spouse",
-      phone: "+1 (555) 012-3456",
-      email: "morgan.j@email.com",
+      name: emergency.name || "—",
+      relationship: emergency.relationship || "—",
+      phone: emergency.phone || "—",
+      email: emergency.email || "—",
     },
   };
 }
@@ -173,6 +329,9 @@ export default function MigrantDetailPage() {
   const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = React.useState(false);
   const [isAddNoteOpen, setIsAddNoteOpen] = React.useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = React.useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const [isUploadOpen, setIsUploadOpen] = React.useState(false);
 
   const loadMigrantDetail = React.useCallback(async () => {
     if (!id) return;
@@ -180,7 +339,7 @@ export default function MigrantDetailPage() {
       setLoading(true);
       let migrantData: any = null;
       let caseData: any = null;
-      
+
       try {
         migrantData = await apiClient.get<any>(ENDPOINTS.migrants.byId(id));
       } catch (e) {}
@@ -188,7 +347,7 @@ export default function MigrantDetailPage() {
       try {
         caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
       } catch (e) {}
-      
+
       const combined = {
         ...(caseData || {}),
         ...(migrantData || {}),
@@ -200,6 +359,7 @@ export default function MigrantDetailPage() {
       setMigrant(detail);
     } catch (err) {
       console.error("Failed to load migrant details:", err);
+      toast.error("Failed to load migrant details");
     } finally {
       setLoading(false);
     }
@@ -218,26 +378,43 @@ export default function MigrantDetailPage() {
     );
   }
 
+  if (!migrant) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center min-h-[400px] text-neutral-500 font-sans gap-3">
+        <p className="text-paragraph-sm font-medium">Migrant profile not found.</p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/migrants")}
+        >
+          Back to Migrants
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full overflow-x-hidden">
       {/* ====== HEADER ====== */}
-      <div className="bg-white rounded-t-card flex flex-col shrink-0">
-        <CaseHeader
+      <div className="bg-white rounded-t-[16px] flex flex-col shrink-0">
+        <MigrantHeader
           name={migrant.name}
           avatar={migrant.avatar}
-          visaStatus={migrant.visaStatus}
-          location={migrant.location}
           caseId={migrant.caseId}
           cosRef={migrant.cosRef}
           socCode={migrant.cos?.socCode}
-          approvalStatus={migrant.approvalStatus}
+          jobTitle={migrant.cos?.jobTitle}
           onBack={() => router.push("/migrants")}
+          onEditHeader={() => setIsPersonalModalOpen(true)}
           onChangeStatus={() => setIsChangeStatusOpen(true)}
           onAddNote={() => setIsAddNoteOpen(true)}
+          onUpload={() => setIsUploadOpen(true)}
+          onArchive={() => setIsArchiveOpen(true)}
+          onDelete={() => setIsDeleteOpen(true)}
         />
 
-        {/* ====== TAB MENU (Overview, Passport, Cases, UK Travel History) ====== */}
-        <div className="px-[64px] flex items-center gap-2xl h-[50px] border-b border-[#EBEBEB]">
+        {/* ====== TAB MENU (Overview, Passport, Cases, Travel History) ====== */}
+        <div className="px-[64px] flex items-center gap-[24px] h-[50px] border-b border-[#EBEBEB]">
           {migrantTabs.map((tab) => {
             const isActive = activeTab === tab.label;
             const IconComponent = isActive ? tab.iconFill : tab.iconLine;
@@ -246,14 +423,17 @@ export default function MigrantDetailPage() {
                 key={tab.label}
                 variant="ghost"
                 onClick={() => setActiveTab(tab.label)}
-                className={`h-full flex items-center gap-[6px] border-b-2 text-[14px] font-medium tracking-[-0.006em] transition-all cursor-pointer rounded-none bg-transparent border-t-0 border-l-0 border-r-0 px-0 pb-0 pt-0 hover:bg-transparent ${
+                className={`relative h-full flex items-center gap-[6px] text-[14px] font-medium tracking-[-0.006em] transition-all cursor-pointer rounded-none bg-transparent border-none px-0 pb-0 pt-0 hover:bg-transparent ${
                   isActive
-                    ? "border-[#171717] text-[#171717]"
-                    : "border-transparent text-[#5C5C5C] hover:text-[#171717]"
+                    ? "text-[#171717]"
+                    : "text-[#5C5C5C] hover:text-[#171717]"
                 }`}
               >
                 <IconComponent className="size-5" />
                 <span>{tab.label}</span>
+                {isActive && (
+                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#171717]" />
+                )}
               </Button>
             );
           })}
@@ -261,202 +441,57 @@ export default function MigrantDetailPage() {
       </div>
 
       {/* ====== CONTENT AREA ====== */}
-      <div className="flex-1 px-[32px] py-2xl max-w-full overflow-x-hidden">
+      <div className="flex-1 px-[64px] py-[32px] max-w-full overflow-x-hidden">
         {activeTab === "Overview" ? (
           <div className="flex gap-[24px] items-start w-full font-sans select-none max-w-full">
-            {/* COLUMN 1: Profile & Migration Status */}
+            {/* COLUMN 1: Profile, Migration Status, Case Status (width: 303px) */}
             <div className="w-[303px] shrink-0 flex flex-col gap-[24px]">
-              <ProfileCard
+              <MigrantProfileCard
                 name={migrant.name}
-                initials={getInitials(migrant.name || "") || "TJ"}
+                initials={migrant.avatarText}
                 avatar={migrant.avatar}
                 employer={migrant.employer}
-                status={migrant.approvalStatus}
-                onAddNote={() => setIsAddNoteOpen(true)}
+                status={migrant.visaStatus}
               />
-              <MigrationStatusCard location={migrant.location} visa={migrant.visa} />
-              
-              {/* Case status card */}
-              <div className="flex flex-col gap-xs w-full">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Case status</h2>
-                  {(() => {
-                    const style = getStatusBadgeStyle(migrant.approvalStatus);
-                    return (
-                      <span className={`inline-flex items-center gap-xs h-4 px-2 ${style.bg} ${style.text} rounded-full text-[11px] font-medium uppercase tracking-[0.02em]`}>
-                        <span className={`size-1.5 rounded-full ${style.dot}`} />
-                        {migrant.approvalStatus || "DRAFT"}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[20px] flex flex-col gap-3 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] w-full">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-[#5C5C5C]">Case ID</span>
-                    <span className="text-[14px] font-mono text-[#171717]">{migrant.caseId}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px] text-[#5C5C5C]">Group</span>
-                    <span className="text-[14px] font-medium text-[#171717]">{migrant.employer}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/cases/${id}`)}
-                    className="mt-2 w-full h-9 bg-[#262626] hover:bg-[#171717] text-white rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer border-0 flex items-center justify-center"
-                  >
-                    View case
-                  </button>
-                </div>
-              </div>
+
+              <MigrantMigrationStatusCard
+                location={migrant.location}
+                visa={migrant.visa}
+              />
+
+              <MigrantCaseStatusCard
+                caseId={migrant.caseId}
+                employer={migrant.employer}
+                status={migrant.approvalStatus}
+                onViewCase={() => router.push(`/cases/${id}`)}
+              />
             </div>
 
-            {/* COLUMN 2: Personal Details & Address */}
+            {/* COLUMN 2: Personal Details, Home Address, Contact Details (flex-1) */}
             <div className="flex-1 min-w-0 flex flex-col gap-[24px]">
-              {/* Personal Details */}
-              <div className="flex flex-col gap-[12px] w-full">
-                <div className="flex items-center justify-between h-[30px]">
-                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Personal details</h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsPersonalModalOpen(true)}
-                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full flex flex-col gap-[8px]">
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">First Name</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.firstName}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Last Name</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.lastName}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Date of Birth</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.dob}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Gender</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.gender}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Marital Status</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.maritalStatus}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Nationality</span>
-                      <div className="flex items-center gap-1.5 font-medium text-[#171717]">
-                        <Flag country={migrant.personalInfo.nationalityCode} className="size-4 rounded-full object-cover shrink-0" />
-                        <span>{migrant.personalInfo.nationalityCode}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Country of Birth</span>
-                      <div className="flex items-center gap-1.5 font-medium text-[#171717]">
-                        <Flag country={migrant.personalInfo.countryOfBirthCode || migrant.personalInfo.nationalityCode} className="size-4 rounded-full object-cover shrink-0" />
-                        <span>{migrant.personalInfo.countryOfBirthCode || migrant.personalInfo.nationalityCode}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">City of Birth</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.personalInfo.cityOfBirth || "—"}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Passport Number</span>
-                      <span className="text-[14px] font-medium text-[#171717] font-mono">{migrant.passport.number}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Passport Issue Date</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.passport.issueDate}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-[13px] font-normal text-[#5C5C5C]">Passport Expiry Date</span>
-                      <span className="text-[14px] font-medium text-[#171717]">{migrant.passport.expiryDate}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <MigrantPersonalDetailsCard
+                personalInfo={migrant.personalInfo}
+                passport={migrant.passport}
+                onEdit={() => setIsPersonalModalOpen(true)}
+              />
 
-              {/* Home address */}
-              <div className="flex flex-col gap-[12px] w-full">
-                <div className="flex items-center justify-between h-[30px]">
-                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Home address</h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsAddressModalOpen(true)}
-                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full">
-                    <span className="flex items-center gap-2 text-[14px] font-medium text-[#171717]">
-                      <RiMapPinLine className="size-4 text-[#5C5C5C] shrink-0" />
-                      {migrant.contact?.homeAddress || "No home address on file"}
-                    </span>
-                  </div>
-                </div>
-              </div>
+              <MigrantHomeAddressCard
+                address={migrant.contact?.homeAddress}
+                onEdit={() => setIsAddressModalOpen(true)}
+              />
 
-              {/* Contact details */}
-              <div className="flex flex-col gap-[12px] w-full">
-                <div className="flex items-center justify-between h-[30px]">
-                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Contact details</h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsContactModalOpen(true)}
-                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full flex flex-col gap-1">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full flex flex-col gap-2">
-                    <span className="text-[12px] font-semibold text-[#171717] uppercase tracking-[0.04em]">PRIMARY CONTACT</span>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Email</span><span className="text-[14px] font-medium text-[#171717]">{migrant.contact.email}</span></div>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Phone</span><span className="text-[14px] font-medium text-[#171717]">{migrant.contact.phone}</span></div>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Home Address</span><span className="text-[14px] font-medium text-[#171717]">{migrant.contact.homeAddress}</span></div>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Last Confirmed</span><span className="text-[14px] font-medium text-[#A4A4A4]">{migrant.contact.lastConfirmed}</span></div>
-                  </div>
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full flex flex-col gap-2">
-                    <span className="text-[12px] font-semibold text-[#171717] uppercase tracking-[0.04em]">EMERGENCY CONTACT</span>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Name</span><span className="text-[14px] font-medium text-[#171717]">{migrant.emergencyContact.name}</span></div>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Relationship</span><span className="text-[14px] font-medium text-[#171717]">{migrant.emergencyContact.relationship}</span></div>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Phone</span><span className="text-[14px] font-medium text-[#171717]">{migrant.emergencyContact.phone}</span></div>
-                    <div className="flex items-center justify-between py-1"><span className="text-[13px] text-[#5C5C5C]">Email</span><span className="text-[14px] font-medium text-[#171717]">{migrant.emergencyContact.email}</span></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* COLUMN 3: Cases History */}
-            <div className="w-[300px] shrink-0 flex flex-col gap-[24px]">
-              <div className="flex flex-col gap-[12px] w-full">
-                <div className="flex items-center justify-between h-[30px]">
-                  <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Cases history</h2>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab("Cases")}
-                    className="bg-transparent border-0 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors p-0 h-auto"
-                  >
-                    View all
-                  </button>
-                </div>
-                <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full flex items-center justify-between">
-                    <span className="text-[13px] text-[#5C5C5C]">Case ID</span>
-                    <span className="text-[14px] font-mono font-medium text-[#171717]">{migrant.caseId}</span>
-                  </div>
-                </div>
-              </div>
+              <MigrantContactDetailsCard
+                contact={migrant.contact}
+                emergencyContact={migrant.emergencyContact}
+                onEdit={() => setIsContactModalOpen(true)}
+              />
             </div>
           </div>
         ) : activeTab === "Passport" ? (
-          <PassportTab migrant={migrant} onEditPassport={() => setIsPersonalModalOpen(true)} />
+          <PassportTab
+            migrant={migrant}
+            onEditPassport={() => setIsPersonalModalOpen(true)}
+          />
         ) : activeTab === "Cases" ? (
           <CasesTab migrant={migrant} migrantId={id} />
         ) : (
@@ -486,8 +521,10 @@ export default function MigrantDetailPage() {
               console.error("Initial case endpoint update failed:", caseErr);
               const statusCode =
                 typeof caseErr === "object" && caseErr !== null
-                  ? (caseErr as { status?: number; response?: { status?: number } }).status ||
-                    (caseErr as { status?: number; response?: { status?: number } }).response?.status
+                  ? (caseErr as { status?: number; response?: { status?: number } })
+                      .status ||
+                    (caseErr as { status?: number; response?: { status?: number } })
+                      .response?.status
                   : undefined;
               if (statusCode === 404 || statusCode === 405) {
                 await apiClient.patch(ENDPOINTS.migrants.byId(id), {
@@ -505,7 +542,8 @@ export default function MigrantDetailPage() {
             }
           } catch (err: unknown) {
             console.error("Failed to update status:", err);
-            const message = err instanceof Error ? err.message : "Failed to update status";
+            const message =
+              err instanceof Error ? err.message : "Failed to update status";
             toast.error(message);
           }
         }}
@@ -536,6 +574,92 @@ export default function MigrantDetailPage() {
         onOpenChange={setIsContactModalOpen}
         migrantId={id}
         onSuccess={() => loadMigrantDetail()}
+      />
+      <ArchiveCaseModal
+        open={isArchiveOpen}
+        onOpenChange={setIsArchiveOpen}
+        caseInfo={{
+          caseId: migrant.caseId,
+          name: migrant.name,
+          avatarText: migrant.avatarText,
+          avatarUrl: migrant.avatar,
+        }}
+        onConfirm={async () => {
+          try {
+            if (!id) return;
+            let success = false;
+            try {
+              await apiClient.delete(ENDPOINTS.cases.toArchive, {
+                data: { data: [{ id }] },
+              });
+              success = true;
+            } catch (e) {
+              await apiClient.delete(`${ENDPOINTS.migrants.base}/to-archive`, {
+                data: { data: [{ id }] },
+              });
+              success = true;
+            }
+            if (success) {
+              toast.success("Migrant profile archived");
+              router.push("/migrants");
+            }
+          } catch (e) {
+            console.error("Failed to archive migrant:", e);
+            toast.error("Failed to archive migrant");
+          }
+        }}
+      />
+      <DeleteCaseModal
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        caseInfo={{
+          caseId: migrant.caseId,
+          name: migrant.name,
+          avatarText: migrant.avatarText,
+          avatarUrl: migrant.avatar,
+        }}
+        onConfirm={async () => {
+          try {
+            if (!id) return;
+            let success = false;
+            try {
+              await apiClient.delete(ENDPOINTS.cases.archive, {
+                data: { data: [{ id }] },
+              });
+              success = true;
+            } catch (e) {
+              await apiClient.delete(`${ENDPOINTS.migrants.base}/archive`, {
+                data: { data: [{ id }] },
+              });
+              success = true;
+            }
+            if (success) {
+              toast.success("Migrant profile deleted");
+              router.push("/migrants");
+            }
+          } catch (e) {
+            console.error("Failed to delete migrant:", e);
+            toast.error("Failed to delete migrant");
+          }
+        }}
+      />
+      <SmartUploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        title="Upload migrant documents"
+        onUploadSuccess={async (files: File[]) => {
+          try {
+            const formData = new FormData();
+            files.forEach((f: File) => formData.append("files", f));
+            formData.append("migrant_id", id);
+            await apiClient.post(ENDPOINTS.files.upload, formData);
+            toast.success("Documents uploaded successfully");
+            loadMigrantDetail();
+          } catch (e) {
+            console.error("Failed to upload files:", e);
+            toast.error("Failed to upload documents");
+          }
+        }}
       />
     </div>
   );

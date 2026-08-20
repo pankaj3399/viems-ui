@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Check } from "lucide-react";
+import { RiArrowDownSLine } from "@remixicon/react";
 
 interface StatusOption {
   label: string;
@@ -17,17 +17,23 @@ interface StatusFilterDropdownProps {
   statusColors?: Record<string, string>;
 }
 
+function formatStatusLabel(label: string) {
+  if (!label) return "";
+  if (label === label.toUpperCase() && label.length > 3) {
+    return label
+      .toLowerCase()
+      .split(/[\s_]+/)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+  return label;
+}
+
 export function StatusFilterDropdown({
   statuses,
   value,
   onChange,
-  statusColors = {
-    "Visa Approved": "#1FC16B",
-    "Active Compliance": "#1FC16B",
-    "Pre-Arrival": "#F6B51E",
-    "Sponsorship Withdrawn": "#FB3748",
-    "Archived": "#7B7B7B",
-  },
+  statusColors,
 }: StatusFilterDropdownProps) {
   const [open, setOpen] = React.useState(false);
   const [tempValue, setTempValue] = React.useState<string | null>(value);
@@ -40,26 +46,38 @@ export function StatusFilterDropdown({
   }, [open, value]);
 
   const getDotColor = (status: string) => {
-    const normalizedStatus = (status || "").toLowerCase().replace(/_/g, " ").trim();
-    const matchedKey = Object.keys(statusColors).find(
-      (k) => k.toLowerCase().replace(/_/g, " ").trim() === normalizedStatus
-    );
-    const color = (matchedKey ? statusColors[matchedKey] : statusColors[status]) || "#7D52F4";
-    if (color.startsWith("#")) {
-      return color;
+    const normalized = (status || "").toLowerCase().replace(/_/g, " ").trim();
+    if (statusColors && statusColors[status]) {
+      return statusColors[status];
     }
-    switch (color) {
-      case "warning":
-        return "#F6B51E";
-      case "success":
-        return "#1FC16B";
-      case "info":
-        return "#3B82F6";
-      case "error":
-        return "#E02424";
-      default:
-        return "#9CA3AF";
+    if (
+      normalized.includes("active") ||
+      normalized.includes("compliance") ||
+      normalized.includes("approved") ||
+      normalized.includes("granted") ||
+      normalized.includes("entered")
+    ) {
+      return "#1FC16B";
     }
+    if (
+      normalized.includes("pre") ||
+      normalized.includes("awaiting") ||
+      normalized.includes("pending") ||
+      normalized.includes("assessment") ||
+      normalized.includes("in progress") ||
+      normalized.includes("in_progress")
+    ) {
+      return "#F6B51E";
+    }
+    if (
+      normalized.includes("withdrawn") ||
+      normalized.includes("refused") ||
+      normalized.includes("rejected") ||
+      normalized.includes("rtw pending")
+    ) {
+      return "#FB3748";
+    }
+    return "#7B7B7B";
   };
 
   const totalCount = statuses.reduce((acc, s) => acc + (s.count || 0), 0);
@@ -81,30 +99,30 @@ export function StatusFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-auto min-w-[120px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 ${
+          className={`h-8 w-auto min-w-[104px] px-[10px] py-[6px] justify-between font-medium rounded-[8px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer ${
             open
-              ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
+              ? "border-[#171717] text-[#171717]"
               : value
-              ? "border-[#7D52F4] text-[#7D52F4] hover:text-[#7D52F4] hover:border-[#7D52F4]"
-              : "border-border text-[#5C5C5C]"
+              ? "border-[#171717] text-[#171717]"
+              : "border-[#EBEBEB] text-[#5C5C5C]"
           }`}
         >
-          <span className="truncate">{value || "All status"}</span>
-          <ChevronDown
-            className={`size-5 shrink-0 transition-transform ${
-              open ? "rotate-180 text-[#7D52F4]" : "text-[#5C5C5C]"
+          <span className="truncate">{value ? formatStatusLabel(value) : "All status"}</span>
+          <RiArrowDownSLine
+            className={`size-5 shrink-0 text-[#5C5C5C] transition-transform ${
+              open ? "rotate-180" : ""
             }`}
           />
         </Button>
       } />
 
-      <PopoverContent align="start" className="w-[240px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden flex flex-col">
-        <div className="max-h-[280px] overflow-y-auto py-xs">
+      <PopoverContent align="start" className="w-[300px] p-0 bg-card border border-border rounded-card shadow-card-large overflow-hidden flex flex-col">
+        <div className="max-h-[300px] overflow-y-auto py-xs">
           {/* All statuses option */}
-          <button
+          <button // ui-native-ok
             type="button"
             onClick={() => setTempValue(null)}
-            className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+            className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
           >
             <span className="flex items-center gap-sm">
               <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
@@ -112,54 +130,55 @@ export function StatusFilterDropdown({
               }`}>
                 {tempValue === null && <span className="size-2 rounded-full bg-[#7D52F4]" />}
               </span>
-              <span className="text-neutral-900 font-normal">All statuses</span>
+              <span className="text-neutral-900 font-normal text-[14px]">All statuses</span>
             </span>
           </button>
 
-          {statuses.map((status) => (
-            <button
-              key={status.label}
-              type="button"
-              onClick={() => setTempValue(status.label)}
-              className="w-full flex items-center justify-between px-lg py-md text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
-            >
-              <span className="flex items-center gap-sm min-w-0">
-                <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
-                  tempValue === status.label ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
-                }`}>
-                  {tempValue === status.label && <span className="size-2 rounded-full bg-[#7D52F4]" />}
+          {statuses.map((status) => {
+            const isSelected = tempValue === status.label;
+            const dotColor = getDotColor(status.label);
+
+            return (
+              <button // ui-native-ok
+                key={status.label}
+                type="button"
+                onClick={() => setTempValue(status.label)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+              >
+                <span className="flex items-center gap-sm min-w-0 pr-2">
+                  <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
+                    isSelected ? "border-2 border-[#7D52F4] bg-white" : "border-neutral-300 bg-white"
+                  }`}>
+                    {isSelected && <span className="size-2 rounded-full bg-[#7D52F4]" />}
+                  </span>
+                  <span
+                    className="size-2 rounded-full shrink-0"
+                    style={{ backgroundColor: dotColor }}
+                  />
+                  <span className="truncate text-left text-neutral-900 font-normal text-[14px]">
+                    {formatStatusLabel(status.label)}
+                  </span>
                 </span>
-                <span
-                  className="size-2 rounded-full shrink-0"
-                  style={{ backgroundColor: getDotColor(status.label) }}
-                />
-                <span className="truncate text-left text-neutral-900 font-normal">{status.label}</span>
-              </span>
-              <span className={`text-subheading-2xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                status.label === "Visa approved" ? "bg-[#E6F7F0] text-[#1FC16B]" :
-                status.label === "Awaiting" ? "bg-[#FFFBEB] text-[#D97706]" :
-                status.label === "Eligibility assessment" ? "bg-[#EFF6FF] text-[#1D4ED8]" :
-                status.label === "Visa refused" ? "bg-[#FEF2F2] text-[#DC2626]" :
-                "bg-[#F4F4F5] text-[#4B5563]"
-              }`}>
-                {status.count}
-              </span>
-            </button>
-          ))}
+                <span className="text-[12px] px-2 py-0.5 rounded-full font-medium bg-[#F4F4F5] text-[#5C5C5C] shrink-0">
+                  {status.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-lg py-lg border-t border-neutral-100">
-          <span className="text-paragraph-xs text-[#5C5C5C] font-normal">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-100 bg-white">
+          <span className="text-[13px] text-[#5C5C5C] font-normal whitespace-nowrap shrink-0">
             {totalCount} results
           </span>
-          <div className="flex items-center gap-sm">
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={handleCancel}
-              className="h-8 px-xl text-label-sm bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px]"
+              className="h-8 px-3 text-[13px] font-medium bg-[#F5F5F5] border-0 text-[#5C5C5C] hover:bg-neutral-200 rounded-[8px] cursor-pointer"
             >
               Cancel
             </Button>
@@ -167,7 +186,7 @@ export function StatusFilterDropdown({
               type="button"
               size="sm"
               onClick={handleApply}
-              className="h-8 px-xl text-label-sm text-white rounded-[8px]"
+              className="h-8 px-4 text-[13px] font-medium bg-brand-medium hover:bg-brand-dark text-white rounded-[8px] border-0 cursor-pointer"
             >
               Apply
             </Button>

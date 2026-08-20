@@ -9,7 +9,6 @@ import {
   RiCalendarLine,
   RiArrowDownSLine,
   RiUser3Line,
-  RiSparklingFill,
   RiArrowLeftSLine,
   RiArrowRightSLine,
   RiCloseLine,
@@ -875,7 +874,7 @@ export default function AddMigrantPage() {
             <div className="bg-[#EFEBFF] rounded-[8px] p-3 px-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white">
-                  <RiSparklingFill className="size-3.5 text-white" />
+                  <RiFileTextLine className="size-3.5 text-white" />
                 </div>
                 <span className="text-[13px] font-normal text-[#171717] leading-[20px]">
                   Upload a passport and AI will auto-fill these fields for you.
@@ -1488,7 +1487,7 @@ export default function AddMigrantPage() {
             <div className="bg-[#EFEBFF] rounded-[8px] p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white">
-                  <RiSparklingFill className="size-3.5 text-white" />
+                  <RiFileTextLine className="size-3.5 text-white" />
                 </div>
                 <span className="text-[13px] font-normal text-[#171717] leading-[20px]">
                   Upload the CoS reference and AI will auto-fill these fields for you.
@@ -1873,7 +1872,7 @@ export default function AddMigrantPage() {
                 {/* AI Smart Categorisation Banner */}
                 <div className="w-full bg-[#F7F7F7] border border-[#EBEBEB] rounded-[8px] p-3 flex items-start gap-3">
                   <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white mt-0.5">
-                    <RiSparklingFill className="size-3.5 text-white" />
+                    <RiFileTextLine className="size-3.5 text-white" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <h4 className="text-[14px] font-medium text-[#171717]">

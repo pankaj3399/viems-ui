@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   X,
   Upload,
-  Sparkles,
   CheckCircle2,
   Calendar,
   Info,
@@ -206,9 +205,9 @@ export function ReplaceFileModal({
               accept=".jpg,.jpeg,.png,.pdf,.mp4"
             />
 
-            {/* Sparkles Icon */}
+            {/* Status Icon */}
             <div className="absolute top-3 right-3 text-[#7D52F4]">
-              <Sparkles className="size-4" />
+              <FileText className="size-4" />
             </div>
 
             {/* Upload Icon Pill Container */}
@@ -292,18 +291,18 @@ export function ReplaceFileModal({
             />
           </div>
 
-          {/* AI Auto-fill Enabled Banner */}
+          {/* Auto-fill Enabled Banner */}
           <div className="bg-[#F9FAFB] rounded-[14px] p-3.5 flex flex-col gap-1 border border-[#F3F4F6]">
             <div className="flex items-center gap-2">
               <div className="size-4.5 rounded-[5px] bg-[#7D52F4] flex items-center justify-center text-white shrink-0">
-                <Sparkles className="size-3" />
+                <FileText className="size-3" />
               </div>
               <span className="text-[13px] font-semibold text-[#171717]">
-                AI auto-fill enabled
+                Auto-fill enabled
               </span>
             </div>
             <p className="text-[12px] text-[#6B7280] leading-relaxed pl-6">
-              When you upload this document, AI will automatically extract information and update their profile.
+              When you upload this document, system will automatically extract information and update their profile.
             </p>
           </div>
 
@@ -346,13 +345,13 @@ export function ReplaceFileModal({
           </div>
 
           <div className="size-14 rounded-[16px] bg-[#F3E8FF] flex items-center justify-center text-[#7D52F4] my-2 relative">
-            <Sparkles className="size-7 animate-pulse" />
+            <FileText className="size-7 animate-pulse" />
             <Loader2 className="size-16 text-[#7D52F4]/30 animate-spin absolute" />
           </div>
 
           <div className="flex flex-col items-center text-center gap-1">
             <h3 className="text-[16px] font-semibold text-[#171717]">
-              AI is scanning {selectedFile ? selectedFile.name : "TJ_Passport.pdf..."}
+              System is scanning {selectedFile ? selectedFile.name : "TJ_Passport.pdf..."}
             </h3>
             <p className="text-[13px] text-[#6B7280] font-normal">
               Extracting fields and verifying document...
@@ -402,9 +401,9 @@ export function ReplaceFileModal({
           <div className="bg-[#F9FAFB] rounded-[16px] p-5 flex flex-col gap-4 border border-[#F3F4F6]">
             <div className="flex items-center justify-between w-full border-b border-neutral-200/80 pb-3">
               <span className="text-[13px] font-semibold text-[#171717]">
-                9 inputs extracted with AI
+                9 inputs extracted
               </span>
-              <Sparkles className="size-4 text-[#7D52F4]" />
+              <FileText className="size-4 text-[#7D52F4]" />
             </div>
 
             {/* Photo */}

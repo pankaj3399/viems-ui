@@ -3,11 +3,15 @@
 import * as React from "react";
 import {
   RiSearchLine,
-  RiFilterLine,
+  RiFilter3Line,
+  RiSuitcase2Line,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { useTableSort } from "@/hooks/useTableSort";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { RawTravelHistoryRecord } from "@/types/api";
 
 interface TravelHistoryRow {
   id: number;
@@ -18,8 +22,6 @@ interface TravelHistoryRow {
   routeFlight: string;
   method: string;
 }
-
-import { RawTravelHistoryRecord } from "@/types/api";
 
 interface TravelHistoryTabProps {
   migrant?: { id?: string | number; [key: string]: unknown } | null;
@@ -104,20 +106,22 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
       {/* Toolbar / Filters Row */}
       <div className="flex items-center gap-[12px] w-full">
         {/* Search Bar */}
-        <div className="w-[348px] h-[32px] bg-white border border-[#EBEBEB] rounded-[8px] px-[8px] py-[6px] flex items-center gap-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
+        <div className="w-[348px] h-[32px] bg-white border border-[#EBEBEB] rounded-[8px] px-[8px] py-[6px] flex items-center gap-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] focus-within:border-brand-medium focus-within:ring-2 focus-within:ring-brand-medium/20">
           <RiSearchLine className="size-5 text-[#A4A4A4] shrink-0" />
-          <input
+          <Input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search travel history..."
-            className="w-full bg-transparent text-[14px] font-normal text-[#171717] placeholder:text-[#A4A4A4] border-0 outline-none leading-[20px]"
+            className="h-full border-0 bg-transparent p-0 text-[14px] font-normal text-[#171717] placeholder:text-[#A4A4A4] shadow-none focus-visible:ring-0 focus-visible:shadow-none leading-[20px]"
           />
         </div>
 
-        {/* Filter Button */}
-        <button
+        {/* Filter Reset Button */}
+        <Button
           type="button"
+          variant="outline"
+          size="icon-sm"
           onClick={() => {
             setSearchQuery("");
             setSortField(null);
@@ -127,8 +131,8 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filter"
         >
-          <RiFilterLine className="size-4 shrink-0" aria-hidden="true" />
-        </button>
+          <RiFilter3Line className="size-4 shrink-0 text-[#5C5C5C]" aria-hidden="true" />
+        </Button>
       </div>
 
       {/* Table Section */}
@@ -138,81 +142,96 @@ export function TravelHistoryTab({ migrant }: TravelHistoryTabProps) {
           {/* Badge spacer column */}
           <div className="w-[48px] shrink-0" />
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleSort("date")}
-            className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+            className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>DATE</span>
             {renderSortIcon("date")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleSort("port")}
-            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>PORT</span>
             {renderSortIcon("port")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleSort("routeFlight")}
-            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>ROUTE/FLIGHT</span>
             {renderSortIcon("routeFlight")}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => handleSort("method")}
-            className="w-[132px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent border-0 p-0 text-left transition-colors"
+            className="w-[132px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>METHOD</span>
             {renderSortIcon("method")}
-          </button>
+          </Button>
         </div>
 
         {/* Table Rows */}
         <div className="flex flex-col gap-[4px] w-full">
-          {filteredRecords.map((row) => (
-            <div
-              key={row.id}
-              className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center gap-[24px] transition-all shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
-            >
-              {/* Direction Badge (IN / OUT) */}
-              <div className="w-[48px] shrink-0 flex items-center">
-                {row.direction === "IN" ? (
-                  <span className="px-[6px] py-[2px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[11px] font-semibold tracking-[0.02em] uppercase">
-                    IN
-                  </span>
-                ) : (
-                  <span className="px-[6px] py-[2px] bg-[#FFECC0] text-[#624C18] rounded-full text-[11px] font-semibold tracking-[0.02em] uppercase">
-                    OUT
-                  </span>
-                )}
-              </div>
-
-              {/* Date */}
-              <div className="w-[116px] text-[14px] font-medium text-[#171717]">
-                {row.date}
-              </div>
-
-              {/* Port */}
-              <div className="w-[352px] text-[14px] font-medium text-[#7B7B7B]">
-                {row.port}
-              </div>
-
-              {/* Route/Flight */}
-              <div className="w-[352px] text-[14px] font-medium text-[#7B7B7B]">
-                {row.routeFlight}
-              </div>
-
-              {/* Method */}
-              <div className="w-[132px] text-[14px] font-medium text-[#7B7B7B]">
-                {row.method}
-              </div>
+          {loading ? (
+            <div className="w-full bg-white border border-[#EBEBEB] rounded-[16px] p-8 text-center flex flex-col items-center justify-center">
+              <span className="text-[14px] font-medium text-[#5C5C5C] animate-pulse">Loading travel history...</span>
             </div>
-          ))}
+          ) : filteredRecords.length === 0 ? (
+            <div className="w-full bg-white border border-[#EBEBEB] rounded-[16px] p-8 text-center flex flex-col items-center justify-center gap-2">
+              <RiSuitcase2Line className="size-8 text-[#A4A4A4]" />
+              <span className="text-[14px] font-medium text-[#5C5C5C]">No travel history records found</span>
+            </div>
+          ) : (
+            filteredRecords.map((row) => (
+              <div
+                key={row.id}
+                className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center gap-[24px] transition-all shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
+              >
+                {/* Direction Badge (IN / OUT) */}
+                <div className="w-[48px] shrink-0 flex items-center">
+                  {row.direction === "IN" ? (
+                    <span className="px-[6px] py-[2px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[11px] font-semibold tracking-[0.02em] uppercase">
+                      IN
+                    </span>
+                  ) : (
+                    <span className="px-[6px] py-[2px] bg-[#FFECC0] text-[#624C18] rounded-full text-[11px] font-semibold tracking-[0.02em] uppercase">
+                      OUT
+                    </span>
+                  )}
+                </div>
+
+                {/* Date */}
+                <div className="w-[116px] text-[14px] font-medium text-[#171717]">
+                  {row.date}
+                </div>
+
+                {/* Port */}
+                <div className="w-[352px] text-[14px] font-medium text-[#7B7B7B]">
+                  {row.port}
+                </div>
+
+                {/* Route/Flight */}
+                <div className="w-[352px] text-[14px] font-medium text-[#7B7B7B]">
+                  {row.routeFlight}
+                </div>
+
+                {/* Method */}
+                <div className="w-[132px] text-[14px] font-medium text-[#7B7B7B]">
+                  {row.method}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

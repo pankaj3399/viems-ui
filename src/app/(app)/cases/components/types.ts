@@ -11,4 +11,7 @@ export interface DocumentItem {
   isAlert?: boolean;
   fileUrl?: string;
   isMockFixture?: boolean;
+  migrantName?: string;
+  caseNumber?: string;
+  employer?: string;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Upload, Sparkles, X, Loader2, FileText } from "lucide-react";
+import { Upload, X, Loader2, FileText, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -163,9 +163,9 @@ export function SmartUploadModal({
             accept=".jpg,.jpeg,.png,.pdf,.mp4"
           />
 
-          {/* Sparkles Icon on Top Right of Dropzone */}
+          {/* Upload Status Icon on Top Right of Dropzone */}
           <div className="absolute top-3.5 right-3.5 text-[#7D52F4] p-1">
-            <Sparkles className="size-4" />
+            <FileText className="size-4" />
           </div>
 
           {/* Upload Icon Pill Container */}
@@ -214,18 +214,18 @@ export function SmartUploadModal({
           </div>
         )}
 
-        {/* AI Auto-fill Enabled Banner */}
+        {/* Auto-fill Enabled Banner */}
         <div className="bg-[#F9FAFB] rounded-[14px] p-4 flex flex-col gap-1.5 border border-[#F3F4F6]">
           <div className="flex items-center gap-2">
             <div className="size-5 rounded-[6px] bg-[#7D52F4] flex items-center justify-center text-white shrink-0">
-              <Sparkles className="size-3" />
+              <FileText className="size-3" />
             </div>
             <span className="text-[14px] font-semibold text-[#171717]">
-              AI auto-fill enabled
+              Auto-fill enabled
             </span>
           </div>
           <p className="text-[13px] text-[#6B7280] font-normal leading-relaxed pl-7">
-            Drop your files in and AI categorises them, extracts key details, updates the profile, and flags anything missing or mismatched.
+            Drop your files in and system categorises them, extracts key details, updates the profile, and flags anything missing or mismatched.
           </p>
         </div>
 

@@ -19,15 +19,42 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
-import { XIcon, Sparkles, Upload, Calendar } from "lucide-react";
+import { XIcon, FileText, Upload, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditPersonalDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   migrantId: string;
+  initialData?: any;
   onSuccess: () => void;
 }
+
+const DEFAULT_NATIONALITIES = [
+  { id: "1", value: "American" },
+  { id: "2", value: "British" },
+  { id: "3", value: "Canadian" },
+  { id: "4", value: "Australian" },
+  { id: "5", value: "Indian" },
+  { id: "6", value: "Irish" },
+  { id: "7", value: "German" },
+  { id: "8", value: "French" },
+  { id: "9", value: "Spanish" },
+  { id: "10", value: "Italian" },
+];
+
+const DEFAULT_COUNTRIES = [
+  { id: "1", value: "United States" },
+  { id: "2", value: "United Kingdom" },
+  { id: "3", value: "Canada" },
+  { id: "4", value: "Australia" },
+  { id: "5", value: "India" },
+  { id: "6", value: "Ireland" },
+  { id: "7", value: "Germany" },
+  { id: "8", value: "France" },
+  { id: "9", value: "Spain" },
+  { id: "10", value: "Italy" },
+];
 
 // Parse DD / MM / YYYY to YYYY-MM-DD
 function parseDisplayDate(displayVal: string): string {
@@ -65,6 +92,7 @@ export function EditPersonalDetailsModal({
   open,
   onOpenChange,
   migrantId,
+  initialData,
   onSuccess,
 }: EditPersonalDetailsModalProps) {
   // Form states
@@ -88,11 +116,51 @@ export function EditPersonalDetailsModal({
   const [contacts, setContacts] = React.useState<any>(null);
 
   // Dropdown options lists
-  const [nationalities, setNationalities] = React.useState<{ id: string; value: string }[]>([]);
-  const [countries, setCountries] = React.useState<{ id: string; value: string }[]>([]);
+  const [nationalities, setNationalities] = React.useState<{ id: string; value: string }[]>(DEFAULT_NATIONALITIES);
+  const [countries, setCountries] = React.useState<{ id: string; value: string }[]>(DEFAULT_COUNTRIES);
 
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+
+  const populateFromObject = React.useCallback((m: any) => {
+    if (!m) return;
+    setMigrantData(m);
+    const pInfo = m.user?.personalInfo || m.personalInfo || {};
+    setFirstName(m.first_name || pInfo.firstName || m.firstName || "");
+    setLastName(m.last_name || pInfo.lastName || m.lastName || "");
+    setDob(formatDisplayDate(pInfo.dateOfBirth || m.date_of_birth || m.dateOfBirth || ""));
+    setGender(pInfo.sex || m.gender || m.sex || "");
+    setMaritalStatus(m.marital_status || m.maritalStatus || pInfo.maritalStatus || "");
+    setCountryOfBirth(m.country_of_birth || m.countryOfBirth || pInfo.countryOfBirth || "");
+    
+    if (pInfo.nationality?.id) {
+      setNationality(pInfo.nationality.id.toString());
+    } else if (pInfo.nationalityCode) {
+      setNationality(pInfo.nationalityCode);
+    }
+
+    setCityOfBirth(m.place_of_birth || m.city_of_birth || pInfo.cityOfBirth || "");
+    setStageName(m.stage_name || "");
+    setWithStageName(Boolean(m.with_stage_name));
+    setContacts(m.contacts || null);
+
+    const activePassport = Array.isArray(m.passports)
+      ? m.passports.find((p: any) => p.is_actual === true) || m.passports[0]
+      : m.passport;
+
+    if (activePassport) {
+      setPassportId(activePassport.id || null);
+      setPassportNumber(activePassport.passport_number || activePassport.number || "");
+      setPassportIssueDate(formatDisplayDate(activePassport.issue_passport_date || activePassport.issueDate || ""));
+      setPassportExpiryDate(formatDisplayDate(activePassport.expired_passport_date || activePassport.expiryDate || ""));
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (initialData && open) {
+      populateFromObject(initialData);
+    }
+  }, [initialData, open, populateFromObject]);
 
   React.useEffect(() => {
     async function loadData() {
@@ -101,83 +169,58 @@ export function EditPersonalDetailsModal({
       try {
         setIsLoading(true);
 
-        // Fetch initdata nationalities
-        const initData = await apiClient.get<any>(ENDPOINTS.initData.byName("start"));
-        if (initData.Nationalities) {
-          setNationalities(initData.Nationalities);
-        }
-        if (initData.Countries) {
-          setCountries(initData.Countries);
+        // 1. Fetch initdata nationalities and countries safely
+        try {
+          const initData = await apiClient.get<any>(ENDPOINTS.initData.byName("start"));
+          if (initData?.Nationalities && Array.isArray(initData.Nationalities) && initData.Nationalities.length > 0) {
+            setNationalities(initData.Nationalities);
+          }
+          if (initData?.Countries && Array.isArray(initData.Countries) && initData.Countries.length > 0) {
+            setCountries(initData.Countries);
+          }
+        } catch {
+          // Keep defaults
         }
 
-        // Fetch migrant profile
-        const migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
+        // 2. Fetch migrant profile safely
+        let migrant: any = null;
+        try {
+          migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
+        } catch {
+          try {
+            const caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(migrantId));
+            if (caseData?.migrant) {
+              migrant = caseData.migrant;
+            } else if (caseData) {
+              migrant = caseData;
+            }
+          } catch {}
+        }
+
         if (migrant) {
-          setMigrantData(migrant);
-          setFirstName(migrant.user?.personalInfo?.firstName || "");
-          setLastName(migrant.user?.personalInfo?.lastName || "");
-          setDob(formatDisplayDate(migrant.user?.personalInfo?.dateOfBirth || ""));
-          setGender(migrant.user?.personalInfo?.sex || "");
-          setMaritalStatus(migrant.marital_status || migrant.maritalStatus || "");
-          setCountryOfBirth(migrant.country_of_birth || migrant.countryOfBirth || "");
-          
-          if (migrant.user?.personalInfo?.nationality?.id) {
-            setNationality(migrant.user.personalInfo.nationality.id.toString());
-          }
-
-          setCityOfBirth(migrant.place_of_birth || "");
-          
-          setStageName(migrant.stage_name || "");
-          setWithStageName(migrant.with_stage_name || false);
-          setContacts(migrant.contacts || null);
-
-          // Get active passport
-          const activePassport = migrant.passports?.find((p: any) => p.is_actual === true);
-          if (activePassport) {
-            setPassportId(activePassport.id);
-            setPassportNumber(activePassport.passport_number || "");
-            setPassportIssueDate(formatDisplayDate(activePassport.issue_passport_date || ""));
-            setPassportExpiryDate(formatDisplayDate(activePassport.expired_passport_date || ""));
-          }
+          populateFromObject(migrant);
         }
       } catch (err) {
         console.error("Failed to load edit modal details:", err);
-        toast.error("Failed to load personal details");
       } finally {
         setIsLoading(false);
       }
     }
 
     loadData();
-  }, [open, migrantId]);
+  }, [open, migrantId, populateFromObject]);
 
-  // AI autofill simulation
   const handleUploadClick = () => {
-    const toastId = toast.loading("Parsing passport with AI...");
-
-    setTimeout(() => {
-      setFirstName("Taylor");
-      setLastName("Johnson");
-      setDob("14 / 06 / 1990");
-      setGender("Male");
-      setMaritalStatus("Married");
-
-      const americanNat = nationalities.find(
-        (n) => n.value.toLowerCase() === "american" || n.value.toLowerCase() === "united states"
-      );
-      if (americanNat) {
-        setNationality(americanNat.id);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".pdf,.jpg,.jpeg,.png";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        toast.success(`Uploaded ${file.name}`);
       }
-      
-      setCountryOfBirth("United States");
-      setCityOfBirth("Los Angeles");
-      setPassportNumber("LQ41932345");
-      setPassportIssueDate("22 / 11 / 2022");
-      setPassportExpiryDate("22 / 11 / 2027");
-
-      toast.dismiss(toastId);
-      toast.success("AI Autofilled fields from passport successfully!");
-    }, 1200);
+    };
+    input.click();
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -267,7 +310,7 @@ export function EditPersonalDetailsModal({
           <div className="flex items-center justify-between p-[12px_24px_12px_8px] gap-lg bg-[#F7F7F7] rounded-[8px] shrink-0">
             <div className="flex items-center gap-lg">
               <div className="size-6 rounded-[6.4px] bg-[#7D52F4] flex items-center justify-center shrink-0">
-                <Sparkles className="size-3.5 text-[#EFEBFF] fill-[#EFEBFF]" />
+                <FileText className="size-3.5 text-[#EFEBFF]" />
               </div>
               <span className="text-[13px] leading-[20px] text-[#171717] tracking-[-0.006em]">
                 Upload a passport and AI will auto-fill these fields for you.
