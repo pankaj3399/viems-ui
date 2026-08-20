@@ -104,7 +104,7 @@ interface SidebarProps {
       lastName?: string;
     };
     email?: string;
-    avatar?: string;
+    avatar?: string | number;
     role?: {
       value?: string;
     } | null;

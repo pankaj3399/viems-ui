@@ -10,6 +10,8 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { StatusFilterDropdown } from "../../components/StatusFilterDropdown";
+import { CountryFilterDropdown } from "../../components/CountryFilterDropdown";
+import { getCountryInfo } from "@/lib/country";
 import { useTableSort } from "@/hooks/useTableSort";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,8 @@ interface CaseHistoryRow {
   dateValue: number;
   visaType: string;
   group: string;
+  countryCode: string;
+  countryLabel: string;
   status: string;
   statusType: "approved" | "closed" | "in_progress";
   immigrationStatus: string;
@@ -37,7 +41,8 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState<string | null>(null);
-  const { sortField, sortDirection, setSortField, setSortDirection, handleSort, renderSortIcon } = useTableSort<CaseHistoryRow>();
+  const [countryFilter, setCountryFilter] = React.useState<string | null>(null);
+  const { sortField, sortDirection, handleSort, renderSortIcon } = useTableSort<CaseHistoryRow>();
   const [casesList, setCasesList] = React.useState<CaseHistoryRow[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -71,23 +76,65 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
 
         if (Array.isArray(casesData) && casesData.length > 0) {
           const mapped: CaseHistoryRow[] = casesData.map((c: RawCaseRecord) => {
-            const rawStatus = c.case_status || c.status || "PENDING";
-            const isAppr = rawStatus.toUpperCase().includes("APPROVED");
+            const rawStatus = (c.case_status || c.status || "PENDING").toUpperCase().replace(/_/g, " ");
+            let statusDisplay = rawStatus;
+            let statusType: "approved" | "closed" | "in_progress" = "closed";
+
+            if (rawStatus.includes("APPROVED") || rawStatus.includes("GRANTED") || rawStatus.includes("ACTIVE")) {
+              statusDisplay = "VISA APPROVED";
+              statusType = "approved";
+            } else if (rawStatus.includes("CLOSED") || rawStatus.includes("COMPLETED") || rawStatus.includes("ARCHIVED") || rawStatus.includes("REFUSED")) {
+              statusDisplay = "CASE CLOSED";
+              statusType = "closed";
+            } else {
+              statusDisplay = rawStatus;
+              statusType = "in_progress";
+            }
+
             const isEntered = Boolean(c.flightEntered?.isEntered);
+            let immigrationStatus = "LEFT UK";
+            let immigrationType: "in_uk" | "left_uk" | "outside" = "left_uk";
+
+            if (statusType === "approved" || isEntered || c.migration === "IN UK") {
+              immigrationStatus = "IN UK";
+              immigrationType = "in_uk";
+            } else if (c.migration === "LEFT UK" || statusType === "closed") {
+              immigrationStatus = "LEFT UK";
+              immigrationType = "left_uk";
+            } else {
+              immigrationStatus = c.migration || "OUTSIDE UK";
+              immigrationType = "outside";
+            }
+
             const dateStr = c.created_at || c.creation_date;
             const dateObj = dateStr ? new Date(dateStr) : null;
             const dateValue = dateObj && !isNaN(dateObj.getTime()) ? dateObj.getTime() : 0;
+            
+            // Format case ID nicely as 431/2026 (remove '#' prefix if present)
+            let caseIdStr = c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/2026` : "—");
+            if (c.caseIdNumber && c.relatedYear) {
+              caseIdStr = `${c.caseIdNumber}/${c.relatedYear}`;
+            }
+            caseIdStr = caseIdStr.replace(/^#/, "");
+
+            const rawCountry = c.nationality_value || c.nationality_title || c.country || (migrant as any)?.personalInfo?.nationalityCode || (migrant as any)?.personalInfo?.nationality || "";
+            const { code: countryCode, full: countryLabel } = getCountryInfo(rawCountry);
+
             return {
               id: String(c.id || ""),
-              caseId: c.caseIdDisplay || c.caseNumber || (c.id ? `#${c.id}` : "—"),
-              date: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
+              caseId: caseIdStr,
+              date: dateObj && !isNaN(dateObj.getTime())
+                ? dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                : "—",
               dateValue,
-              visaType: c.job_title || c.visaType || c.personal?.jobTitle || "—",
+              visaType: c.job_title || c.visaType || c.personal?.jobTitle || "Creative Worker",
               group: c.group_name || c.personal?.groupName || "—",
-              status: rawStatus.toUpperCase(),
-              statusType: isAppr ? "approved" : "closed",
-              immigrationStatus: c.migration || (isEntered ? "IN UK" : "OUTSIDE UK"),
-              immigrationType: isEntered ? "in_uk" : "outside",
+              countryCode,
+              countryLabel,
+              status: statusDisplay,
+              statusType,
+              immigrationStatus,
+              immigrationType,
             };
           });
           setCasesList(mapped);
@@ -102,7 +149,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
       }
     }
     fetchCases();
-  }, [resolvedMigrantId]);
+  }, [resolvedMigrantId, migrant]);
 
   const availableStatuses = React.useMemo(() => {
     const map = new Map<string, number>();
@@ -116,6 +163,29 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
     }));
   }, [casesList]);
 
+  const availableCountries = React.useMemo(() => {
+    const map = new Map<string, { code: string; label: string; count: number }>();
+    casesList.forEach((c) => {
+      if (!c.countryCode) return;
+      const existing = map.get(c.countryCode);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        map.set(c.countryCode, {
+          code: c.countryCode,
+          label: c.countryLabel || c.countryCode,
+          count: 1,
+        });
+      }
+    });
+    return Array.from(map.values()).map((item) => ({
+      code: item.code,
+      label: item.label,
+      flag: item.code.toLowerCase(),
+      count: item.count,
+    }));
+  }, [casesList]);
+
   const filteredCases = React.useMemo(() => {
     const list = casesList.filter((item) => {
       if (searchQuery.trim()) {
@@ -125,9 +195,13 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
           item.date.toLowerCase().includes(q) ||
           item.visaType.toLowerCase().includes(q) ||
           item.group.toLowerCase().includes(q) ||
-          item.status.toLowerCase().includes(q)
+          item.status.toLowerCase().includes(q) ||
+          item.immigrationStatus.toLowerCase().includes(q)
         );
         if (!matchesQuery) return false;
+      }
+      if (countryFilter && countryFilter !== "all") {
+        if (item.countryCode.toLowerCase() !== countryFilter.toLowerCase()) return false;
       }
       if (statusFilter && statusFilter !== "all") {
         if (!item.status.toLowerCase().includes(statusFilter.toLowerCase())) return false;
@@ -149,7 +223,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
       if (valA > valB) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
-  }, [casesList, searchQuery, statusFilter, sortField, sortDirection]);
+  }, [casesList, searchQuery, countryFilter, statusFilter, sortField, sortDirection]);
 
   return (
     <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">
@@ -162,7 +236,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search cases..."
+            placeholder="Search..."
             className="h-full border-0 bg-transparent p-0 text-[14px] font-normal text-[#171717] placeholder:text-[#A4A4A4] shadow-none focus-visible:ring-0 focus-visible:shadow-none leading-[20px]"
           />
         </div>
@@ -174,15 +248,21 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
           size="icon-sm"
           onClick={() => {
             setSearchQuery("");
+            setCountryFilter(null);
             setStatusFilter(null);
-            setSortField(null);
-            setSortDirection("asc");
           }}
           className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
           title="Reset filter"
         >
           <RiFilter3Line className="size-4 shrink-0 text-[#5C5C5C]" />
         </Button>
+
+        {/* Country Filter Dropdown */}
+        <CountryFilterDropdown
+          countries={availableCountries}
+          value={countryFilter}
+          onChange={(val: string | null) => setCountryFilter(val)}
+        />
 
         {/* Status Filter Dropdown */}
         <StatusFilterDropdown
@@ -202,7 +282,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             onClick={() => handleSort("caseId")}
             className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
-            <span>CASE ID #</span>
+            <span>CADE ID</span>
             {renderSortIcon("caseId")}
           </Button>
           <Button
@@ -218,7 +298,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             type="button"
             variant="ghost"
             onClick={() => handleSort("visaType")}
-            className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
+            className="flex-1 min-w-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>VISA TYPE</span>
             {renderSortIcon("visaType")}
@@ -227,7 +307,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             type="button"
             variant="ghost"
             onClick={() => handleSort("group")}
-            className="w-[186px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
+            className="flex-1 min-w-0 flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>GROUP</span>
             {renderSortIcon("group")}
@@ -276,7 +356,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
                     router.push(`/cases/${row.id}`);
                   }
                 }}
-                className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center gap-[24px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
+                className="w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center gap-[24px] transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:shadow-md"
               >
                 {/* Case ID */}
                 <div className="w-[116px] text-[14px] font-mono text-[#5C5C5C]">
@@ -289,26 +369,26 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
                 </div>
 
                 {/* Visa Type */}
-                <div className="w-[186px] text-[14px] font-medium text-[#7B7B7B]">
+                <div className="flex-1 min-w-0 text-[14px] font-medium text-[#7B7B7B] truncate">
                   {row.visaType}
                 </div>
 
                 {/* Group */}
-                <div className="w-[186px] text-[14px] font-medium text-[#7B7B7B]">
+                <div className="flex-1 min-w-0 text-[14px] font-medium text-[#7B7B7B] truncate">
                   {row.group}
                 </div>
 
                 {/* Status */}
                 <div className="w-[186px] flex items-center">
                   {row.statusType === "approved" ? (
-                    <span className="inline-flex items-center gap-xs px-2 py-0.5 bg-[#E3F7EC] text-[#0B4627] rounded-full text-[11px] font-semibold uppercase tracking-[0.02em]">
-                      <span className="size-1.5 rounded-full bg-[#1FC16B]" />
-                      {row.status}
+                    <span className="inline-flex items-center gap-[4px] px-[8px] py-[2px] pr-[10px] pl-[6px] bg-[#E3F7EC] text-[#0B4627] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] h-[20px]">
+                      <span className="size-[6px] rounded-full bg-[#1FC16B] shrink-0" />
+                      <span>{row.status}</span>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-xs px-2 py-0.5 bg-[#F5F5F5] text-[#7B7B7B] rounded-full text-[11px] font-semibold uppercase tracking-[0.02em]">
-                      <span className="size-1.5 rounded-full bg-[#7B7B7B]" />
-                      {row.status}
+                    <span className="inline-flex items-center gap-[4px] px-[8px] py-[2px] pr-[10px] pl-[6px] bg-[#F5F5F5] text-[#7B7B7B] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] h-[20px]">
+                      <span className="size-[6px] rounded-full bg-[#7B7B7B] shrink-0" />
+                      <span>{row.status}</span>
                     </span>
                   )}
                 </div>
@@ -316,11 +396,11 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
                 {/* Immigration Status */}
                 <div className="w-[186px] flex items-center">
                   {row.immigrationType === "in_uk" ? (
-                    <span className="px-2 py-0.5 bg-[#EFEBFF] text-[#171717] rounded-full text-[11px] font-semibold uppercase tracking-[0.02em]">
+                    <span className="inline-flex items-center justify-center px-[8px] py-[2px] bg-[#EFEBFF] text-[#171717] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] h-[16px]">
                       {row.immigrationStatus}
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 bg-[#F5F5F5] text-[#7B7B7B] rounded-full text-[11px] font-semibold uppercase tracking-[0.02em]">
+                    <span className="inline-flex items-center justify-center px-[8px] py-[2px] bg-[#F5F5F5] text-[#7B7B7B] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] h-[16px]">
                       {row.immigrationStatus}
                     </span>
                   )}

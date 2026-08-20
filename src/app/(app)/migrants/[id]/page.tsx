@@ -483,6 +483,7 @@ export default function MigrantDetailPage() {
           cosRef={migrant.cosRef}
           socCode={migrant.cos?.socCode}
           jobTitle={migrant.cos?.jobTitle}
+          approvalStatus={migrant.approvalStatus}
           onBack={() => router.push("/migrants")}
           onEditHeader={() => setIsPersonalModalOpen(true)}
           onChangeStatus={() => setIsChangeStatusOpen(true)}
@@ -570,11 +571,12 @@ export default function MigrantDetailPage() {
           <PassportTab
             migrant={migrant}
             onEditPassport={() => setIsPersonalModalOpen(true)}
+            onPassportUploaded={() => loadMigrantDetail()}
           />
         ) : activeTab === "Cases" ? (
           <CasesTab migrant={migrant} migrantId={migrant.migrantId || id} />
         ) : (
-          <TravelHistoryTab migrant={migrant} />
+          <TravelHistoryTab migrant={migrant} migrantId={migrant.migrantId || id} />
         )}
       </div>
 

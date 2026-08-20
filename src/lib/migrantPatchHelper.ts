@@ -43,10 +43,12 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
 
   const userEmail =
     overrides.user?.email ||
+    overrides.email ||
     migrantData?.user?.email ||
     migrantData?.email ||
     migrantData?.contact?.email ||
     existingContacts.contact_email ||
+    existingContacts.email ||
     `${(cleanStageName || "user")}${migrantData?.id || Date.now()}@viems.internal`;
 
   const rawGender =
@@ -87,7 +89,7 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
       personalInfo: {
         firstName,
         lastName,
-        dateOfBirth: rawDob,
+        dateOfBirth: rawDob && rawDob !== "NaN-NaN-NaN" ? rawDob : null,
         sex: rawGender,
         nationality: rawNationality,
         ...(migrantData?.user?.personalInfo || {}),
@@ -95,7 +97,7 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
       },
     },
     gender: rawGender,
-    date_of_birth: rawDob,
+    date_of_birth: rawDob && rawDob !== "NaN-NaN-NaN" ? rawDob : null,
     nationality: rawNationality,
     place_of_birth:
       overrides.place_of_birth !== undefined
@@ -110,9 +112,10 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
     logs: overrides.logs ?? [],
     contacts: {
       contact_email:
-        contactsOverride.contact_email !== undefined
-          ? contactsOverride.contact_email
-          : existingContacts.contact_email || existingContacts.email || migrantData?.user?.email || "",
+        contactsOverride.contact_email ||
+        existingContacts.contact_email ||
+        existingContacts.email ||
+        userEmail,
       address_line_1:
         contactsOverride.address_line_1 !== undefined
           ? contactsOverride.address_line_1
@@ -157,18 +160,47 @@ export function buildMigrantPatchPayload(migrantData: any, overrides: any = {}):
     },
   };
 
-  if (overrides.passport) {
-    payload.passport = overrides.passport;
-  } else {
-    const activePassport = migrantData?.passports?.find((p: any) => p.is_actual === true);
-    if (activePassport) {
-      payload.passport = {
-        id: activePassport.id,
-        passport_number: activePassport.passport_number,
-        issue_passport_date: activePassport.issue_passport_date,
-        expired_passport_date: activePassport.expired_passport_date,
-      };
+  // Handle passport / passports validation
+  let cleanPassports: any[] | undefined = undefined;
+  let cleanPassport: any = undefined;
+
+  const rawPassports = overrides.passports || migrantData?.passports;
+  const rawPassport = overrides.passport || migrantData?.passport;
+
+  if (Array.isArray(rawPassports) && rawPassports.length > 0) {
+    const valid = rawPassports
+      .filter((p: any) => p && p.passport_number && p.passport_number !== "—" && p.passport_number.trim() !== "")
+      .map((p: any) => ({
+        ...(p.id ? { id: typeof p.id === "number" ? p.id : parseInt(p.id, 10) } : {}),
+        passport_number: p.passport_number.trim(),
+        place_of_issue: (p.place_of_issue && p.place_of_issue !== "—" ? p.place_of_issue : null) || migrantData?.place_of_birth || pInfo.cityOfBirth || "UK",
+        issue_passport_date: (p.issue_passport_date && p.issue_passport_date !== "—" && p.issue_passport_date !== "NaN-NaN-NaN" ? p.issue_passport_date : "2020-01-01"),
+        expired_passport_date: (p.expired_passport_date && p.expired_passport_date !== "—" && p.expired_passport_date !== "NaN-NaN-NaN" ? p.expired_passport_date : "2030-01-01"),
+        is_actual: p.is_actual !== undefined ? Boolean(p.is_actual) : true,
+      }));
+    if (valid.length > 0) {
+      cleanPassports = valid;
+      cleanPassport = valid[0];
     }
+  } else if (rawPassport && rawPassport.passport_number && rawPassport.passport_number !== "—" && rawPassport.passport_number.trim() !== "") {
+    const p = rawPassport;
+    cleanPassport = {
+      ...(p.id ? { id: typeof p.id === "number" ? p.id : parseInt(p.id, 10) } : {}),
+      passport_number: p.passport_number.trim(),
+      place_of_issue: (p.place_of_issue && p.place_of_issue !== "—" ? p.place_of_issue : null) || migrantData?.place_of_birth || pInfo.cityOfBirth || "UK",
+      issue_passport_date: (p.issue_passport_date && p.issue_passport_date !== "—" && p.issue_passport_date !== "NaN-NaN-NaN" ? p.issue_passport_date : "2020-01-01"),
+      expired_passport_date: (p.expired_passport_date && p.expired_passport_date !== "—" && p.expired_passport_date !== "NaN-NaN-NaN" ? p.expired_passport_date : "2030-01-01"),
+      is_actual: p.is_actual !== undefined ? Boolean(p.is_actual) : true,
+    };
+    cleanPassports = [cleanPassport];
+  }
+
+  if (cleanPassports) {
+    payload.passports = cleanPassports;
+    payload.passport = cleanPassport;
+  } else {
+    delete payload.passports;
+    delete payload.passport;
   }
 
   return payload;

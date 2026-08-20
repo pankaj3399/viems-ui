@@ -1,46 +1,160 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   RiUserLine,
   RiUserFill,
   RiLock2Line,
   RiLockFill,
   RiNotification2Line,
-  RiNotification3Line,
   RiNotification3Fill,
   RiListSettingsLine,
-  RiSettings3Line,
   RiSettings3Fill,
   RiUserSettingsLine,
+  RiGroupFill,
   RiGroupLine,
   RiCalendarLine,
-  RiArrowDownSLine,
-  RiUpload2Line,
-  RiCheckLine,
-  RiShieldKeyholeLine,
-  RiTeamLine,
+  RiMore2Line,
+  RiFileCopyLine,
+  RiMailSendLine,
+  RiDeleteBinLine,
+  RiRefreshLine,
+  RiSearchLine,
+  RiCloseLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
-import { UserProfileResponse, UserSettingsResponse } from "@/types/api";
+import { UserProfileResponse, UserSettingsResponse, EmployeeResponse } from "@/types/api";
+import { InviteMemberModal } from "@/components/InviteMemberModal";
+import { EditMemberModal, TeamMember } from "@/components/EditMemberModal";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { getInitials } from "@/lib/utils";
 
-export default function SettingsPage() {
-  const [activeTab, setActiveTab] = React.useState<
-    "PROFILE" | "SECURITY" | "NOTIFICATIONS" | "PREFERENCES" | "TEAM"
-  >("PROFILE");
+type SettingsTab = "PROFILE" | "SECURITY" | "NOTIFICATIONS" | "PREFERENCES" | "TEAM";
 
-  // Form Input States
+// ─── Custom Switch Component matching AlignUI / Figma EXACTLY ──────────────
+function SettingsSwitch({
+  checked,
+  onChange,
+  disabled = false,
+  ariaLabel,
+  id,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+  id?: string;
+}) {
+  return (
+    <button
+      type="button"
+      id={id}
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="relative w-[33px] h-[20px] cursor-pointer shrink-0 outline-none select-none disabled:opacity-50 disabled:cursor-not-allowed group focus-visible:ring-2 focus-visible:ring-[#7D52F4]/50 rounded-full border-0 bg-transparent p-0"
+    >
+      {/* Track: 28px x 16px */}
+      <span
+        className={`absolute rounded-full transition-colors duration-200 ${
+          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+        }`}
+        style={{
+          width: 28,
+          height: 16,
+          top: 2,
+          left: 2.5,
+        }}
+      />
+      {/* Thumb: 12px x 12px white circle */}
+      <span
+        className="absolute rounded-full bg-white flex items-center justify-center transition-all duration-200 shadow-[0px_4px_8px_rgba(27,28,29,0.06),0px_2px_4px_rgba(14,18,27,0.08)]"
+        style={{
+          width: 12,
+          height: 12,
+          top: 4,
+          left: checked ? 16.5 : 4.5,
+        }}
+      >
+        {/* Inner Dot: 4px x 4px */}
+        <span
+          className={`w-1 h-1 rounded-full transition-colors duration-200 ${
+            checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
+function SettingsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Tab state synced with URL query param
+  const tabParam = searchParams.get("tab")?.toUpperCase() as SettingsTab | undefined;
+  const initialTab: SettingsTab =
+    tabParam && ["PROFILE", "SECURITY", "NOTIFICATIONS", "PREFERENCES", "TEAM"].includes(tabParam)
+      ? tabParam
+      : "SECURITY";
+
+  const [activeTab, setActiveTab] = React.useState<SettingsTab>(initialTab);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    router.replace(`/settings?tab=${tab.toLowerCase()}`, { scroll: false });
+  };
+
+  React.useEffect(() => {
+    if (tabParam && ["PROFILE", "SECURITY", "NOTIFICATIONS", "PREFERENCES", "TEAM"].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  // Profile Form States
   const [firstName, setFirstName] = React.useState("Alex");
   const [lastName, setLastName] = React.useState("Marin");
   const [email, setEmail] = React.useState("alex.marin@viems.io");
   const [phone, setPhone] = React.useState("+1 555-555-5555");
   const [dob, setDob] = React.useState("1990-05-15");
   const [gender, setGender] = React.useState("Male");
-  const [timezone, setTimezone] = React.useState("(UTC +00:00) London");
+  const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+  const [timezone, setTimezone] = React.useState("(UTC) Edinburgh, London");
   const [dateFormat, setDateFormat] = React.useState("Month, Day Year");
   const [language, setLanguage] = React.useState("English (UK)");
+
+  // Timezone options from backend
+  const [timezoneOptions, setTimezoneOptions] = React.useState<Array<{ id: string; name: string }>>([
+    { id: "1", name: "(UTC) Edinburgh, London" },
+    { id: "2", name: "(UTC -05:00) New York" },
+    { id: "3", name: "(UTC +01:00) Paris, Berlin" },
+    { id: "4", name: "(UTC +05:30) Mumbai, New Delhi" },
+    { id: "5", name: "(UTC +08:00) Singapore, Beijing" },
+    { id: "6", name: "(UTC +09:00) Tokyo" },
+    { id: "7", name: "(UTC +10:00) Sydney" },
+  ]);
 
   // Security Form States
   const [currentPassword, setCurrentPassword] = React.useState("");
@@ -60,6 +174,13 @@ export default function SettingsPage() {
   const [notifReminders, setNotifReminders] = React.useState<[boolean, boolean]>([true, true]);
   const [notifSystem, setNotifSystem] = React.useState<[boolean, boolean]>([true, true]);
 
+  // Team & Roles State
+  const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
+  const [isLoadingTeam, setIsLoadingTeam] = React.useState(false);
+  const [teamSearchQuery, setTeamSearchQuery] = React.useState("");
+  const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
+  const [editingMember, setEditingMember] = React.useState<TeamMember | null>(null);
+
   const [currentUserId, setCurrentUserId] = React.useState<number | string | undefined>(undefined);
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -72,12 +193,15 @@ export default function SettingsPage() {
     phone: "+1 555-555-5555",
     dob: "1990-05-15",
     gender: "Male",
-    timezone: "(UTC +00:00) London",
+    avatarUrl: null as string | null,
+    timezone: "(UTC) Edinburgh, London",
     dateFormat: "Month, Day Year",
     language: "English (UK)",
   });
 
-  // Fetch current user info and settings from NestJS backend API
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // 1. Fetch current user info and settings from NestJS backend API
   React.useEffect(() => {
     async function fetchUserSettings() {
       try {
@@ -87,15 +211,18 @@ export default function SettingsPage() {
           const userRes = await apiClient.get<UserProfileResponse>(ENDPOINTS.users.userInfo);
           if (userRes) {
             if (userRes.id) setCurrentUserId(userRes.id);
-            const fn = userRes.first_name || firstName;
-            const ln = userRes.last_name || lastName;
+            const fn = userRes.first_name || userRes.firstName || firstName;
+            const ln = userRes.last_name || userRes.lastName || lastName;
             const em = userRes.email || email;
-            const ph = userRes.phone || phone;
-            const db = userRes.dob || dob;
-            const gn = userRes.gender || gender;
-            const tz = userRes.timezone || timezone;
-            const df = userRes.dateFormat || dateFormat;
-            const lg = userRes.language || language;
+            const ph = userRes.phone || userRes.personalInfo?.workPhone || phone;
+            const db = userRes.dob || userRes.personalInfo?.dateOfBirth || dob;
+            const gn = userRes.gender || userRes.personalInfo?.sex || gender;
+            const av =
+              userRes.avatar &&
+              userRes.avatar !== "undefined" &&
+              userRes.avatar !== "null"
+                ? `/api/files/image/${userRes.avatar}`
+                : null;
 
             setFirstName(fn);
             setLastName(ln);
@@ -103,24 +230,39 @@ export default function SettingsPage() {
             setPhone(ph);
             setDob(db);
             setGender(gn);
-            setTimezone(tz);
-            setDateFormat(df);
-            setLanguage(lg);
+            if (av) setAvatarUrl(av);
 
-            setProfileSnapshot({
+            setProfileSnapshot((prev) => ({
+              ...prev,
               firstName: fn,
               lastName: ln,
               email: em,
               phone: ph,
               dob: db,
               gender: gn,
-              timezone: tz,
-              dateFormat: df,
-              language: lg,
-            });
+              avatarUrl: av,
+            }));
           }
         } catch (err) {
-          console.warn("Using default profile info:", err);
+          console.warn("Could not load backend profile info:", err);
+        }
+
+        // Fetch timezones from backend
+        try {
+          const tzRes = await apiClient.get<Array<{ id: string; name: string; content?: string }>>(ENDPOINTS.users.settings);
+          if (Array.isArray(tzRes) && tzRes.length > 0) {
+            const mapped = tzRes.map((t) => ({
+              id: String(t.id),
+              name: t.name || t.content || `(UTC) Timezone ${t.id}`,
+            }));
+            setTimezoneOptions(mapped);
+            if (mapped[0]) {
+              setTimezone(mapped[0].name);
+              setProfileSnapshot((prev) => ({ ...prev, timezone: mapped[0].name }));
+            }
+          }
+        } catch (err) {
+          console.warn("Using standard timezones list:", err);
         }
 
         // Fetch & validate notification preferences from settings endpoint
@@ -166,6 +308,95 @@ export default function SettingsPage() {
     fetchUserSettings();
   }, []);
 
+  // 2. Fetch Team Members when Team tab is active
+  const fetchTeamMembers = React.useCallback(async () => {
+    setIsLoadingTeam(true);
+    try {
+      const response = await apiClient.get<EmployeeResponse[] | { data: EmployeeResponse[] }>(
+        ENDPOINTS.employees.base
+      );
+      const rawList = Array.isArray(response)
+        ? response
+        : response && Array.isArray(response.data)
+        ? response.data
+        : null;
+
+      if (rawList !== null) {
+        const transformed: TeamMember[] = rawList.map((emp: EmployeeResponse) => {
+          const fName = emp.firstName || emp.user?.personalInfo?.firstName || "";
+          const lName = emp.lastName || emp.user?.personalInfo?.lastName || "";
+          const fullName = `${fName} ${lName}`.trim() || emp.email || "Team Member";
+          const initials = getInitials(fullName) || "TM";
+
+          const jobTitle = (emp.jobTitle || emp.user?.role?.value || "Compliance Officer").toUpperCase();
+          const userStatus = (emp.userStatus || emp.user?.status?.value || "active").toLowerCase();
+          const isInvited = userStatus.includes("invite") || userStatus.includes("pending");
+
+          return {
+            id: String(emp.id),
+            name: fullName,
+            firstName: fName,
+            lastName: lName,
+            email: emp.email || emp.user?.email || "member@viems.io",
+            avatarText: initials,
+            avatarImage: emp.avatar ? `/api/files/image/${emp.avatar}` : undefined,
+            role: isInvited ? "INVITED" : jobTitle,
+            smsRole: emp.smsRole || "—",
+            status: isInvited ? "invited" : "active",
+          };
+        });
+        setTeamMembers(transformed);
+      }
+    } catch (err) {
+      console.warn("Could not load backend employees:", err);
+    } finally {
+      setIsLoadingTeam(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (activeTab === "TEAM") {
+      fetchTeamMembers();
+    }
+  }, [activeTab, fetchTeamMembers]);
+
+  // Handle Photo Upload
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image file exceeds 5MB size limit.");
+      return;
+    }
+
+    if (!["image/jpeg", "image/png", "image/jpg"].includes(file.type)) {
+      toast.error("Please upload a valid JPG or PNG image.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      setAvatarUrl(base64Data);
+      try {
+        await apiClient.patch(ENDPOINTS.users.profile, {
+          personal: {
+            avatar: base64Data,
+            firstName,
+            lastName,
+            gender,
+            dateOfBirth: dob,
+          },
+        });
+        toast.success("Profile photo updated successfully.");
+      } catch {
+        toast.success("Photo selected.");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCancelProfile = () => {
     setFirstName(profileSnapshot.firstName);
     setLastName(profileSnapshot.lastName);
@@ -173,6 +404,7 @@ export default function SettingsPage() {
     setPhone(profileSnapshot.phone);
     setDob(profileSnapshot.dob);
     setGender(profileSnapshot.gender);
+    setAvatarUrl(profileSnapshot.avatarUrl);
     setTimezone(profileSnapshot.timezone);
     setDateFormat(profileSnapshot.dateFormat);
     setLanguage(profileSnapshot.language);
@@ -187,36 +419,61 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       if (activeTab === "PROFILE") {
-        await apiClient.patch(ENDPOINTS.users.settings, {
-          first_name: firstName,
-          last_name: lastName,
-          dob,
-          gender,
-          phone,
+        await apiClient.patch(ENDPOINTS.users.profile, {
+          personal: {
+            firstName,
+            lastName,
+            gender,
+            dateOfBirth: dob,
+            workPhone: phone,
+          },
+        });
+        const patchUrl = currentUserId ? ENDPOINTS.users.settingsById(currentUserId) : ENDPOINTS.users.settings;
+        await apiClient.patch(patchUrl, {
           timezone,
           dateFormat,
-        });
-        setProfileSnapshot((prev) => ({
-          ...prev,
+        }).catch(() => null);
+
+        setProfileSnapshot({
           firstName,
           lastName,
+          email,
+          phone,
           dob,
           gender,
-          phone,
+          avatarUrl,
           timezone,
           dateFormat,
-        }));
+          language,
+        });
         toast.success("Profile updated successfully.");
       } else if (activeTab === "SECURITY") {
-        if (newPassword && newPassword !== confirmPassword) {
+        if (!currentPassword) {
+          toast.error("Please enter your current password.");
+          setSaving(false);
+          return;
+        }
+        if (!newPassword || newPassword.length < 12) {
+          toast.error("New password must be at least 12 characters.");
+          setSaving(false);
+          return;
+        }
+        if (newPassword !== confirmPassword) {
           toast.error("New passwords do not match.");
           setSaving(false);
           return;
         }
-        await apiClient.patch(ENDPOINTS.users.settings, {
+        const patchUrl = currentUserId ? ENDPOINTS.users.settingsById(currentUserId) : ENDPOINTS.users.settings;
+        await apiClient.patch(patchUrl, {
           currentPassword,
           newPassword,
           confirmPassword,
+        }).catch(async () => {
+          await apiClient.post(ENDPOINTS.auth.newPassword, {
+            currentPassword,
+            newPassword,
+            confirmPassword,
+          });
         });
         setCurrentPassword("");
         setNewPassword("");
@@ -237,7 +494,8 @@ export default function SettingsPage() {
         });
         toast.success("Notification preferences saved.");
       } else if (activeTab === "PREFERENCES") {
-        await apiClient.patch(ENDPOINTS.users.settings, {
+        const patchUrl = currentUserId ? ENDPOINTS.users.settingsById(currentUserId) : ENDPOINTS.users.settings;
+        await apiClient.patch(patchUrl, {
           language,
         });
         toast.success("Preferences updated successfully.");
@@ -253,393 +511,560 @@ export default function SettingsPage() {
     }
   };
 
+  // Team Actions
+  const handleAddTeamMember = (newMember: TeamMember) => {
+    setTeamMembers((prev) => [newMember, ...prev]);
+  };
+
+  const handleUpdateTeamMember = (updated: TeamMember) => {
+    setTeamMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+  };
+
+  const handleRemoveTeamMember = async (id: string, name: string) => {
+    try {
+      if (!isNaN(Number(id))) {
+        await apiClient.delete(`${ENDPOINTS.employees.base}/to-archive/${id}`);
+      }
+      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
+      toast.success(`Removed ${name} from organization team`);
+    } catch {
+      toast.error(`Failed to remove ${name}. Please try again.`);
+    }
+  };
+
+  const handleResendInvite = async (email: string, id: string) => {
+    try {
+      if (!isNaN(Number(id))) {
+        await apiClient.post(`${ENDPOINTS.employees.sendRegistrationLink}/${id}`);
+      }
+      toast.success(`Invitation email resent to ${email}`);
+    } catch {
+      toast.error(`Failed to resend invitation to ${email}`);
+    }
+  };
+
+  const handleCopyEmail = async (emailToCopy: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(emailToCopy);
+        toast.success(`Copied ${emailToCopy} to clipboard`);
+      } catch {
+        toast.error("Failed to copy email to clipboard");
+      }
+    }
+  };
+
+  const filteredTeamMembers = React.useMemo(() => {
+    if (!teamSearchQuery.trim()) return teamMembers;
+    const q = teamSearchQuery.toLowerCase().trim();
+    return teamMembers.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.email.toLowerCase().includes(q) ||
+        m.role.toLowerCase().includes(q)
+    );
+  }, [teamMembers, teamSearchQuery]);
+
   const avatarInitials =
-    (firstName?.[0] || "A") + (lastName?.[0] || "M");
+    (((firstName?.[0] || "") + (lastName?.[0] || "")).toUpperCase().trim()) || "AM";
+
+  const getRoleBadgeStyle = (role: string) => {
+    const r = role.toUpperCase();
+    if (r === "ADMIN" || r.includes("ADMIN")) {
+      return {
+        bg: "bg-[#EFEBFF]",
+        text: "text-[#7D52F4]",
+      };
+    }
+    if (r === "INVITED") {
+      return {
+        bg: "bg-[#FFF3EB]",
+        text: "text-[#F6B51E]",
+      };
+    }
+    return {
+      bg: "bg-[#EBF1FF]",
+      text: "text-[#335CFF]",
+    };
+  };
 
   return (
-    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-24 select-none">
-      {/* Top Banner / Header Container */}
-      <div className="bg-white border-b border-[#EBEBEB] px-6 lg:px-12 py-8">
-        <div className="max-w-[1200px] mx-auto flex flex-col gap-1">
-          <h1 className="text-[28px] leading-[36px] font-medium text-[#171717] font-aeonik-medium tracking-[-0.01em]">
+    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-[80px] select-none">
+      {/* ─── Top Page Header [Section Header 1.1] ─── */}
+      <div className="sticky top-0 z-20 bg-white border-b border-[#EBEBEB] rounded-t-[16px] px-6 md:px-[64px] py-[32px] shrink-0">
+        <div className="max-w-[1232px] mx-auto flex flex-col gap-1">
+          <h1 className="font-aeonik-medium text-[24px] leading-[32px] font-medium text-[#171717] tracking-[-0.01em]">
             Settings
           </h1>
-          <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C]">
+          <p className="text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
             Create, track, and manage visa cases for individual or grouped applicants.
           </p>
         </div>
       </div>
 
-      {/* Main Content Area with Sidebar Tabs & Forms */}
-      <div className="max-w-[1200px] mx-auto px-6 lg:px-12 pt-8">
-        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-10 items-start">
-          {/* Vertical Navigation Tab Menu */}
-          <nav className="flex flex-col gap-2 pt-2">
+      {/* ─── Main Content Canvas ─── */}
+      <div className="max-w-[1232px] mx-auto px-6 md:px-[64px] pt-[32px]">
+        <div className="grid grid-cols-1 md:grid-cols-[252px_1fr] gap-[40px] items-start">
+          {/* ─── Tab Menu Horizontal [1.1] ─── */}
+          <nav className="sticky top-[152px] self-start flex flex-col gap-[24px] pt-1 shrink-0" aria-label="Settings navigation">
+            {/* Profile Tab */}
             <button
               type="button"
-              onClick={() => setActiveTab("PROFILE")}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium transition-colors cursor-pointer text-left ${
-                activeTab === "PROFILE"
-                  ? "bg-[#EBEBEB]/70 text-[#171717] font-semibold"
-                  : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
+              onClick={() => handleTabChange("PROFILE")}
+              className={`flex items-center gap-[6px] text-left cursor-pointer transition-colors outline-none group border-0 bg-transparent p-0 ${
+                activeTab === "PROFILE" ? "text-[#171717]" : "text-[#5C5C5C] hover:text-[#171717]"
               }`}
             >
               {activeTab === "PROFILE" ? (
-                <RiUserFill className="size-5 text-[#171717]" />
+                <RiUserFill className="size-5 text-[#171717] shrink-0" />
               ) : (
-                <RiUserLine className="size-5 text-[#5C5C5C]" />
+                <RiUserLine className="size-5 text-[#5C5C5C] group-hover:text-[#171717] shrink-0 transition-colors" />
               )}
-              <span>Profile</span>
+              <span className="text-[14px] font-medium leading-[20px] tracking-[-0.006em]">
+                Profile
+              </span>
             </button>
 
+            {/* Security Tab */}
             <button
               type="button"
-              onClick={() => setActiveTab("SECURITY")}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium transition-colors cursor-pointer text-left ${
-                activeTab === "SECURITY"
-                  ? "bg-[#EBEBEB]/70 text-[#171717] font-semibold"
-                  : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
+              onClick={() => handleTabChange("SECURITY")}
+              className={`flex items-center gap-[6px] text-left cursor-pointer transition-colors outline-none group border-0 bg-transparent p-0 ${
+                activeTab === "SECURITY" ? "text-[#171717]" : "text-[#5C5C5C] hover:text-[#171717]"
               }`}
             >
               {activeTab === "SECURITY" ? (
-                <RiLockFill className="size-5 text-[#171717]" />
+                <RiLockFill className="size-5 text-[#171717] shrink-0" />
               ) : (
-                <RiLock2Line className="size-5 text-[#5C5C5C]" />
+                <RiLock2Line className="size-5 text-[#5C5C5C] group-hover:text-[#171717] shrink-0 transition-colors" />
               )}
-              <span>Security</span>
+              <span className="text-[14px] font-medium leading-[20px] tracking-[-0.006em]">
+                Security
+              </span>
             </button>
 
+            {/* Notifications Tab */}
             <button
               type="button"
-              onClick={() => setActiveTab("NOTIFICATIONS")}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium transition-colors cursor-pointer text-left ${
-                activeTab === "NOTIFICATIONS"
-                  ? "bg-[#EBEBEB]/70 text-[#171717] font-semibold"
-                  : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
+              onClick={() => handleTabChange("NOTIFICATIONS")}
+              className={`flex items-center gap-[6px] text-left cursor-pointer transition-colors outline-none group border-0 bg-transparent p-0 ${
+                activeTab === "NOTIFICATIONS" ? "text-[#171717]" : "text-[#5C5C5C] hover:text-[#171717]"
               }`}
             >
               {activeTab === "NOTIFICATIONS" ? (
-                <RiNotification3Fill className="size-5 text-[#171717]" />
+                <RiNotification3Fill className="size-5 text-[#171717] shrink-0" />
               ) : (
-                <RiNotification3Line className="size-5 text-[#5C5C5C]" />
+                <RiNotification2Line className="size-5 text-[#5C5C5C] group-hover:text-[#171717] shrink-0 transition-colors" />
               )}
-              <span>Notifications</span>
+              <span className="text-[14px] font-medium leading-[20px] tracking-[-0.006em]">
+                Notifications
+              </span>
             </button>
 
+            {/* Preferences Tab */}
             <button
               type="button"
-              onClick={() => setActiveTab("PREFERENCES")}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium transition-colors cursor-pointer text-left ${
-                activeTab === "PREFERENCES"
-                  ? "bg-[#EBEBEB]/70 text-[#171717] font-semibold"
-                  : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
+              onClick={() => handleTabChange("PREFERENCES")}
+              className={`flex items-center gap-[6px] text-left cursor-pointer transition-colors outline-none group border-0 bg-transparent p-0 ${
+                activeTab === "PREFERENCES" ? "text-[#171717]" : "text-[#5C5C5C] hover:text-[#171717]"
               }`}
             >
               {activeTab === "PREFERENCES" ? (
-                <RiSettings3Fill className="size-5 text-[#171717]" />
+                <RiSettings3Fill className="size-5 text-[#171717] shrink-0" />
               ) : (
-                <RiSettings3Line className="size-5 text-[#5C5C5C]" />
+                <RiListSettingsLine className="size-5 text-[#5C5C5C] group-hover:text-[#171717] shrink-0 transition-colors" />
               )}
-              <span>Preferences</span>
+              <span className="text-[14px] font-medium leading-[20px] tracking-[-0.006em]">
+                Preferences
+              </span>
             </button>
 
+            {/* Team & Roles Tab */}
             <button
               type="button"
-              onClick={() => setActiveTab("TEAM")}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium transition-colors cursor-pointer text-left ${
-                activeTab === "TEAM"
-                  ? "bg-[#EBEBEB]/70 text-[#171717] font-semibold"
-                  : "text-[#5C5C5C] hover:text-[#171717] hover:bg-[#F5F5F5]"
+              onClick={() => handleTabChange("TEAM")}
+              className={`flex items-center gap-[6px] text-left cursor-pointer transition-colors outline-none group border-0 bg-transparent p-0 ${
+                activeTab === "TEAM" ? "text-[#171717]" : "text-[#5C5C5C] hover:text-[#171717]"
               }`}
             >
-              <RiGroupLine className="size-5 text-[#5C5C5C]" />
-              <span>Team & Roles</span>
+              {activeTab === "TEAM" ? (
+                <RiGroupFill className="size-5 text-[#171717] shrink-0" />
+              ) : (
+                <RiUserSettingsLine className="size-5 text-[#5C5C5C] group-hover:text-[#171717] shrink-0 transition-colors" />
+              )}
+              <span className="text-[14px] font-medium leading-[20px] tracking-[-0.006em]">
+                Team & Roles
+              </span>
             </button>
           </nav>
 
-          {/* Tab Form Views */}
-          <form onSubmit={handleSaveSettings} className="flex flex-col gap-6">
-            {/* PROFILE TAB */}
+          {/* ─── Right Content Form Views [Widgets 1.1] ─── */}
+          <div className="w-full max-w-[916px]">
+            {/* ════════════════ PROFILE TAB ════════════════ */}
             {activeTab === "PROFILE" && (
-              <>
-                {/* Personal Information Card */}
-                <div className="flex flex-col gap-3">
-                  <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium">
+              <form onSubmit={handleSaveSettings} className="flex flex-col gap-[32px]">
+                {/* 1. Personal Information Widget */}
+                <div className="flex flex-col gap-[24px]">
+                  {/* Header */}
+                  <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
                     Personal information
                   </h2>
 
-                  <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 lg:p-8 flex flex-col gap-6 shadow-sm">
-                    {/* Avatar Upload Header */}
-                    <div className="flex items-center justify-between pb-6 border-b border-[#EBEBEB]">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-[18px] flex items-center justify-center font-aeonik-medium">
-                          {avatarInitials}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[16px] font-medium text-[#171717]">
-                            {firstName} {lastName}
-                          </span>
-                          <span className="text-[13px] text-[#5C5C5C]">
-                            {email}
-                          </span>
-                        </div>
+                  {/* Card Body */}
+                  <div className="bg-white rounded-[16px] p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col gap-[24px]">
+                    {/* Banner / Avatar Section */}
+                    <div className="flex items-center gap-[16px] py-[12px]">
+                      {/* 80x80 Avatar Circle */}
+                      <div className="size-20 rounded-full bg-[#CAC0FF] text-[#351A75] font-aeonik-medium text-[24px] font-medium flex items-center justify-center shrink-0 overflow-hidden select-none">
+                        {avatarUrl ? (
+                          <img
+                            src={avatarUrl}
+                            alt=""
+                            onError={() => setAvatarUrl(null)}
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <span className="font-aeonik-medium text-[#351A75] text-[24px] select-none tracking-tight">AM</span>
+                        )}
                       </div>
 
-                      <label className="bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] text-[14px] font-medium px-4 py-2 rounded-[8px] cursor-pointer transition-colors">
-                        Upload photo
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={() => {
-                            toast.success("Photo uploaded successfully.");
-                          }}
-                        />
-                      </label>
+                      {/* Info & Upload Button */}
+                      <div className="flex items-center gap-[32px]">
+                        <div className="flex flex-col gap-[6px]">
+                          <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
+                            Upload photo
+                          </span>
+                          <span className="text-[13px] font-normal text-[#171717] leading-[20px] tracking-[-0.006em]">
+                            JPG, PNG, Max 5MB
+                          </span>
+                        </div>
+
+                        {/* ui-native-ok: Label used as file upload button trigger */}
+                        <Label
+                          htmlFor="settings-photo-upload"
+                          className="h-[36px] px-[16px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[8px] text-[14px] font-medium tracking-[-0.006em] transition-colors cursor-pointer flex items-center justify-center shrink-0"
+                        >
+                          Upload photo
+                          {/* ui-native-ok: Hidden file input for custom styled upload button */}
+                          <input
+                            id="settings-photo-upload"
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg"
+                            className="hidden"
+                            onChange={handlePhotoUpload}
+                          />
+                        </Label>
+                      </div>
                     </div>
 
-                    {/* Form Input Grid (2 Columns) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                    {/* Inputs Grid (2 Columns, 24px gap) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[24px] gap-y-[24px]">
                       {/* First Name */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-first-name" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-first-name"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           First Name
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                           id="settings-first-name"
                           type="text"
                           disabled={loading}
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
                           placeholder="e.g. Alex"
-                          className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm disabled:opacity-50"
+                          className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4] disabled:opacity-50"
                         />
                       </div>
 
                       {/* Last Name */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-last-name" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-last-name"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Last Name
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                           id="settings-last-name"
                           type="text"
                           disabled={loading}
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
                           placeholder="e.g. Marin"
-                          className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm disabled:opacity-50"
+                          className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4] disabled:opacity-50"
                         />
                       </div>
 
                       {/* Date of Birth */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-dob" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-dob"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Date of Birth
-                        </label>
+                        </Label>
                         <div className="relative flex items-center">
-                          <RiCalendarLine className="size-4.5 text-[#A4A4A4] absolute left-3.5 pointer-events-none" />
-                          <input
+                          <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-[12px] pointer-events-none z-10" />
+                          <Input
                             id="settings-dob"
                             type="text"
                             disabled={loading}
                             value={dob}
                             onChange={(e) => setDob(e.target.value)}
                             placeholder="DD / MM / YYYY"
-                            className="w-full h-[40px] pl-10 pr-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm disabled:opacity-50"
+                            className="w-full h-[40px] pl-[40px] pr-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4] disabled:opacity-50"
                           />
                         </div>
                       </div>
 
                       {/* Gender */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-gender" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-gender"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Gender
-                        </label>
-                        <div className="relative flex items-center">
-                          <select
+                        </Label>
+                        <Select value={gender} onValueChange={(val) => { if (val) setGender(val); }}>
+                          <SelectTrigger
                             id="settings-gender"
-                            disabled={loading}
-                            value={gender}
-                            onChange={(e) => setGender(e.target.value)}
-                            className="w-full h-[40px] px-3.5 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-normal transition-colors shadow-sm disabled:opacity-50"
+                            className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small font-normal"
                           >
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Non-binary">Non-binary</option>
-                            <option value="Prefer not to say">Prefer not to say</option>
-                          </select>
-                          <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 pointer-events-none" />
-                        </div>
+                            <SelectValue placeholder="Select Gender" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-50">
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Non-binary">Non-binary</SelectItem>
+                            <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
                       {/* Email Address */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-email" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-email"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Email Address
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                           id="settings-email"
                           type="email"
                           value={email}
                           disabled
-                          className="w-full h-[40px] px-3.5 text-[14px] text-[#5C5C5C] bg-[#F5F5F5] border border-transparent rounded-[10px] cursor-not-allowed outline-none font-normal"
+                          className="w-full h-[40px] px-[12px] text-[14px] text-[#5C5C5C] bg-[#F5F5F5] border border-transparent rounded-[10px] cursor-not-allowed outline-none font-normal"
                         />
                       </div>
 
                       {/* Phone Number */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-phone" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-phone"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Phone Number
-                        </label>
-                        <input
+                        </Label>
+                        <Input
                           id="settings-phone"
                           type="text"
                           disabled={loading}
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           placeholder="e.g. +1 555-555-5555"
-                          className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm disabled:opacity-50"
+                          className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4] disabled:opacity-50"
                         />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Timezone Card */}
-                <div className="flex flex-col gap-3">
-                  <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium">
+                {/* 2. Timezone Widget */}
+                <div className="flex flex-col gap-[24px]">
+                  {/* Header */}
+                  <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
                     Timezone
                   </h2>
 
-                  <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 lg:p-8 flex flex-col gap-6 shadow-sm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                  {/* Card Body */}
+                  <div className="bg-white rounded-[16px] p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col gap-[24px]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-[24px] gap-y-[24px]">
                       {/* Timezone Select */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-timezone" className="text-[14px] font-medium text-[#171717]">
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-timezone"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Timezone
-                        </label>
-                        <div className="relative flex items-center">
-                          <select
+                        </Label>
+                        <Select value={timezone} onValueChange={(val) => { if (val) setTimezone(val); }}>
+                          <SelectTrigger
                             id="settings-timezone"
-                            disabled={loading}
-                            value={timezone}
-                            onChange={(e) => setTimezone(e.target.value)}
-                            className="w-full h-[40px] px-3.5 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-normal transition-colors shadow-sm disabled:opacity-50"
+                            className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small font-normal"
                           >
-                            <option value="(UTC +00:00) London">
-                              (UTC +00:00) London
-                            </option>
-                            <option value="(UTC -05:00) New York">
-                              (UTC -05:00) New York
-                            </option>
-                            <option value="(UTC +01:00) Paris">
-                              (UTC +01:00) Paris
-                            </option>
-                          </select>
-                          <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 pointer-events-none" />
-                        </div>
+                            <SelectValue placeholder="Select Timezone" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-50">
+                            {timezoneOptions.map((tz) => (
+                              <SelectItem key={tz.id} value={tz.name}>
+                                {tz.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      {/* Date Format Dropdown */}
-                      <div className="flex flex-col gap-1.5">
-                        <label htmlFor="settings-date-format" className="text-[14px] font-medium text-[#171717]">
+                      {/* Date Format Select */}
+                      <div className="flex flex-col gap-[4px]">
+                        <Label
+                          htmlFor="settings-date-format"
+                          className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                        >
                           Date Format
-                        </label>
-                        <div className="relative flex items-center">
-                          <select
+                        </Label>
+                        <Select value={dateFormat} onValueChange={(val) => { if (val) setDateFormat(val); }}>
+                          <SelectTrigger
                             id="settings-date-format"
-                            disabled={loading}
-                            value={dateFormat}
-                            onChange={(e) => setDateFormat(e.target.value)}
-                            className="w-full h-[40px] px-3.5 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-normal transition-colors shadow-sm disabled:opacity-50"
+                            className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small font-normal"
                           >
-                            <option value="Month, Day Year">
-                              Month, Day Year
-                            </option>
-                            <option value="DD / MM / YYYY">
-                              DD / MM / YYYY
-                            </option>
-                          </select>
-                          <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 pointer-events-none" />
-                        </div>
+                            <SelectValue placeholder="Select Date Format" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-50">
+                            <SelectItem value="Month, Day Year">Month, Day Year</SelectItem>
+                            <SelectItem value="DD / MM / YYYY">DD / MM / YYYY</SelectItem>
+                            <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+                            <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
                 </div>
-              </>
+
+                {/* 3. Footer Action Buttons */}
+                <div className="flex items-center justify-end gap-[12px] pt-[8px]">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancelProfile}
+                    className="h-[36px] px-[16px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[8px] text-[14px] font-medium tracking-[-0.006em] border-0 transition-colors cursor-pointer flex items-center justify-center shadow-none"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={loading || saving}
+                    className="h-[36px] px-[20px] bg-[#171717] hover:bg-[#262626] text-white rounded-[8px] text-[14px] font-medium tracking-[-0.006em] transition-colors cursor-pointer shadow-x-small disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {saving ? "Saving..." : "Save changes"}
+                  </Button>
+                </div>
+              </form>
             )}
 
-            {/* SECURITY TAB */}
+            {/* ════════════════ SECURITY TAB [Settings/Security] ════════════════ */}
             {activeTab === "SECURITY" && (
-              <div className="flex flex-col gap-3">
-                <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium">
-                  Change password
-                </h2>
+              <form onSubmit={handleSaveSettings} className="flex flex-col gap-[32px]">
+                <div className="flex flex-col gap-[24px]">
+                  {/* Header: Change password */}
+                  <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
+                    Change password
+                  </h2>
 
-                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 lg:p-8 flex flex-col gap-6 shadow-sm">
-                  <div className="flex flex-col gap-5">
+                  {/* White Card: Frame 2087326843 */}
+                  <div className="bg-white rounded-[16px] p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col gap-[24px]">
                     {/* Current Password */}
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="security-current-password" className="text-[14px] font-medium text-[#171717]">
+                    <div className="flex flex-col gap-[4px]">
+                      <Label
+                        htmlFor="security-current-password"
+                        className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                      >
                         Current Password
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         id="security-current-password"
                         type="password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="Enter current password"
-                        className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm placeholder:text-[#A4A4A4]"
+                        className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4]"
                       />
                     </div>
 
                     {/* New Password */}
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="security-new-password" className="text-[14px] font-medium text-[#171717]">
+                    <div className="flex flex-col gap-[4px]">
+                      <Label
+                        htmlFor="security-new-password"
+                        className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                      >
                         New Password
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         id="security-new-password"
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Minimum 12 characters"
-                        className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm placeholder:text-[#A4A4A4]"
+                        className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4]"
                       />
                     </div>
 
                     {/* Confirm New Password */}
-                    <div className="flex flex-col gap-1.5">
-                      <label htmlFor="security-confirm-password" className="text-[14px] font-medium text-[#171717]">
+                    <div className="flex flex-col gap-[4px]">
+                      <Label
+                        htmlFor="security-confirm-password"
+                        className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
+                      >
                         Confirm New Password
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         id="security-confirm-password"
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Re-enter new password"
-                        className="w-full h-[40px] px-3.5 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors shadow-sm placeholder:text-[#A4A4A4]"
+                        className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4]"
                       />
                     </div>
                   </div>
                 </div>
-              </div>
+
+                {/* Footer Buttons: Buttons [1.1] */}
+                <div className="flex items-center justify-end pt-[8px]">
+                  <Button
+                    type="submit"
+                    disabled={saving}
+                    className="w-[141px] h-[36px] bg-[#171717] hover:bg-[#262626] text-white rounded-[8px] text-[14px] font-medium tracking-[-0.006em] transition-colors cursor-pointer shadow-x-small disabled:opacity-50 flex items-center justify-center p-[8px]"
+                  >
+                    {saving ? "Updating..." : "Update password"}
+                  </Button>
+                </div>
+              </form>
             )}
 
-            {/* NOTIFICATIONS TAB */}
+            {/* ════════════════ NOTIFICATIONS TAB ════════════════ */}
             {activeTab === "NOTIFICATIONS" && (
-              <div className="flex flex-col gap-6">
+              <form onSubmit={handleSaveSettings} className="flex flex-col gap-[32px]">
                 {/* Email Digest Section */}
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">Email digest</h2>
-                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">Receive a summary of activity and pending actions.</p>
+                <div className="flex flex-col gap-[16px]">
+                  <div className="flex flex-col gap-[4px]">
+                    <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
+                      Email digest
+                    </h2>
+                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
+                      Receive a summary of activity and pending actions.
+                    </p>
                   </div>
-                  <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 shadow-sm">
-                    <p className="text-[14px] font-medium text-[#171717] mb-5">Your preferred email digest frequency.</p>
-                    <div className="flex items-center gap-2">
+
+                  <div className="bg-white rounded-[16px] p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col gap-[20px]">
+                    <span className="text-[14px] font-medium text-[#171717] leading-[20px]">
+                      Your preferred email digest frequency.
+                    </span>
+                    <div className="flex items-center gap-[8px] flex-wrap">
                       {(["Real-time", "Daily", "Weekly", "Off"] as const).map((freq) => (
                         <button
                           key={freq}
@@ -647,9 +1072,9 @@ export default function SettingsPage() {
                           id={`digest-freq-${freq.toLowerCase()}`}
                           aria-pressed={digestFrequency === freq}
                           onClick={() => setDigestFrequency(freq)}
-                          className={`px-4 py-2 rounded-[8px] text-[14px] font-medium transition-colors cursor-pointer ${
+                          className={`px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium transition-all cursor-pointer border-0 ${
                             digestFrequency === freq
-                              ? "bg-[#171717] text-white"
+                              ? "bg-[#171717] text-white shadow-sm"
                               : "bg-[#F7F7F7] text-[#5C5C5C] hover:bg-[#EBEBEB] hover:text-[#171717]"
                           }`}
                         >
@@ -660,21 +1085,30 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Notifications Channels Section */}
-                <div className="flex flex-col gap-3">
-                  <div>
-                    <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">Notification channels</h2>
-                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">Choose which notifications you receive by email and push notifications.</p>
+                {/* Notification Channels Section */}
+                <div className="flex flex-col gap-[16px]">
+                  <div className="flex flex-col gap-[4px]">
+                    <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
+                      Notifications channels
+                    </h2>
+                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
+                      Choose which notifications you receive by email and push notifications.
+                    </p>
                   </div>
-                  <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 shadow-sm">
-                    {/* Column Headers */}
-                    <div className="flex items-center justify-end gap-[38px] mb-4 pr-0">
-                      <span className="w-[33px] text-[13px] text-[#000] text-center leading-[20px] tracking-[-0.006em]">Email</span>
-                      <span className="w-[33px] text-[13px] text-[#000] text-center leading-[20px] tracking-[-0.006em]">Push</span>
+
+                  <div className="bg-white rounded-[16px] p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col">
+                    {/* Header Columns */}
+                    <div className="flex items-center justify-end gap-[38px] pb-[16px]">
+                      <span className="w-[33px] text-[13px] font-normal text-black text-center leading-[20px]">
+                        Email
+                      </span>
+                      <span className="w-[33px] text-[13px] font-normal text-black text-center leading-[20px]">
+                        Push
+                      </span>
                     </div>
 
-                    {/* Notification Rows */}
-                    {([
+                    {/* Rows */}
+                    {[
                       {
                         id: "mentions",
                         label: "Mentions",
@@ -731,247 +1165,310 @@ export default function SettingsPage() {
                         state: notifSystem,
                         setState: setNotifSystem,
                       },
-                    ] as Array<{
-                      id: string;
-                      label: string;
-                      desc: string;
-                      state: [boolean, boolean];
-                      setState: React.Dispatch<React.SetStateAction<[boolean, boolean]>>;
-                    }>).map((row, i, arr) => (
+                    ].map((row, idx, arr) => (
                       <React.Fragment key={row.id}>
-                        <div className="flex items-center gap-[7px] py-[10px]">
-                          {/* Content */}
-                          <div className="flex flex-col flex-1 min-w-0">
-                            <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">{row.label}</span>
-                            <span className="text-[13px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">{row.desc}</span>
+                        <div className="flex items-center justify-between py-[12px]">
+                          <div className="flex flex-col gap-[2px] pr-4">
+                            <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
+                              {row.label}
+                            </span>
+                            <span className="text-[13px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
+                              {row.desc}
+                            </span>
                           </div>
-                          {/* Email + Push Switches */}
+
                           <div className="flex items-center gap-[38px] shrink-0">
-                            {/* Email Switch */}
-                            <button
-                              type="button"
+                            {/* Email Toggle */}
+                            <SettingsSwitch
                               id={`notif-${row.id}-email`}
-                              role="switch"
-                              aria-checked={row.state[0]}
-                              aria-label={`${row.label} email notifications`}
-                              onClick={() => row.setState([!row.state[0], row.state[1]])}
-                              className="relative w-[33px] h-[20px] cursor-pointer shrink-0"
-                            >
-                              <span
-                                className={`absolute inset-0 rounded-full transition-colors ${
-                                  row.state[0] ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
-                                }`}
-                                style={{ width: 28, height: 16, top: 2, left: 2.5 }}
-                              />
-                              <span
-                                className="absolute w-3 h-3 rounded-full bg-white shadow-[0px_4px_8px_rgba(27,28,29,0.06),0px_2px_4px_rgba(14,18,27,0.08)] transition-all"
-                                style={{
-                                  top: 4,
-                                  left: row.state[0] ? 18.5 : 4.5,
-                                }}
-                              />
-                            </button>
-                            {/* Push Switch */}
-                            <button
-                              type="button"
+                              checked={row.state[0]}
+                              onChange={(checked) => row.setState([checked, row.state[1]])}
+                              ariaLabel={`${row.label} email notifications`}
+                            />
+
+                            {/* Push Toggle */}
+                            <SettingsSwitch
                               id={`notif-${row.id}-push`}
-                              role="switch"
-                              aria-checked={row.state[1]}
-                              aria-label={`${row.label} push notifications`}
-                              onClick={() => row.setState([row.state[0], !row.state[1]])}
-                              className="relative w-[33px] h-[20px] cursor-pointer shrink-0"
-                            >
-                              <span
-                                className={`absolute inset-0 rounded-full transition-colors ${
-                                  row.state[1] ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
-                                }`}
-                                style={{ width: 28, height: 16, top: 2, left: 2.5 }}
-                              />
-                              <span
-                                className="absolute w-3 h-3 rounded-full bg-white shadow-[0px_4px_8px_rgba(27,28,29,0.06),0px_2px_4px_rgba(14,18,27,0.08)] transition-all"
-                                style={{
-                                  top: 4,
-                                  left: row.state[1] ? 18.5 : 4.5,
-                                }}
-                              />
-                            </button>
+                              checked={row.state[1]}
+                              onChange={(checked) => row.setState([row.state[0], checked])}
+                              ariaLabel={`${row.label} push notifications`}
+                            />
                           </div>
                         </div>
-                        {i < arr.length - 1 && (
-                          <div className="w-full border-t border-[#EBEBEB]" />
-                        )}
+                        {idx < arr.length - 1 && <div className="w-full border-t border-[#EBEBEB]" />}
                       </React.Fragment>
                     ))}
                   </div>
                 </div>
-              </div>
+
+                {/* Footer Button: Save preferences */}
+                <div className="flex items-center justify-end pt-[8px]">
+                  <Button
+                    type="submit"
+                    id="settings-save-preferences-btn"
+                    disabled={saving}
+                    className="w-[140px] h-[36px] bg-[#171717] hover:bg-[#262626] text-white rounded-[8px] text-[14px] font-medium tracking-[-0.006em] transition-colors cursor-pointer shadow-x-small disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {saving ? "Saving..." : "Save preferences"}
+                  </Button>
+                </div>
+              </form>
             )}
 
-            {/* PREFERENCES TAB */}
+            {/* ════════════════ PREFERENCES TAB ════════════════ */}
             {activeTab === "PREFERENCES" && (
-              <div className="flex flex-col gap-3">
-                <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">
-                  Workspace Preferences
-                </h2>
-                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 flex flex-col gap-6 shadow-sm">
-                  <div className="flex flex-col gap-1.5" style={{ maxWidth: 360 }}>
-                    <label htmlFor="pref-system-language" className="text-[14px] font-medium text-[#171717]">
-                      System Language
-                    </label>
-                    <div className="relative flex items-center">
-                      <select
-                        id="pref-system-language"
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
-                        className="w-full h-[40px] px-3.5 pr-8 text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] appearance-none cursor-pointer font-normal transition-colors shadow-sm"
+              <form onSubmit={handleSaveSettings} className="flex flex-col gap-[32px]">
+                <div className="flex flex-col gap-[24px]">
+                  <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
+                    Workspace Preferences
+                  </h2>
+
+                  <div className="bg-white rounded-[16px] p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col gap-[20px]">
+                    <div className="flex flex-col gap-[6px] max-w-[380px]">
+                      <Label
+                        htmlFor="pref-language"
+                        className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]"
                       >
-                        <option value="English (UK)">English (UK)</option>
-                        <option value="English (US)">English (US)</option>
-                      </select>
-                      <RiArrowDownSLine className="size-5 text-[#5C5C5C] absolute right-3 pointer-events-none" />
+                        System Language
+                      </Label>
+                      <Select value={language} onValueChange={(val) => { if (val) setLanguage(val); }}>
+                        <SelectTrigger
+                          id="pref-language"
+                          className="w-full h-[40px] px-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small font-normal"
+                        >
+                          <SelectValue placeholder="Select Language" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-50">
+                          <SelectItem value="English (UK)">English (UK)</SelectItem>
+                          <SelectItem value="English (US)">English (US)</SelectItem>
+                          <SelectItem value="French">French</SelectItem>
+                          <SelectItem value="German">German</SelectItem>
+                          <SelectItem value="Spanish">Spanish</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* TEAM & ROLES TAB */}
-            {activeTab === "TEAM" && (
-              <div className="flex flex-col gap-3">
-                {/* Section header with Invite button */}
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[20px] font-medium text-[#171717] font-aeonik-medium leading-[32px]">
-                    Team members
-                  </h2>
-                  <button
+                {/* Footer Buttons */}
+                <div className="flex items-center justify-end gap-[12px] pt-[8px]">
+                  <Button
                     type="button"
-                    id="team-invite-member-btn"
-                    className="flex items-center justify-center px-4 py-2 bg-[#171717] hover:bg-[#262626] text-white text-[14px] font-medium rounded-[8px] transition-colors cursor-pointer"
-                    onClick={() => toast.info("Invite member coming soon.")}
-                  >
-                    Invite member
-                  </button>
-                </div>
-
-                {/* Team members card */}
-                <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-8 flex flex-col gap-6 shadow-sm">
-                  {([
-                    {
-                      id: "alex-marin",
-                      initials: "AM",
-                      avatarBg: "#CAC0FF",
-                      avatarColor: "#351A75",
-                      name: "Alex Marin",
-                      email: "alex.marin@viems.io",
-                      role: "Admin",
-                      roleBg: "#EFEBFF",
-                      roleColor: "#7D52F4",
-                      showEdit: false,
-                    },
-                    {
-                      id: "nathan-wood",
-                      initials: "NW",
-                      avatarBg: "#D1E9FF",
-                      avatarColor: "#1A4D8F",
-                      name: "Nathan Wood",
-                      email: "nathan.wood@viems.io",
-                      role: "Case Manager",
-                      roleBg: "#EBF1FF",
-                      roleColor: "#335CFF",
-                      showEdit: true,
-                    },
-                    {
-                      id: "sarah-kim",
-                      initials: "SK",
-                      avatarBg: "#CAC0FF",
-                      avatarColor: "#351A75",
-                      name: "Sarah Kim",
-                      email: "sarah.kim@viems.io",
-                      role: "Viewer",
-                      roleBg: "#EBF1FF",
-                      roleColor: "#335CFF",
-                      showEdit: true,
-                    },
-                  ]).map((member, i, arr) => (
-                    <React.Fragment key={member.id}>
-                      <div className="flex items-center justify-between">
-                        {/* Avatar + Info */}
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-medium shrink-0"
-                            style={{ background: member.avatarBg, color: member.avatarColor }}
-                          >
-                            {member.initials}
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em]">
-                              {member.name}
-                            </span>
-                            <span className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
-                              {member.email}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Role badge + Edit button */}
-                        <div className="flex items-center gap-4">
-                          <span
-                            className="px-2 py-[2px] rounded-full text-[12px] font-medium leading-[12px]"
-                            style={{ background: member.roleBg, color: member.roleColor }}
-                          >
-                            {member.role}
-                          </span>
-                          {member.showEdit && (
-                            <button
-                              type="button"
-                              id={`team-edit-${member.id}`}
-                              className="px-[6px] py-1 bg-[#F7F7F7] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] text-[14px] font-medium rounded-[8px] transition-colors cursor-pointer"
-                              onClick={() => toast.info(`Edit ${member.name} coming soon.`)}
-                            >
-                              Edit
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      {i < arr.length - 1 && (
-                        <div className="w-full border-t border-[#EBEBEB]" />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Footer Action Buttons */}
-            {activeTab !== "TEAM" && (
-              <div className="flex items-center justify-end gap-3 pt-2">
-                {activeTab === "PROFILE" && (
-                  <button
-                    type="button"
-                    onClick={handleCancelProfile}
-                    className="px-4 py-2 text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer"
+                    variant="outline"
+                    onClick={() => setLanguage("English (UK)")}
+                    className="h-[36px] px-[16px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] rounded-[8px] text-[14px] font-medium tracking-[-0.006em] border-0 transition-colors cursor-pointer shadow-none"
                   >
                     Cancel
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={loading || saving}
-                  className="px-5 py-2.5 rounded-[10px] text-[14px] font-medium bg-[#171717] text-white hover:bg-[#262626] transition-colors cursor-pointer shadow-sm disabled:opacity-50"
-                >
-                  {saving
-                    ? "Saving..."
-                    : activeTab === "SECURITY"
-                    ? "Update password"
-                    : activeTab === "NOTIFICATIONS"
-                    ? "Save preferences"
-                    : "Save changes"}
-                </button>
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={saving}
+                    className="h-[36px] px-[20px] bg-[#171717] hover:bg-[#262626] text-white rounded-[8px] text-[14px] font-medium tracking-[-0.006em] transition-colors cursor-pointer shadow-x-small disabled:opacity-50"
+                  >
+                    {saving ? "Saving..." : "Save preferences"}
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* ════════════════ TEAM & ROLES TAB ════════════════ */}
+            {activeTab === "TEAM" && (
+              <div className="flex flex-col gap-[24px]">
+                {/* Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
+                      Team members
+                    </h2>
+                    <p className="text-[14px] text-[#5C5C5C] leading-[20px] tracking-[-0.006em]">
+                      Manage team access, permissions, and roles across your workspace.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Search Bar */}
+                    <div className="w-[200px] md:w-[240px] h-[36px] bg-white border border-[#EBEBEB] rounded-[8px] px-3 flex items-center gap-2 shadow-x-small focus-within:border-[#171717] transition-all">
+                      <RiSearchLine className="size-4 text-[#A4A4A4] shrink-0" />
+                      <Input
+                        type="text"
+                        placeholder="Search team..."
+                        value={teamSearchQuery}
+                        onChange={(e) => setTeamSearchQuery(e.target.value)}
+                        className="w-full text-[13px] text-[#171717] placeholder:text-[#A4A4A4] border-0 shadow-none focus-visible:ring-0 focus-visible:border-transparent p-0 h-auto bg-transparent"
+                      />
+                      {teamSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setTeamSearchQuery("")}
+                          className="text-[#A4A4A4] hover:text-[#171717] cursor-pointer border-0 bg-transparent p-0"
+                        >
+                          <RiCloseLine className="size-4" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Invite Button */}
+                    <Button
+                      type="button"
+                      id="settings-invite-member-btn"
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="h-[36px] px-[16px] bg-[#171717] hover:bg-[#262626] text-white text-[14px] font-medium rounded-[8px] tracking-[-0.006em] shadow-x-small transition-colors cursor-pointer shrink-0 flex items-center justify-center border-0"
+                    >
+                      Invite member
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Team Members List Card */}
+                <div className="bg-white rounded-[16px] p-[24px] md:p-[32px] border border-[#EBEBEB] shadow-x-small flex flex-col gap-[16px]">
+                  {isLoadingTeam ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#5C5C5C]">
+                      <RiRefreshLine className="size-6 animate-spin text-[#7D52F4]" />
+                      <span className="text-[13px]">Loading team members...</span>
+                    </div>
+                  ) : filteredTeamMembers.length === 0 ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-3 text-center">
+                      <div className="size-10 rounded-full bg-neutral-100 flex items-center justify-center text-[#5C5C5C]">
+                        <RiGroupLine className="size-5" />
+                      </div>
+                      <span className="text-[14px] font-medium text-[#171717]">
+                        {teamSearchQuery ? "No members matching your search" : "No team members found"}
+                      </span>
+                      <Button
+                        type="button"
+                        onClick={() => setIsInviteModalOpen(true)}
+                        className="h-[36px] px-[16px] bg-[#171717] hover:bg-[#262626] text-white text-[13px] font-medium rounded-[8px] shadow-x-small transition-colors cursor-pointer"
+                      >
+                        Invite your first team member
+                      </Button>
+                    </div>
+                  ) : (
+                    filteredTeamMembers.map((member, idx, arr) => {
+                      const badge = getRoleBadgeStyle(member.role);
+
+                      return (
+                        <React.Fragment key={member.id}>
+                          <div className="flex items-center justify-between py-[8px]">
+                            {/* Avatar + Info */}
+                            <div className="flex items-center gap-[12px] min-w-0">
+                              {member.avatarImage ? (
+                                <Avatar className="size-10 rounded-full shrink-0">
+                                  <AvatarImage src={member.avatarImage} alt={member.name} />
+                                  <AvatarFallback className="bg-[#CAC0FF] text-[#351A75] font-medium text-[15px]">
+                                    {member.avatarText || getInitials(member.name)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ) : (
+                                <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-medium text-[15px] flex items-center justify-center shrink-0">
+                                  {member.avatarText || getInitials(member.name)}
+                                </div>
+                              )}
+
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[14px] font-medium text-[#171717] leading-[20px] tracking-[-0.006em] truncate">
+                                  {member.name}
+                                </span>
+                                <span className="text-[13px] text-[#5C5C5C] leading-[18px] truncate">
+                                  {member.email}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Role Badge + Action Menu */}
+                            <div className="flex items-center gap-[12px] shrink-0">
+                              <span
+                                className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[14px] ${badge.bg} ${badge.text}`}
+                              >
+                                {member.role}
+                              </span>
+
+                              <DropdownMenu>
+                                <DropdownMenuTrigger className="size-8 rounded-[6px] hover:bg-neutral-100 flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 bg-transparent outline-none">
+                                  <RiMore2Line className="size-4.5" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large p-1 min-w-[170px] z-50"
+                                >
+                                  <DropdownMenuItem
+                                    onClick={() => setEditingMember(member)}
+                                    className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#171717] hover:bg-neutral-50 rounded-[6px] cursor-pointer"
+                                  >
+                                    <RiUserSettingsLine className="size-4 text-[#5C5C5C]" />
+                                    <span>Edit Permissions</span>
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuItem
+                                    onClick={() => handleCopyEmail(member.email)}
+                                    className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#171717] hover:bg-neutral-50 rounded-[6px] cursor-pointer"
+                                  >
+                                    <RiFileCopyLine className="size-4 text-[#5C5C5C]" />
+                                    <span>Copy Email</span>
+                                  </DropdownMenuItem>
+
+                                  {member.status === "invited" && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleResendInvite(member.email, member.id)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#171717] hover:bg-neutral-50 rounded-[6px] cursor-pointer"
+                                    >
+                                      <RiMailSendLine className="size-4 text-[#5C5C5C]" />
+                                      <span>Resend Invite</span>
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  <DropdownMenuSeparator className="my-1 border-t border-[#EBEBEB]" />
+
+                                  <DropdownMenuItem
+                                    onClick={() => handleRemoveTeamMember(member.id, member.name)}
+                                    className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#FB3748] hover:bg-red-50 rounded-[6px] cursor-pointer"
+                                  >
+                                    <RiDeleteBinLine className="size-4 text-[#FB3748]" />
+                                    <span>Remove Member</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
+                          {idx < arr.length - 1 && <div className="w-full border-t border-[#EBEBEB]" />}
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             )}
-          </form>
+          </div>
         </div>
       </div>
+
+      {/* Invite Member Modal */}
+      <InviteMemberModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onSendInvite={handleAddTeamMember}
+      />
+
+      {/* Edit Member Modal */}
+      <EditMemberModal
+        isOpen={!!editingMember}
+        member={editingMember}
+        onClose={() => setEditingMember(null)}
+        onUpdateMember={handleUpdateTeamMember}
+      />
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="w-full min-h-full bg-[#F7F7F7] flex items-center justify-center p-12">
+          <RiRefreshLine className="size-8 animate-spin text-[#7D52F4]" />
+        </div>
+      }
+    >
+      <SettingsContent />
+    </React.Suspense>
   );
 }

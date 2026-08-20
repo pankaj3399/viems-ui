@@ -56,11 +56,14 @@ const DEFAULT_COUNTRIES = [
   { id: "10", value: "Italy" },
 ];
 
-// Parse DD / MM / YYYY to YYYY-MM-DD
-function parseDisplayDate(displayVal: string): string {
-  if (!displayVal) return "";
-  const cleaned = displayVal.replace(/\s+/g, "");
-  const parts = cleaned.split("/");
+// Parse DD / MM / YYYY or date string to YYYY-MM-DD
+function parseDisplayDate(displayVal: string): string | null {
+  if (!displayVal) return null;
+  const cleaned = displayVal.trim();
+  if (!cleaned || cleaned === "—" || cleaned === "-" || cleaned === "NaN-NaN-NaN") {
+    return null;
+  }
+  const parts = cleaned.replace(/\s+/g, "").split("/");
   if (parts.length === 3) {
     const day = parts[0].padStart(2, "0");
     const month = parts[1].padStart(2, "0");
@@ -69,18 +72,29 @@ function parseDisplayDate(displayVal: string): string {
       return `${year}-${month}-${day}`;
     }
   }
-  return displayVal;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) {
+    return cleaned;
+  }
+  const dateObj = new Date(cleaned);
+  if (!isNaN(dateObj.getTime())) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, "0");
+    const d = String(dateObj.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return null;
 }
 
 // Format YYYY-MM-DD to DD / MM / YYYY
 function formatDisplayDate(isoVal: string): string {
-  if (!isoVal) return "";
-  if (/\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}/.test(isoVal)) {
-    return isoVal;
+  if (!isoVal || isoVal === "—" || isoVal === "-" || isoVal === "NaN-NaN-NaN") return "";
+  const cleaned = isoVal.trim();
+  if (/\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}/.test(cleaned)) {
+    return cleaned;
   }
-  const dateObj = new Date(isoVal);
+  const dateObj = new Date(cleaned);
   if (isNaN(dateObj.getTime())) {
-    return isoVal;
+    return "";
   }
   const day = String(dateObj.getDate()).padStart(2, "0");
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -154,7 +168,8 @@ export function EditPersonalDetailsModal({
 
     if (activePassport) {
       setPassportId(activePassport.id || null);
-      setPassportNumber(activePassport.passport_number || activePassport.number || "");
+      const rawNum = activePassport.passport_number || activePassport.number || "";
+      setPassportNumber(rawNum === "—" || rawNum === "-" ? "" : rawNum);
       setPassportIssueDate(formatDisplayDate(activePassport.issue_passport_date || activePassport.issueDate || ""));
       setPassportExpiryDate(formatDisplayDate(activePassport.expired_passport_date || activePassport.expiryDate || ""));
     }
@@ -277,12 +292,15 @@ export function EditPersonalDetailsModal({
         },
       };
 
-      if (passportNumber || isoIssueDate || isoExpiryDate || passportId) {
+      const cleanPassportNumber = (passportNumber || "").replace(/^[—\-]+$/, "").trim();
+      if (cleanPassportNumber) {
         overrides.passport = {
           ...(passportId ? { id: typeof passportId === "number" ? passportId : parseInt(passportId, 10) } : {}),
-          ...(passportNumber ? { passport_number: passportNumber } : {}),
-          ...(isoIssueDate ? { issue_passport_date: isoIssueDate } : {}),
-          ...(isoExpiryDate ? { expired_passport_date: isoExpiryDate } : {}),
+          passport_number: cleanPassportNumber,
+          place_of_issue: cityOfBirth || countryOfBirth || "UK",
+          issue_passport_date: isoIssueDate || "2020-01-01",
+          expired_passport_date: isoExpiryDate || "2030-01-01",
+          is_actual: true,
         };
       }
 

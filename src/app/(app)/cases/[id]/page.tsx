@@ -849,7 +849,11 @@ export default function MigrantOverviewPage() {
             </div>
           </div>
         ) : activeTab === "Passport" ? (
-          <PassportTab migrant={migrant} onEditPassport={() => setIsPersonalModalOpen(true)} />
+          <PassportTab
+            migrant={migrant}
+            onEditPassport={() => setIsPersonalModalOpen(true)}
+            onPassportUploaded={() => loadCaseDetail()}
+          />
         ) : activeTab === "Documents" ? (
           <DocumentsTab caseId={id} />
         ) : activeTab === "Tasks" ? (
