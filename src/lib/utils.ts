@@ -1,15 +1,95 @@
 import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { extendTailwindMerge } from "tailwind-merge"
+
+const customTwMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      rounded: [
+        "rounded-compact",
+        "rounded-input",
+        "rounded-button",
+        "rounded-card",
+        "rounded-separator",
+      ],
+      p: ["p-xxs", "p-xs", "p-sm", "p-md", "p-lg", "p-xl", "p-2xl", "p-3xl", "p-4xl"],
+      px: ["px-xxs", "px-xs", "px-sm", "px-md", "px-lg", "px-xl", "px-2xl", "px-3xl", "px-4xl"],
+      py: ["py-xxs", "py-xs", "py-sm", "py-md", "py-lg", "py-xl", "py-2xl", "py-3xl", "py-4xl"],
+      pt: ["pt-xxs", "pt-xs", "pt-sm", "pt-md", "pt-lg", "pt-xl", "pt-2xl", "pt-3xl", "pt-4xl"],
+      pb: ["pb-xxs", "pb-xs", "pb-sm", "pb-md", "pb-lg", "pb-xl", "pb-2xl", "pb-3xl", "pb-4xl"],
+      pl: ["pl-xxs", "pl-xs", "pl-sm", "pl-md", "pl-lg", "pl-xl", "pl-2xl", "pl-3xl", "pl-4xl"],
+      pr: ["pr-xxs", "pr-xs", "pr-sm", "pr-md", "pr-lg", "pr-xl", "pr-2xl", "pr-3xl", "pr-4xl"],
+      "font-size": [
+        "text-h3-title",
+        "text-h5-title",
+        "text-h6-title",
+        "text-label-xl",
+        "text-label-lg",
+        "text-label-md",
+        "text-label-sm",
+        "text-label-xs",
+        "text-label-compact",
+        "text-paragraph-md",
+        "text-paragraph-sm",
+        "text-paragraph-xs",
+        "text-paragraph-compact",
+        "text-subheading-xs",
+        "text-subheading-2xs",
+      ],
+      shadow: [
+        "shadow-primary-focus",
+        "shadow-important-focus",
+        "shadow-card-large",
+        "shadow-regular-medium",
+        "shadow-custom-medium",
+        "shadow-x-small",
+      ],
+    },
+  },
+})
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return customTwMerge(clsx(inputs))
+}
+
+export function formatTitleCase(str?: string | null): string {
+  if (!str) return "";
+  return str
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => {
+      // If word contains hyphen (e.g. Jean-Luc, Smith-Jones)
+      if (w.includes("-")) {
+        return w
+          .split("-")
+          .map((part) =>
+            part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : ""
+          )
+          .join("-");
+      }
+      // If word contains apostrophe (e.g. O'Connor, D'Souza)
+      if (w.includes("'")) {
+        return w
+          .split("'")
+          .map((part) =>
+            part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : ""
+          )
+          .join("'");
+      }
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
 }
 
 export function formatFullName(firstName?: string, lastName?: string): string {
-  const first = (firstName || "").trim();
-  const last = (lastName || "").trim();
+  const firstRaw = (firstName || "").trim();
+  const lastRaw = (lastName || "").trim();
 
-  if (!first && !last) return "Unknown Migrant";
+  if (!firstRaw && !lastRaw) return "Unknown Migrant";
+
+  const first = formatTitleCase(firstRaw);
+  const last = formatTitleCase(lastRaw);
+
   if (!last) return first;
   if (!first) return last;
 
@@ -51,10 +131,11 @@ export function formatFullName(firstName?: string, lastName?: string): string {
   return `${first} ${last}`;
 }
 
-export function getInitials(fullName: string): string {
+export function getInitials(fullName?: string | null): string {
+  if (!fullName) return "UM";
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "UM";
-  if (parts.length === 1) return parts[0][0].toUpperCase();
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 

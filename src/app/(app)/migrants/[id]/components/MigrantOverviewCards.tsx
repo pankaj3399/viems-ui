@@ -29,7 +29,7 @@ export function MigrantProfileCard({
   const displayEmployer = employer || "—";
 
   return (
-    <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[32px_16px_24px] flex flex-col items-center shadow-[0px_1px_2px_rgba(10,13,20,0.03)] text-center w-full gap-[16px] shrink-0 font-sans select-none">
+    <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[32px_16px_24px] flex flex-col items-center shadow-[0px_1px_2px_rgba(10,13,20,0.03)] text-center w-full gap-[16px] shrink-0 font-sans">
       {/* Avatar (80x80) */}
       {avatar && !imgError ? (
         <img
@@ -39,7 +39,7 @@ export function MigrantProfileCard({
           className="size-[80px] rounded-full object-cover shrink-0"
         />
       ) : (
-        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[34px] tracking-[-0.015em] shrink-0 overflow-hidden select-none">
+        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] tracking-[-0.015em] shrink-0 overflow-hidden">
           {displayInitials}
         </div>
       )}
@@ -86,7 +86,7 @@ export function MigrantMigrationStatusCard({
     totalDays > 0 ? Math.min(100, Math.max(0, (daysLeft / totalDays) * 100)) : 0;
 
   return (
-    <div className="flex flex-col gap-[12px] w-full font-sans select-none">
+    <div className="flex flex-col gap-[12px] w-full font-sans">
       {/* Header with Title + Location Badge */}
       <div className="flex items-center justify-between h-[30px]">
         <div className="flex items-center gap-[8px]">
@@ -163,7 +163,7 @@ export function MigrantCaseStatusCard({
   const formattedCaseId = caseId ? caseId.replace(/^#/, "") : "—";
 
   return (
-    <div className="flex flex-col gap-[12px] w-full font-sans select-none">
+    <div className="flex flex-col gap-[12px] w-full font-sans">
       {/* Header with Title + Status Badge */}
       <div className="flex items-center justify-between h-[30px]">
         <div className="flex items-center gap-[8px]">
@@ -276,7 +276,7 @@ export function MigrantPersonalDetailsCard({
   ];
 
   return (
-    <div className="flex flex-col gap-[12px] w-full font-sans select-none">
+    <div className="flex flex-col gap-[12px] w-full font-sans">
       {/* Header */}
       <div className="flex items-center justify-between h-[30px]">
         <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
@@ -296,7 +296,7 @@ export function MigrantPersonalDetailsCard({
 
       {/* Widget Card */}
       <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
-        <div className="bg-[#F7F7F7] rounded-[16px] p-[8px_20px_16px] flex flex-col gap-[2px] w-full">
+        <div className="bg-[#F5F5F5] rounded-[16px] p-[8px_20px_16px] flex flex-col gap-[2px] w-full">
           {rows.map((row, idx) => (
             <div
               key={idx}
@@ -337,7 +337,7 @@ export function MigrantHomeAddressCard({
     : address || "";
 
   return (
-    <div className="flex flex-col gap-[12px] w-full font-sans select-none">
+    <div className="flex flex-col gap-[12px] w-full font-sans">
       {/* Header */}
       <div className="flex items-center justify-between h-[30px]">
         <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
@@ -357,7 +357,7 @@ export function MigrantHomeAddressCard({
 
       {/* Widget Card */}
       <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full">
-        <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] flex items-start gap-[8px] w-full">
+        <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] flex items-start gap-[8px] w-full">
           <RiMapPin2Fill className="size-5 text-[#171717] shrink-0 mt-[2px]" />
           <div className="text-[14px] font-medium text-[#171717] leading-[20px] whitespace-pre-line flex-1">
             {formattedAddress || "No home address on file"}
@@ -390,7 +390,7 @@ export function MigrantContactDetailsCard({
   onEdit,
 }: MigrantContactDetailsCardProps) {
   return (
-    <div className="flex flex-col gap-[12px] w-full font-sans select-none">
+    <div className="flex flex-col gap-[12px] w-full font-sans">
       {/* Header */}
       <div className="flex items-center justify-between h-[30px]">
         <h2 className="font-aeonik-medium text-[20px] leading-[32px] font-medium text-[#171717]">
@@ -411,7 +411,7 @@ export function MigrantContactDetailsCard({
       {/* Widget Card (Two blocks) */}
       <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] flex flex-col gap-[4px] w-full">
         {/* Primary Contact Block */}
-        <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] flex flex-col gap-[2px] w-full">
+        <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] flex flex-col gap-[2px] w-full">
           <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em] mb-[6px]">
             PRIMARY CONTACT
           </span>
@@ -436,7 +436,7 @@ export function MigrantContactDetailsCard({
         </div>
 
         {/* Emergency Contact Block */}
-        <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] flex flex-col gap-[2px] w-full">
+        <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] flex flex-col gap-[2px] w-full">
           <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em] mb-[6px]">
             EMERGENCY CONTACT
           </span>

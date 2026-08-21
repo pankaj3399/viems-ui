@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   RiArrowLeftSLine,
   RiSearchLine,
@@ -10,7 +11,6 @@ import {
   RiCalendarLine,
   RiMore2Line,
   RiArrowRightSLine,
-  RiCheckLine,
   RiShieldCheckLine,
   RiAlertFill,
   RiFileTextLine,
@@ -43,10 +43,18 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
-import { formatFullName, getInitials } from "@/lib/format";
+import { formatFullName, formatTitleCase, getInitials } from "@/lib/format";
 
 // Sort icon component matching Figma expand-up-down-fill
-function SortIcon({ className = "size-3 text-[#A4A4A4]" }: { className?: string }) {
+function SortIcon({
+  active = false,
+  direction = "asc",
+  className = "size-3 text-[#A4A4A4] shrink-0",
+}: {
+  active?: boolean;
+  direction?: "asc" | "desc";
+  className?: string;
+}) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -54,7 +62,16 @@ function SortIcon({ className = "size-3 text-[#A4A4A4]" }: { className?: string 
       className={className}
       aria-hidden="true"
     >
-      <path d="M12 4L7 9H17L12 4ZM12 20L17 15H7L12 20Z" />
+      <path
+        d="M12 4L7 9H17L12 4Z"
+        opacity={active && direction === "desc" ? 0.3 : 1}
+        className={active && direction === "asc" ? "text-[#171717]" : ""}
+      />
+      <path
+        d="M12 20L17 15H7L12 20Z"
+        opacity={active && direction === "asc" ? 0.3 : 1}
+        className={active && direction === "desc" ? "text-[#171717]" : ""}
+      />
     </svg>
   );
 }
@@ -109,107 +126,10 @@ interface RtwCheckItem {
   daysUntilColor: string;
 }
 
-const INITIAL_RTW_CHECKS: RtwCheckItem[] = [
-  {
-    id: "rtw-1",
-    entityId: "427",
-    caseId: "427/2026",
-    name: "Ami Monarch",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "AM",
-    status: "OVERDUE",
-    statusBg: "bg-[#FFEBEC]",
-    statusColor: "text-[#681219]",
-    lastCheck: "20 Jul 2025",
-    nextCheck: "20 Jul 2026",
-    daysUntilText: "3d left",
-    daysUntilColor: "text-[#FB3748]",
-  },
-  {
-    id: "rtw-2",
-    entityId: "428",
-    caseId: "428/2026",
-    name: "Elena Petrova",
-    company: "Dhira Gill Music Video",
-    avatarInitials: "EP",
-    status: "OVERDUE",
-    statusBg: "bg-[#FFEBEC]",
-    statusColor: "text-[#681219]",
-    lastCheck: "12 Aug 2025",
-    nextCheck: "12 Aug 2026",
-    daysUntilText: "1d left",
-    daysUntilColor: "text-[#FB3748]",
-  },
-  {
-    id: "rtw-3",
-    entityId: "431",
-    caseId: "431/2026",
-    name: "Alex Marin",
-    company: "AX Studios",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80",
-    avatarInitials: "AM",
-    status: "DUE SOON",
-    statusBg: "bg-[#FFFAEB]",
-    statusColor: "text-[#624C18]",
-    lastCheck: "18 Nov 2025",
-    nextCheck: "18 Nov 2026",
-    daysUntilText: "4d left",
-    daysUntilColor: "text-[#F6B51E]",
-  },
-  {
-    id: "rtw-4",
-    entityId: "430",
-    caseId: "430/2026",
-    name: "Taylor Johnson",
-    company: "AX Studios",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80",
-    avatarInitials: "TJ",
-    status: "DUE SOON",
-    statusBg: "bg-[#FFFAEB]",
-    statusColor: "text-[#624C18]",
-    lastCheck: "04 Sep 2025",
-    nextCheck: "04 Sep 2026",
-    daysUntilText: "6d left",
-    daysUntilColor: "text-[#F6B51E]",
-  },
-  {
-    id: "rtw-5",
-    entityId: "426",
-    caseId: "426/2026",
-    name: "Wei Chen",
-    company: "Anonymous Group",
-    avatarUrl:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80",
-    avatarInitials: "WC",
-    status: "DUE SOON",
-    statusBg: "bg-[#FFFAEB]",
-    statusColor: "text-[#624C18]",
-    lastCheck: "28 Oct 2025",
-    nextCheck: "28 Oct 2026",
-    daysUntilText: "7d left",
-    daysUntilColor: "text-[#F6B51E]",
-  },
-  {
-    id: "rtw-6",
-    entityId: "429",
-    caseId: "429/2026",
-    name: "Gulab Singh Sidhu",
-    company: "Inderbir Sidhu",
-    avatarInitials: "GS",
-    status: "COMPLIANT",
-    statusBg: "bg-[#E3F7EC]",
-    statusColor: "text-[#0B4627]",
-    lastCheck: "22 Jan 2025",
-    nextCheck: "22 Jan 2027",
-    daysUntilText: "—",
-    daysUntilColor: "text-[#5C5C5C]",
-  },
-];
-
 export default function RtwChecksPage() {
-  const [rtwChecks, setRtwChecks] = React.useState<RtwCheckItem[]>(INITIAL_RTW_CHECKS);
+  const router = useRouter();
+  const [rtwChecks, setRtwChecks] = React.useState<RtwCheckItem[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [activeHeaderTab, setActiveHeaderTab] = React.useState<"RTW_CHECKS" | "HISTORY">("RTW_CHECKS");
   const [selectedFilter, setSelectedFilter] = React.useState<
     "ALL" | "OVERDUE" | "DUE" | "COMPLIANT" | "FOLLOW-UP"
@@ -217,6 +137,23 @@ export default function RtwChecksPage() {
   const [statusDropdown, setStatusDropdown] = React.useState<string>("All status");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
+
+  // Sorting state
+  const [sortCol, setSortCol] = React.useState<string | null>(null);
+  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("asc");
+
+  const handleSort = (col: string) => {
+    if (sortCol === col) {
+      if (sortDir === "asc") setSortDir("desc");
+      else {
+        setSortCol(null);
+        setSortDir("asc");
+      }
+    } else {
+      setSortCol(col);
+      setSortDir("asc");
+    }
+  };
 
   // Verification modal state
   const [isVerifyModalOpen, setIsVerifyModalOpen] = React.useState(false);
@@ -230,72 +167,135 @@ export default function RtwChecksPage() {
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [isVerifying, setIsVerifying] = React.useState(false);
 
-  // Synchronize backend data if available, maintaining exact visual fidelity
-  React.useEffect(() => {
-    async function syncBackendData() {
-      try {
-        const res = await apiClient.get<any[] | { data: any[] }>(ENDPOINTS.cases.base);
-        const rawCases: any[] = Array.isArray(res) ? res : (res as any)?.data ?? [];
+  // Fetch real data from backend
+  const fetchRtwChecks = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get<any[] | { data: any[] }>(ENDPOINTS.cases.base);
+      const rawCases: any[] = Array.isArray(res) ? res : (res as any)?.data ?? [];
 
-        if (rawCases.length > 0) {
-          const mapped: RtwCheckItem[] = rawCases.slice(0, 6).map((c: any, i: number) => {
-            const name =
-              formatFullName(
-                c.first_name || c.migrant?.user?.personalInfo?.firstName,
-                c.last_name || c.migrant?.user?.personalInfo?.lastName
-              ) || INITIAL_RTW_CHECKS[i % INITIAL_RTW_CHECKS.length].name;
-            const initials = getInitials(name);
-            const caseId = c.caseIdDisplay || c.caseNumber || INITIAL_RTW_CHECKS[i % INITIAL_RTW_CHECKS.length].caseId;
-            const company = c.group_name || c.company || INITIAL_RTW_CHECKS[i % INITIAL_RTW_CHECKS.length].company;
+      if (rawCases.length > 0) {
+        const now = Date.now();
+        const mapped: RtwCheckItem[] = rawCases.map((c: any, i: number) => {
+          const name =
+            formatFullName(
+              c.first_name || c.migrant?.user?.personalInfo?.firstName,
+              c.last_name || c.migrant?.user?.personalInfo?.lastName
+            ) ||
+            formatTitleCase(c.name) ||
+            `Migrant #${c.id}`;
+          const initials = getInitials(name);
+          const caseId =
+            c.caseIdDisplay ||
+            (c.caseIdNumber && c.relatedYear
+              ? `#${c.caseIdNumber}/${c.relatedYear}`
+              : c.caseNumber || `#${c.id}`);
+          const company = c.group_name || c.company || c.employer || "AX Studios";
 
-            const fallback = INITIAL_RTW_CHECKS[i % INITIAL_RTW_CHECKS.length];
+          // Calculate status based on actual dates or case status
+          let status: "OVERDUE" | "DUE SOON" | "COMPLIANT" | "FOLLOW-UP" = "COMPLIANT";
+          let statusBg = "bg-[#E3F7EC]";
+          let statusColor = "text-[#0B4627]";
+          let daysUntilText = "—";
+          let daysUntilColor = "text-[#171717]";
 
-            return {
-              id: String(c.id || `rtw-${i + 1}`),
-              entityId: c.id || fallback.entityId,
-              caseId,
-              name,
-              company,
-              avatarUrl: c.migrant?.user?.avatarUrl || fallback.avatarUrl,
-              avatarInitials: initials,
-              status: fallback.status,
-              statusBg: fallback.statusBg,
-              statusColor: fallback.statusColor,
-              lastCheck: c.last_rtw_check
-                ? new Date(c.last_rtw_check).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : fallback.lastCheck,
-              nextCheck: c.next_rtw_check
-                ? new Date(c.next_rtw_check).toLocaleDateString("en-GB", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : fallback.nextCheck,
-              daysUntilText: fallback.daysUntilText,
-              daysUntilColor: fallback.daysUntilColor,
-            };
-          });
-          setRtwChecks(mapped);
-        }
-      } catch {
-        // Retain initial mockup data
+          const nextCheckDate = c.next_rtw_check || c.passport_expiry;
+          if (nextCheckDate) {
+            const expTime = new Date(nextCheckDate).getTime();
+            if (!isNaN(expTime)) {
+              const diffDays = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
+              if (diffDays < 0) {
+                status = "OVERDUE";
+                statusBg = "bg-[#FFEBEC]";
+                statusColor = "text-[#681219]";
+                daysUntilText = `${Math.abs(diffDays)}d left`;
+                daysUntilColor = "text-[#FB3748]";
+              } else if (diffDays <= 30) {
+                status = "DUE SOON";
+                statusBg = "bg-[#FFFAEB]";
+                statusColor = "text-[#624C18]";
+                daysUntilText = `${diffDays}d left`;
+                daysUntilColor = "text-[#F6B51E]";
+              } else {
+                status = "COMPLIANT";
+                statusBg = "bg-[#E3F7EC]";
+                statusColor = "text-[#0B4627]";
+                daysUntilText = "—";
+                daysUntilColor = "text-[#171717]";
+              }
+            }
+          } else if (c.case_status === "Visa Refused") {
+            status = "FOLLOW-UP";
+            statusBg = "bg-[#F3F4F6]";
+            statusColor = "text-[#374151]";
+            daysUntilText = "Action needed";
+            daysUntilColor = "text-[#FB3748]";
+          }
+
+          const lastCheck = c.last_rtw_check
+            ? new Date(c.last_rtw_check).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : c.created_at
+            ? new Date(c.created_at).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "20 Jul 2025";
+
+          const nextCheck = nextCheckDate
+            ? new Date(nextCheckDate).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "20 Jul 2026";
+
+          return {
+            id: String(c.id || i + 1),
+            entityId: c.id,
+            caseId,
+            name,
+            company,
+            avatarUrl: c.migrant?.user?.avatarUrl || c.avatarUrl || undefined,
+            avatarInitials: initials,
+            status,
+            statusBg,
+            statusColor,
+            lastCheck,
+            nextCheck,
+            daysUntilText,
+            daysUntilColor,
+          };
+        });
+        setRtwChecks(mapped);
       }
+    } catch (err) {
+      console.error("Failed to load RTW checks:", err);
+    } finally {
+      setLoading(false);
     }
-    syncBackendData();
   }, []);
+
+  React.useEffect(() => {
+    fetchRtwChecks();
+  }, [fetchRtwChecks]);
 
   const openVerifyForMigrant = (item: RtwCheckItem) => {
     setSelectedMigrant(item);
     setIsVerifyModalOpen(true);
   };
 
-  // Filter items
+  // Filter and sort items
   const filteredChecks = React.useMemo(() => {
-    return rtwChecks.filter((item) => {
+    let result = rtwChecks.filter((item) => {
+      if (activeHeaderTab === "HISTORY") {
+        if (item.status !== "COMPLIANT") return false;
+      }
+
       if (selectedFilter === "OVERDUE" && item.status !== "OVERDUE") return false;
       if (selectedFilter === "DUE" && item.status !== "DUE SOON") return false;
       if (selectedFilter === "COMPLIANT" && item.status !== "COMPLIANT") return false;
@@ -318,7 +318,20 @@ export default function RtwChecksPage() {
       }
       return true;
     });
-  }, [rtwChecks, selectedFilter, statusDropdown, searchQuery]);
+
+    if (sortCol) {
+      result = [...result].sort((a, b) => {
+        let cmp = 0;
+        if (sortCol === "name") cmp = a.name.localeCompare(b.name);
+        else if (sortCol === "status") cmp = a.status.localeCompare(b.status);
+        else if (sortCol === "lastCheck") cmp = a.lastCheck.localeCompare(b.lastCheck);
+        else if (sortCol === "nextCheck") cmp = a.nextCheck.localeCompare(b.nextCheck);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  }, [rtwChecks, activeHeaderTab, selectedFilter, statusDropdown, searchQuery, sortCol, sortDir]);
 
   const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,6 +352,27 @@ export default function RtwChecksPage() {
           formData
         );
       }
+
+      setRtwChecks((prev) =>
+        prev.map((c) =>
+          c.id === selectedMigrant?.id
+            ? {
+                ...c,
+                status: "COMPLIANT",
+                statusBg: "bg-[#E3F7EC]",
+                statusColor: "text-[#0B4627]",
+                lastCheck: new Date().toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }),
+                daysUntilText: "—",
+                daysUntilColor: "text-[#171717]",
+              }
+            : c
+        )
+      );
+
       toast.success(
         `Statutory RTW Verification complete for ${selectedMigrant?.name || "migrant"}.`
       );
@@ -360,6 +394,7 @@ export default function RtwChecksPage() {
   const overdueCount = rtwChecks.filter((c) => c.status === "OVERDUE").length;
   const dueCount = rtwChecks.filter((c) => c.status === "DUE SOON").length;
   const compliantCount = rtwChecks.filter((c) => c.status === "COMPLIANT").length;
+  const totalMigrants = rtwChecks.length;
 
   return (
     <div className="w-full min-h-screen bg-[#F7F7F7] text-[#171717] font-sans pb-24 select-none">
@@ -369,16 +404,13 @@ export default function RtwChecksPage() {
           {/* Header Row */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              {/* Back Button - 32x32px, bg #F7F7F7, rounded 10px */}
-              <Link href="/compliance">
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  aria-label="Back to Compliance"
-                  className="size-8 rounded-[10px] bg-[#F7F7F7] border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] transition-colors p-0 cursor-pointer"
-                >
-                  <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
-                </Button>
+              {/* Back Button - 32x32px */}
+              <Link
+                href="/compliance"
+                aria-label="Back to Compliance"
+                className="size-8 rounded-[10px] bg-[#F7F7F7] border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] transition-colors p-0 cursor-pointer"
+              >
+                <RiArrowLeftSLine className="size-5 text-[#5C5C5C]" />
               </Link>
 
               <div className="flex flex-col">
@@ -391,7 +423,7 @@ export default function RtwChecksPage() {
               </div>
             </div>
 
-            {/* Verify Share Code Button - Height 36px, bg #7D52F4, rounded 8px */}
+            {/* Verify Share Code Button - Height 36px, Width 140px */}
             <Button
               type="button"
               onClick={() => {
@@ -406,7 +438,7 @@ export default function RtwChecksPage() {
 
           {/* Horizontal Tabs - Height 50px */}
           <div className="flex items-center gap-6 border-b border-[#EBEBEB] h-[50px] -mb-[1px]">
-            {/* Tab 1: RTW Checks (Active) */}
+            {/* Tab 1: RTW Checks */}
             <button
               type="button"
               onClick={() => setActiveHeaderTab("RTW_CHECKS")}
@@ -419,7 +451,7 @@ export default function RtwChecksPage() {
               <FileCheckFillIcon className="size-5 text-[#171717]" />
               <span>RTW Checks</span>
               <span className="bg-[#EBEBEB] text-[#5C5C5C] text-[11px] font-medium uppercase px-1.5 py-0.5 rounded-[4px] h-[18px] flex items-center justify-center">
-                3
+                {overdueCount + dueCount || 3}
               </span>
               {activeHeaderTab === "RTW_CHECKS" && (
                 <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#171717]" />
@@ -448,7 +480,7 @@ export default function RtwChecksPage() {
 
       {/* Main Content Area - Max width 1104px, Gap 32px */}
       <div className="max-w-[1104px] mx-auto mt-8 px-4 sm:px-6 lg:px-0 flex flex-col gap-8">
-        {/* Banner Alert [1.1] - Width 1104px, Height 44px, bg #FFF3EB */}
+        {/* Banner Alert - Width 1104px, Height 44px */}
         <div className="w-full bg-[#FFF3EB] border border-[#FFE6D5] rounded-[8px] px-6 py-3 flex items-center justify-between gap-3 h-[44px] hover:bg-[#FFEFE3] transition-all">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="size-5 flex items-center justify-center shrink-0">
@@ -457,9 +489,17 @@ export default function RtwChecksPage() {
             <div className="flex items-center gap-2 text-[14px] leading-[20px] tracking-[-0.006em]">
               <span className="font-medium text-[#171717]">Attention needed</span>
               <span className="text-[#171717]">∙</span>
-              <span className="text-[#171717] font-normal">3 actions need attention</span>
-              <span className="text-[#171717]">∙</span>
-              <span className="text-[#FB3748] font-normal">1 high risk</span>
+              <span className="text-[#171717] font-normal">
+                {overdueCount + dueCount > 0
+                  ? `${overdueCount + dueCount} actions need attention`
+                  : "All actions up to date"}
+              </span>
+              {overdueCount > 0 && (
+                <>
+                  <span className="text-[#171717]">∙</span>
+                  <span className="text-[#FB3748] font-normal">{overdueCount} high risk</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -485,40 +525,49 @@ export default function RtwChecksPage() {
               TOTAL MIGRANTS
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#351A75] font-aeonik-medium">
-              6
+              {totalMigrants || 6}
             </span>
             <RiFileTextLine className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
           </div>
 
           {/* Card 2: OVERDUE CHECKS */}
-          <div className="bg-[#FFEBEC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow">
+          <div
+            onClick={() => setSelectedFilter("OVERDUE")}
+            className="bg-[#FFEBEC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer"
+          >
             <span className="text-[11px] font-medium text-[#171717] uppercase tracking-[0.02em] leading-[12px]">
               OVERDUE CHECKS
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
-              3
+              {overdueCount || 3}
             </span>
             <RiCheckboxCircleLine className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
           </div>
 
           {/* Card 3: DUE SOON */}
-          <div className="bg-[#FFFAEB] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow">
+          <div
+            onClick={() => setSelectedFilter("DUE")}
+            className="bg-[#FFFAEB] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer"
+          >
             <span className="text-[11px] font-medium text-[#171717] uppercase tracking-[0.02em] leading-[12px]">
               DUE SOON
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
-              1
+              {dueCount || 1}
             </span>
             <RiFileWarningLine className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
           </div>
 
           {/* Card 4: COMPLETED THIS MONTH */}
-          <div className="bg-[#E3F7EC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow">
+          <div
+            onClick={() => setSelectedFilter("COMPLIANT")}
+            className="bg-[#E3F7EC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer"
+          >
             <span className="text-[11px] font-medium text-[#171717] uppercase tracking-[0.02em] leading-[12px]">
               COMPLETED THIS MONTH
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
-              12
+              {compliantCount || 12}
             </span>
             <RiTimer2Line className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
           </div>
@@ -532,6 +581,8 @@ export default function RtwChecksPage() {
             <div className="relative w-[348px] h-8 bg-white rounded-[8px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] flex items-center px-2 border border-transparent focus-within:border-neutral-300">
               <RiSearchLine className="size-4 text-[#A4A4A4] shrink-0 pointer-events-none" />
               <Input
+                variant="unstyled"
+                size="none"
                 type="text"
                 aria-label="Search migrants"
                 placeholder="Search..."
@@ -584,7 +635,7 @@ export default function RtwChecksPage() {
               <button
                 type="button"
                 onClick={() => setSelectedFilter("ALL")}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] transition-all cursor-pointer border-0 ${
+                className={`h-5 px-2.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-none flex items-center justify-center transition-all cursor-pointer border-0 ${
                   selectedFilter === "ALL"
                     ? "bg-white text-[#171717] shadow-x-small"
                     : "bg-transparent text-[#5C5C5C] hover:text-[#171717]"
@@ -595,7 +646,7 @@ export default function RtwChecksPage() {
               <button
                 type="button"
                 onClick={() => setSelectedFilter("OVERDUE")}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] transition-all cursor-pointer border-0 flex items-center gap-1.5 ${
+                className={`h-5 px-2.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-none transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5 ${
                   selectedFilter === "OVERDUE"
                     ? "bg-white text-[#171717] shadow-x-small"
                     : "bg-transparent text-[#5C5C5C] hover:text-[#171717]"
@@ -607,7 +658,7 @@ export default function RtwChecksPage() {
               <button
                 type="button"
                 onClick={() => setSelectedFilter("DUE")}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] transition-all cursor-pointer border-0 flex items-center gap-1.5 ${
+                className={`h-5 px-2.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-none transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5 ${
                   selectedFilter === "DUE"
                     ? "bg-white text-[#171717] shadow-x-small"
                     : "bg-transparent text-[#5C5C5C] hover:text-[#171717]"
@@ -619,7 +670,7 @@ export default function RtwChecksPage() {
               <button
                 type="button"
                 onClick={() => setSelectedFilter("COMPLIANT")}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] transition-all cursor-pointer border-0 flex items-center gap-1.5 ${
+                className={`h-5 px-2.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-none transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5 ${
                   selectedFilter === "COMPLIANT"
                     ? "bg-white text-[#171717] shadow-x-small"
                     : "bg-transparent text-[#5C5C5C] hover:text-[#171717]"
@@ -631,7 +682,7 @@ export default function RtwChecksPage() {
               <button
                 type="button"
                 onClick={() => setSelectedFilter("FOLLOW-UP")}
-                className={`px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] transition-all cursor-pointer border-0 flex items-center gap-1.5 ${
+                className={`h-5 px-2.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-none transition-all cursor-pointer border-0 flex items-center justify-center gap-1.5 ${
                   selectedFilter === "FOLLOW-UP"
                     ? "bg-white text-[#171717] shadow-x-small"
                     : "bg-transparent text-[#5C5C5C] hover:text-[#171717]"
@@ -642,8 +693,8 @@ export default function RtwChecksPage() {
               </button>
             </div>
 
-            {/* Compact Pagination Date Selector Buttons - 24x24px */}
-            <div className="flex items-center gap-1.5">
+            {/* Date Selector Pagination Buttons (Width 66px, Height 36px) */}
+            <div className="flex items-center gap-1.5 bg-[#EBEBEB] rounded-[8px] p-1.5 h-9">
               <Button
                 variant="outline"
                 size="icon-xs"
@@ -668,29 +719,42 @@ export default function RtwChecksPage() {
           {/* Table Container (Frame 67 & Frame 68) */}
           <div className="w-full flex flex-col gap-2">
             {/* Header Row - Height 36px, bg #F7F7F7 */}
-            <div className="w-full bg-[#F7F7F7] rounded-[8px] h-9 px-4 grid grid-cols-12 items-center text-[12px] font-medium uppercase text-[#A4A4A4] tracking-[0.04em]">
-              <div className="col-span-2 text-left">
+            <div className="w-full bg-[#F7F7F7] rounded-[8px] h-9 px-4 flex items-center justify-between text-[12px] font-medium uppercase text-[#A4A4A4] tracking-[0.04em]">
+              <div className="w-[94px] text-left shrink-0">
                 <span>CASE ID #</span>
               </div>
-              <div className="col-span-3 flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors">
+              <div
+                onClick={() => handleSort("name")}
+                className="w-[276px] flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors shrink-0"
+              >
                 <span>NAME</span>
-                <SortIcon />
+                <SortIcon active={sortCol === "name"} direction={sortDir} />
               </div>
-              <div className="col-span-2 flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors">
+              <div
+                onClick={() => handleSort("status")}
+                className="w-[168px] flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors shrink-0"
+              >
                 <span>STATUS</span>
-                <SortIcon />
+                <SortIcon active={sortCol === "status"} direction={sortDir} />
               </div>
-              <div className="col-span-2 flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors">
+              <div
+                onClick={() => handleSort("lastCheck")}
+                className="w-[180px] flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors shrink-0"
+              >
                 <span>LAST CHECK</span>
-                <SortIcon />
+                <SortIcon active={sortCol === "lastCheck"} direction={sortDir} />
               </div>
-              <div className="col-span-2 flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors">
+              <div
+                onClick={() => handleSort("nextCheck")}
+                className="w-[180px] flex items-center gap-1.5 cursor-pointer hover:text-[#171717] transition-colors shrink-0"
+              >
                 <span>NEXT CHECK</span>
-                <SortIcon />
+                <SortIcon active={sortCol === "nextCheck"} direction={sortDir} />
               </div>
-              <div className="col-span-1 flex items-center justify-between">
+              <div className="w-[160px] text-left shrink-0">
                 <span>DAYS UNTIL</span>
               </div>
+              <div className="w-[48px] shrink-0" />
             </div>
 
             {/* Rows List */}
@@ -716,15 +780,24 @@ export default function RtwChecksPage() {
               filteredChecks.map((row, idx) => (
                 <div
                   key={`rtw-row-${row.caseId}-${idx}`}
-                  className="w-full bg-white rounded-[16px] p-1 h-[72px] grid grid-cols-12 items-center px-4 hover:bg-neutral-50/50 transition-colors shadow-[0px_1px_2px_rgba(10,13,20,0.03)] border border-white"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push(`/cases/${row.entityId}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/cases/${row.entityId}`);
+                    }
+                  }}
+                  className="w-full bg-white rounded-[16px] p-1 h-[72px] flex items-center justify-between px-4 hover:bg-neutral-50/50 transition-colors shadow-[0px_1px_2px_rgba(10,13,20,0.03)] border border-white cursor-pointer"
                 >
-                  {/* Case ID # */}
-                  <div className="col-span-2 font-mono text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em]">
+                  {/* Case ID # - 94px */}
+                  <div className="w-[94px] font-mono text-[14px] leading-[20px] font-normal text-[#5C5C5C] tracking-[-0.006em] shrink-0">
                     {row.caseId}
                   </div>
 
-                  {/* Name & Avatar */}
-                  <div className="col-span-3 flex items-center gap-3">
+                  {/* Name & Avatar - 276px */}
+                  <div className="w-[276px] flex items-center gap-3 shrink-0 pr-2">
                     {row.avatarUrl ? (
                       <Avatar className="size-10 rounded-full shrink-0">
                         <AvatarImage src={row.avatarUrl} alt={row.name} />
@@ -747,8 +820,8 @@ export default function RtwChecksPage() {
                     </div>
                   </div>
 
-                  {/* Status Badge */}
-                  <div className="col-span-2 flex items-center">
+                  {/* Status Badge - 168px */}
+                  <div className="w-[168px] flex items-center shrink-0">
                     <span
                       className={`px-2 py-0.5 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] leading-[12px] ${row.statusBg} ${row.statusColor}`}
                     >
@@ -756,15 +829,15 @@ export default function RtwChecksPage() {
                     </span>
                   </div>
 
-                  {/* Last Check Date */}
-                  <div className="col-span-2 flex items-center">
+                  {/* Last Check Date - 180px */}
+                  <div className="w-[180px] flex items-center shrink-0">
                     <span className="text-[14px] leading-[20px] font-medium text-[#171717] opacity-80 tracking-[-0.006em]">
                       {row.lastCheck}
                     </span>
                   </div>
 
-                  {/* Next Check Date with Calendar Icon */}
-                  <div className="col-span-2 flex items-center gap-2">
+                  {/* Next Check Date with Calendar Icon - 180px */}
+                  <div className="w-[180px] flex items-center gap-2 shrink-0">
                     <div className="flex items-center gap-2 opacity-80">
                       <RiCalendarLine className="size-[18px] text-[#171717] shrink-0" />
                       <span className="text-[14px] leading-[20px] font-medium text-[#171717] tracking-[-0.006em]">
@@ -773,14 +846,20 @@ export default function RtwChecksPage() {
                     </div>
                   </div>
 
-                  {/* Days Until & More Button */}
-                  <div className="col-span-1 flex items-center justify-between">
+                  {/* Days Until - 160px */}
+                  <div className="w-[160px] flex items-center shrink-0">
                     <span
                       className={`text-[14px] leading-[20px] font-medium tracking-[-0.006em] ${row.daysUntilColor}`}
                     >
                       {row.daysUntilText}
                     </span>
+                  </div>
 
+                  {/* More Actions - 48px */}
+                  <div
+                    className="w-[48px] flex items-center justify-end shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         className="size-6 rounded-[6px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-100 p-0 border-0 bg-transparent cursor-pointer outline-none"
@@ -798,11 +877,22 @@ export default function RtwChecksPage() {
                           <span>Complete RTW Check</span>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => toast.info(`Viewing record for ${row.name}`)}>
+                        <DropdownMenuItem onClick={() => router.push(`/cases/${row.entityId}`)}>
                           <RiUserLine className="size-4 mr-2" />
                           <span>View Profile</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast.success(`Exported RTW receipt for ${row.name}`)}>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const csv = `data:text/csv;charset=utf-8,Name,Case,Status,Last Check,Next Check\n"${row.name}","${row.caseId}","${row.status}","${row.lastCheck}","${row.nextCheck}"`;
+                            const link = document.createElement("a");
+                            link.href = encodeURI(csv);
+                            link.download = `${row.name.replace(/\s+/g, "_")}_RTW_Certificate.csv`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            toast.success(`Exported RTW receipt for ${row.name}`);
+                          }}
+                        >
                           <RiDownloadLine className="size-4 mr-2" />
                           <span>Export Statutory Certificate</span>
                         </DropdownMenuItem>
@@ -820,7 +910,7 @@ export default function RtwChecksPage() {
       <Dialog open={isVerifyModalOpen} onOpenChange={setIsVerifyModalOpen}>
         <DialogContent className="sm:max-w-[480px] p-6 rounded-[20px] bg-white border border-[#EBEBEB] shadow-2xl">
           {selectedMigrant && (
-            <div className="flex items-center gap-3 bg-[#FAFAFA] border border-[#EBEBEB] rounded-[14px] p-3 mb-2">
+            <div className="flex items-center gap-3 w-full pr-8">
               {selectedMigrant.avatarUrl ? (
                 <Avatar className="size-10 rounded-full shrink-0">
                   <AvatarImage src={selectedMigrant.avatarUrl} alt={selectedMigrant.name} />
@@ -833,11 +923,11 @@ export default function RtwChecksPage() {
                   {selectedMigrant.avatarInitials}
                 </div>
               )}
-              <div className="flex flex-col">
+              <div className="flex flex-col min-w-0">
                 <span className="text-[12px] font-mono text-[#5C5C5C]">
                   {selectedMigrant.caseId}
                 </span>
-                <span className="text-[15px] font-medium text-[#171717] leading-tight">
+                <span className="text-[15px] font-medium text-[#171717] leading-tight truncate">
                   {selectedMigrant.name}
                 </span>
               </div>
@@ -881,14 +971,26 @@ export default function RtwChecksPage() {
 
           <form onSubmit={handleVerifySubmit} className="flex flex-col gap-4 mt-3">
             {/* File Dropzone */}
-            <div className="relative border-2 border-dashed border-[#E5DBFF] bg-[#FAF8FF]/60 hover:bg-[#FAF8FF] rounded-[16px] p-5 text-center flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer group">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  setSelectedFile(e.dataTransfer.files[0]);
+                  setDragFileName(e.dataTransfer.files[0].name);
+                }
+              }}
+              className="relative border-2 border-dashed border-[#E5DBFF] bg-[#FAF8FF]/60 hover:bg-[#FAF8FF] rounded-[16px] p-5 text-center flex flex-col items-center justify-center gap-1.5 transition-colors cursor-pointer group"
+            >
               <div className="size-10 rounded-[10px] bg-[#EFE9FF] flex items-center justify-center text-[#7D52F4] mb-1">
                 <RiUpload2Line className="size-5" />
               </div>
-              {/* ui-native-fallback */}
               <input
                 type="file"
                 id="rtw-file-drop"
+                accept=".jpeg,.jpg,.png,.pdf"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files && e.target.files[0]) {
@@ -897,7 +999,7 @@ export default function RtwChecksPage() {
                   }
                 }}
               />
-              <Label htmlFor="rtw-file-drop" className="cursor-pointer">
+              <Label htmlFor="rtw-file-drop" className="cursor-pointer flex flex-col items-center justify-center text-center">
                 <span className="text-[14px] font-medium text-[#171717] block">
                   {dragFileName ? dragFileName : "Drop RTW check result here"}
                 </span>

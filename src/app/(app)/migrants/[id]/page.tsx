@@ -14,7 +14,7 @@ import {
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
-import { formatFullName, getInitials } from "@/lib/utils";
+import { formatFullName, formatTitleCase, getInitials } from "@/lib/utils";
 import { getCountryInfo } from "@/lib/country";
 import { toast } from "sonner";
 import { MigrantHeader } from "./components/MigrantHeader";
@@ -86,15 +86,12 @@ function mapBackendMigrantToDetail(c: any) {
     c.migrant?.lastName ||
     c.migrant?.last_name ||
     "";
-  const { firstName, lastName } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
+  const { firstName: cleanFirst, lastName: cleanLast } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
+  const firstName = formatTitleCase(cleanFirst);
+  const lastName = formatTitleCase(cleanLast);
   const name =
     formatFullName(firstName, lastName) ||
-    c.name ||
-    m.name ||
-    m.stage_name ||
-    m.stageName ||
-    c.stage_name ||
-    c.stageName ||
+    formatTitleCase(c.name || m.name || m.stage_name || m.stageName || c.stage_name || c.stageName) ||
     "Unknown Migrant";
 
   const rawGender =
@@ -469,7 +466,7 @@ export default function MigrantDetailPage() {
   }
 
   return (
-    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full overflow-x-hidden">
+    <div className="w-full flex flex-col font-sans text-[#171717] bg-[#F5F5F5] min-h-full overflow-x-hidden">
       {/* ====== HEADER ====== */}
       <div className="bg-white rounded-t-[16px] flex flex-col shrink-0">
         <MigrantHeader
@@ -519,7 +516,7 @@ export default function MigrantDetailPage() {
       {/* ====== CONTENT AREA ====== */}
       <div className="flex-1 px-[64px] py-[32px] max-w-full overflow-x-hidden">
         {activeTab === "Overview" ? (
-          <div className="flex gap-[24px] items-start w-full font-sans select-none max-w-full">
+          <div className="flex gap-[24px] items-start w-full font-sans max-w-full">
             {/* COLUMN 1: Profile, Migration Status, Case Status (width: 303px) */}
             <div className="w-[303px] shrink-0 flex flex-col gap-[24px]">
               <MigrantProfileCard

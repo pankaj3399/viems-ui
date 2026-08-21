@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { toast } from "sonner";
-import { RiDeleteBinLine } from "@remixicon/react";
+import { RiDeleteBinLine, RiCloseLine } from "@remixicon/react";
 
 interface DeleteTravelHistoryModalProps {
   open: boolean;
@@ -63,16 +63,29 @@ export function DeleteTravelHistoryModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className="w-[400px] max-w-[95vw] p-0 gap-0 flex flex-col overflow-hidden rounded-[20px] bg-white border border-[#F5F5F5] shadow-card-large font-sans"
       >
         {/* Header */}
-        <div className="w-full px-6 py-4 flex items-center gap-3 border-b border-[#EBEBEB] bg-white">
-          <div className="size-9 rounded-full bg-[#FFF5F5] flex items-center justify-center text-[#FB3748] shrink-0">
-            <RiDeleteBinLine className="size-5" />
+        <div className="w-full px-6 py-4 flex items-center justify-between border-b border-[#EBEBEB] bg-white">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-full bg-[#FFF5F5] flex items-center justify-center text-[#FB3748] shrink-0">
+              <RiDeleteBinLine className="size-5" />
+            </div>
+            <DialogTitle className="text-[16px] font-medium leading-[24px] text-[#171717]">
+              Delete Travel Record
+            </DialogTitle>
           </div>
-          <DialogTitle className="text-[16px] font-medium leading-[24px] text-[#171717]">
-            Delete Travel Record
-          </DialogTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Close"
+            onClick={() => onOpenChange(false)}
+            className="size-6 rounded-[6px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 flex items-center justify-center p-0"
+          >
+            <RiCloseLine className="size-4 text-[#5C5C5C]" />
+          </Button>
         </div>
 
         {/* Content */}

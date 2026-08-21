@@ -307,7 +307,7 @@ export default function MigrantOnboardingPage() {
       />
 
       {/* Top Header Bar (Matching Figma Dark Navigation Bar) */}
-      <header className="w-full bg-[#171717] text-white px-6 lg:px-8 py-3.5 sticky top-0 z-30 flex items-center justify-between select-none">
+      <header className="w-full bg-[#171717] text-white px-6 lg:px-8 py-3.5 sticky top-0 z-30 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="size-8 rounded-full bg-[#2E2E2E] flex items-center justify-center text-white font-aeonik-medium text-[16px]">
             V
@@ -340,7 +340,7 @@ export default function MigrantOnboardingPage() {
             <span className="absolute top-2 right-2 size-2 rounded-full bg-[#FB3748] ring-2 ring-[#171717]" />
           </div>
           <div
-            className="size-8 rounded-full bg-[#CAC0FF] flex items-center justify-center text-[#351A75] font-medium text-[13px] cursor-pointer shadow-x-small"
+            className="size-8 rounded-full bg-[#EBEBEB] hover:ring-2 hover:ring-neutral-300 flex items-center justify-center text-[#171717] font-medium text-[12px] cursor-pointer shadow-x-small transition-all"
             onClick={() => setIsAuthModalOpen(true)}
             title="Click to view Account / Sign in options"
           >
@@ -351,7 +351,7 @@ export default function MigrantOnboardingPage() {
 
       {/* Stepper Header (Matching Figma Steps: 1 Welcome, 2 Personal details, 3 Employment, 4 Documents, 5 Review & Submit) */}
       {!isSubmitted && (
-        <div className="w-full bg-white pt-6 pb-2 border-b border-[#EBEBEB] select-none">
+        <div className="w-full bg-white pt-6 pb-2 border-b border-[#EBEBEB]">
           <div className="max-w-[840px] mx-auto flex items-center justify-between px-4">
             {/* Step 1: Welcome */}
             <Button
@@ -510,7 +510,7 @@ export default function MigrantOnboardingPage() {
         {/* STEP 1: WELCOME LANDING (Cases / Add migrant / Migrant POV)               */}
         {/* ========================================================================= */}
         {activeStep === 1 && !isSubmitted && (
-          <div className="w-full flex flex-col items-center justify-center py-4 select-none">
+          <div className="w-full flex flex-col items-center justify-center py-4">
             {/* Hero Section */}
             <div className="flex flex-col items-center text-center max-w-[640px] mx-auto">
               <h1 className="text-[32px] sm:text-[40px] leading-[40px] sm:leading-[48px] font-medium text-[#171717] text-center font-aeonik-medium tracking-tight">
@@ -567,7 +567,7 @@ export default function MigrantOnboardingPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full mt-4">
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-4 border border-[#EBEBEB]">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col items-start gap-4 border border-[#EBEBEB]">
                   <div className="size-12 rounded-[12px] bg-white shadow-xs flex items-center justify-center shrink-0 border border-[#EBEBEB]">
                     <RiIdCardLine className="size-6 text-[#171717]" />
                   </div>
@@ -581,7 +581,7 @@ export default function MigrantOnboardingPage() {
                   </div>
                 </div>
 
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-4 border border-[#EBEBEB]">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col items-start gap-4 border border-[#EBEBEB]">
                   <div className="size-12 rounded-[12px] bg-white shadow-xs flex items-center justify-center shrink-0 border border-[#EBEBEB]">
                     <RiUpload2Line className="size-6 text-[#171717]" />
                   </div>
@@ -595,7 +595,7 @@ export default function MigrantOnboardingPage() {
                   </div>
                 </div>
 
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-4 border border-[#EBEBEB]">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col items-start gap-4 border border-[#EBEBEB]">
                   <div className="size-12 rounded-[12px] bg-white shadow-xs flex items-center justify-center shrink-0 border border-[#EBEBEB]">
                     <RiSendPlane2Line className="size-6 text-[#171717]" />
                   </div>
@@ -632,7 +632,7 @@ export default function MigrantOnboardingPage() {
                     2 items (already in your pocket)
                   </span>
                 </div>
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
                   <div className="flex items-start gap-3">
                     <RiFileTextLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
                     <div className="flex flex-col gap-1">
@@ -669,7 +669,7 @@ export default function MigrantOnboardingPage() {
                     2 items (gotta be ready)
                   </span>
                 </div>
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
                   <div className="flex items-start gap-3">
                     <RiCalendarCheckLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
                     <div className="flex flex-col gap-1">
@@ -706,7 +706,7 @@ export default function MigrantOnboardingPage() {
                     2 items (check your inbox)
                   </span>
                 </div>
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
                   <div className="flex items-start gap-3">
                     <RiFileList3Line className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
                     <div className="flex flex-col gap-1">
@@ -793,7 +793,7 @@ export default function MigrantOnboardingPage() {
             </div>
 
             {/* Photo Upload Card */}
-            <div className="bg-[#F7F7F7] rounded-[10px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#EBEBEB]">
+            <div className="bg-[#F5F5F5] rounded-[10px] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[#EBEBEB]">
               <div className="flex items-start sm:items-center gap-4">
                 <div className="w-[80px] h-[88px] bg-white border border-dashed border-[#D1D1D1] rounded-[8px] flex items-center justify-center shrink-0 overflow-hidden relative shadow-xs">
                   {photoPreview ? (
@@ -1269,7 +1269,7 @@ export default function MigrantOnboardingPage() {
 
             {/* Extra Addresses */}
             {extraAddresses.map((addr, idx) => (
-              <div key={addr.id} className="p-4 bg-[#F7F7F7] rounded-[12px] border border-[#EBEBEB] flex flex-col gap-4 relative">
+              <div key={addr.id} className="p-4 bg-[#F5F5F5] rounded-[12px] border border-[#EBEBEB] flex flex-col gap-4 relative">
                 <Button
                   type="button"
                   variant="ghost"
@@ -1364,7 +1364,7 @@ export default function MigrantOnboardingPage() {
             {/* Drag & Drop Dropzone */}
             <div
               onClick={() => genericFileInputRef.current?.click()}
-              className="w-full bg-[#F7F7F7] rounded-[16px] p-6 border border-[#EBEBEB] cursor-pointer"
+              className="w-full bg-[#F5F5F5] hover:bg-[#F2F2F2] rounded-[16px] p-6 border border-[#EBEBEB] hover:border-neutral-300 transition-all cursor-pointer group"
             >
               <div className="w-full border border-dashed border-[#D1D1D1] rounded-[12px] p-8 flex flex-col items-center justify-center text-center gap-2 bg-[#FAFAFA] hover:bg-white transition-colors">
                 <div className="size-10 rounded-[10px] bg-[#F0EBFF] flex items-center justify-center text-[#7D52F4] shadow-xs">
@@ -1400,7 +1400,7 @@ export default function MigrantOnboardingPage() {
                 {checklist.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between p-3 px-4 bg-[#F7F7F7] hover:bg-[#F2F2F2] rounded-[8px] border border-[#F0F0F0] transition-colors"
+                    className="flex items-center justify-between p-3 px-4 bg-[#F5F5F5] hover:bg-[#F2F2F2] rounded-[8px] border border-[#F0F0F0] transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <span
@@ -1485,7 +1485,7 @@ export default function MigrantOnboardingPage() {
             </h2>
 
             {/* Section: CASE */}
-            <div className="bg-[#F7F7F7] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+            <div className="bg-[#F5F5F5] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
               <div className="flex items-center justify-between">
                 <h3 className="text-[12px] font-semibold text-[#171717] tracking-wider uppercase">
                   CASE
@@ -1512,7 +1512,7 @@ export default function MigrantOnboardingPage() {
             </div>
 
             {/* Section: PERSONAL DETAILS */}
-            <div className="bg-[#F7F7F7] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+            <div className="bg-[#F5F5F5] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
               <div className="flex items-center justify-between">
                 <h3 className="text-[12px] font-semibold text-[#171717] tracking-wider uppercase">
                   PERSONAL DETAILS
@@ -1581,7 +1581,7 @@ export default function MigrantOnboardingPage() {
             </div>
 
             {/* Section: EMPLOYMENT */}
-            <div className="bg-[#F7F7F7] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+            <div className="bg-[#F5F5F5] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
               <div className="flex items-center justify-between">
                 <h3 className="text-[12px] font-semibold text-[#171717] tracking-wider uppercase">
                   EMPLOYMENT
@@ -1636,7 +1636,7 @@ export default function MigrantOnboardingPage() {
             </div>
 
             {/* Section: DOCUMENTS (CASE) */}
-            <div className="bg-[#F7F7F7] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
+            <div className="bg-[#F5F5F5] rounded-[12px] p-6 flex flex-col gap-4 border border-[#EBEBEB]">
               <div className="flex items-center justify-between">
                 <h3 className="text-[12px] font-semibold text-[#171717] tracking-wider uppercase">
                   CASE
@@ -1694,12 +1694,12 @@ export default function MigrantOnboardingPage() {
         {/* SUBMITTED SUCCESS SCREEN                                                  */}
         {/* ========================================================================= */}
         {isSubmitted && (
-          <div className="w-full flex flex-col items-center text-center py-12 px-4 gap-6 select-none animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full flex flex-col items-center text-center py-12 px-4 gap-6 animate-in fade-in zoom-in-95 duration-200">
             <div className="size-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-x-small">
               <RiCheckLine className="size-8 stroke-[2.5]" />
             </div>
             <div className="flex flex-col gap-2 max-w-[480px]">
-              <h2 className="text-h5-title font-semibold text-neutral-900 font-aeonik-medium">
+              <h2 className="text-h5-title font-medium text-neutral-900 font-aeonik-medium">
                 Application submitted to your sponsor
               </h2>
               <p className="text-paragraph-md text-neutral-500 leading-normal">
@@ -1738,7 +1738,7 @@ export default function MigrantOnboardingPage() {
             </Button>
 
             {/* Segmented Control */}
-            <div className="w-[296px] h-9 p-1 bg-neutral-100 rounded-full mx-auto flex items-center gap-1 select-none">
+            <div className="w-[296px] h-9 p-1 bg-neutral-100 rounded-full mx-auto flex items-center gap-1">
               <Button
                 type="button"
                 variant="ghost"
@@ -1767,7 +1767,7 @@ export default function MigrantOnboardingPage() {
 
             {/* Title & Subtitle */}
             <div className="flex flex-col items-center text-center gap-1">
-              <h3 className="text-h5-title font-semibold text-neutral-900">
+              <h3 className="text-h5-title font-medium text-neutral-900">
                 {authMode === "login" ? "Log in to Viems" : "Create an account"}
               </h3>
               <p className="text-paragraph-sm text-neutral-500">
@@ -1804,7 +1804,7 @@ export default function MigrantOnboardingPage() {
             </div>
 
             {/* OR Separator */}
-            <div className="flex items-center gap-2 text-neutral-400 text-label-xs font-semibold select-none">
+            <div className="flex items-center gap-2 text-neutral-400 text-label-xs font-semibold">
               <div className="h-[1px] bg-neutral-200 flex-1" />
               <span>OR</span>
               <div className="h-[1px] bg-neutral-200 flex-1" />

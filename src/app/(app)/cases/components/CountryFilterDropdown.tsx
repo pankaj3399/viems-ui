@@ -76,11 +76,7 @@ export function CountryFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`h-8 w-auto min-w-[125px] px-[10px] py-[6px] justify-between font-medium rounded-[8px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer ${
-            open || value
-              ? "border-[#171717] text-[#171717]"
-              : "border-[#EBEBEB] text-[#5C5C5C]"
-          }`}
+          className="h-8 w-auto min-w-[125px] px-[10px] py-[6px] justify-between font-medium rounded-[8px] bg-white border-0 shadow-x-small gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 text-[#171717] hover:bg-neutral-50 transition-all cursor-pointer"
         >
           <span className="flex items-center gap-2 truncate">
             {value && (
@@ -100,7 +96,7 @@ export function CountryFilterDropdown({
         {/* Search */}
         <div className="p-3 border-b border-neutral-100">
           <div className="relative">
-            <RiSearchLine className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4]" />
+            <RiSearchLine className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] pointer-events-none z-10" />
             <Input
               type="text"
               value={search}
@@ -118,7 +114,7 @@ export function CountryFilterDropdown({
           <button // ui-native-ok
             type="button"
             onClick={() => setTempValue(null)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+            className="group w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-50"
           >
             <span className="flex items-center gap-sm">
               <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
@@ -126,7 +122,7 @@ export function CountryFilterDropdown({
               }`}>
                 {tempValue === null && <span className="size-2 rounded-full bg-[#7D52F4]" />}
               </span>
-              <span className="text-neutral-900 font-normal text-[14px]">All countries</span>
+              <span className={`text-neutral-900 text-[14px] group-hover:font-medium group-focus-visible:font-medium ${tempValue === null ? "font-medium" : "font-normal"}`}>All countries</span>
             </span>
           </button>
 
@@ -138,7 +134,7 @@ export function CountryFilterDropdown({
                 key={country.code}
                 type="button"
                 onClick={() => setTempValue(country.code)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+                className="group w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50 focus-visible:outline-none focus-visible:bg-neutral-50"
               >
                 <span className="flex items-center gap-sm min-w-0 pr-2">
                   <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
@@ -147,7 +143,7 @@ export function CountryFilterDropdown({
                     {isSelected && <span className="size-2 rounded-full bg-[#7D52F4]" />}
                   </span>
                   <Flag country={country.code} className="size-4 shrink-0" />
-                  <span className="truncate text-left text-neutral-900 font-normal text-[14px]">
+                  <span className={`truncate text-left text-neutral-900 text-[14px] group-hover:font-medium group-focus-visible:font-medium ${isSelected ? "font-medium" : "font-normal"}`}>
                     {country.label}
                   </span>
                 </span>

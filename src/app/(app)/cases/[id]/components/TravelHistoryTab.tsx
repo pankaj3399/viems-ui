@@ -197,7 +197,7 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
   };
 
   return (
-    <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">
+    <div className="flex flex-col gap-[32px] w-full font-sans max-w-[1104px]">
       {/* Toolbar / Filters Row */}
       <div className="flex items-center justify-between gap-[12px] w-full">
         <div className="flex items-center gap-[12px]">
@@ -205,6 +205,8 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
           <div className="w-[348px] h-[32px] bg-white border border-[#EBEBEB] rounded-[8px] px-[8px] py-[6px] flex items-center gap-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] focus-within:border-[#171717] focus-within:ring-1 focus-within:ring-[#171717]">
             <RiSearchLine className="size-5 text-[#A4A4A4] shrink-0" />
             <Input
+              variant="unstyled"
+              size="none"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

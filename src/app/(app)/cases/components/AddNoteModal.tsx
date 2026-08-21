@@ -93,7 +93,7 @@ export function AddNoteModal({ isOpen, onClose, caseId, onNoteAdded }: AddNoteMo
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="absolute top-[20px] right-[20px] size-6 bg-[#F7F7F7] hover:bg-neutral-200 rounded-[6px] flex items-center justify-center cursor-pointer transition-colors border-0 text-[#5C5C5C]"
+            className="absolute top-[20px] right-[20px] size-6 bg-[#F5F5F5] hover:bg-neutral-200 rounded-[6px] flex items-center justify-center cursor-pointer transition-colors border-0 text-[#5C5C5C]"
           >
             <RiCloseLine className="size-4 text-[#5C5C5C]" />
           </button>

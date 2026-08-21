@@ -102,7 +102,7 @@ export function InviteMigrantModal({
           <form onSubmit={handleSubmit} className="flex flex-col">
             <div className="p-[20px] flex flex-col gap-[16px]">
               {/* Header Title & Subtitles */}
-              <div className="flex flex-col gap-[6px]">
+              <div className="flex flex-col gap-[6px] pr-8">
                 <h3
                   id="inviteMigrantModalTitle"
                   className="text-[16px] font-medium text-neutral-900 tracking-[-0.011em] leading-[24px] font-sans"

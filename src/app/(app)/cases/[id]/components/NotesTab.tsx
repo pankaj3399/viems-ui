@@ -9,6 +9,7 @@ import {
   RiAtLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface NoteItem {
@@ -21,39 +22,9 @@ interface NoteItem {
   pinned: boolean;
 }
 
-const defaultNotes: NoteItem[] = [
-  {
-    id: "n1",
-    authorName: "Nathan Wood",
-    avatarText: "NW",
-    avatarBg: "bg-[#CAC0FF] text-[#351A75]",
-    date: "11 Mar 2026",
-    content: "Spoke with Taylor over the phone, he'll send the passport scan by end of week. Reminded him about the share code as well.",
-    pinned: true,
-  },
-  {
-    id: "n2",
-    authorName: "Alex Marin",
-    avatarText: "AM",
-    avatarBg: "bg-[#FFECC0] text-[#71330A]",
-    date: "8 Mar 2026",
-    content: "Appendix D review flagged 2 missing qualification documents. @Sarah Kim can you chase Berklee College for a replacement certificate?",
-    pinned: false,
-  },
-  {
-    id: "n3",
-    authorName: "Sarah Kim",
-    avatarText: "SK",
-    avatarBg: "bg-[#FFD9C0] text-[#71330A]",
-    date: "8 Mar 2026",
-    content: "Contract uploaded to vault. AI auto-extracted 7 fields — all matched correctly, no manual corrections needed.",
-    pinned: false,
-  },
-];
-
 export function NotesTab({ id }: { id?: string }) {
   const storageKey = id ? `viems_case_notes_${id}` : "viems_case_notes";
-  const [notes, setNotes] = React.useState<NoteItem[]>(defaultNotes);
+  const [notes, setNotes] = React.useState<NoteItem[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [newNoteText, setNewNoteText] = React.useState("");
   const [shouldPinNewNote, setShouldPinNewNote] = React.useState(false);
@@ -67,17 +38,17 @@ export function NotesTab({ id }: { id?: string }) {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           setNotes(parsed);
           loadedKeyRef.current = storageKey;
           return;
         }
       }
-      setNotes(defaultNotes);
+      setNotes([]);
       loadedKeyRef.current = storageKey;
     } catch (e) {
       console.error("Failed to load notes from storage", e);
-      setNotes(defaultNotes);
+      setNotes([]);
       loadedKeyRef.current = storageKey;
     }
   }, [storageKey]);
@@ -111,7 +82,7 @@ export function NotesTab({ id }: { id?: string }) {
       id: "n_" + Date.now(),
       authorName: "Alex Marin",
       avatarText: "AM",
-      avatarBg: "bg-[#FFECC0] text-[#71330A]",
+      avatarBg: "bg-[#EBEBEB] text-[#171717]",
       date: new Date().toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
@@ -164,12 +135,12 @@ export function NotesTab({ id }: { id?: string }) {
   const recentNotes = filteredNotes.filter((n) => !n.pinned);
 
   return (
-    <div className="w-full flex flex-col gap-2xl font-sans select-none animate-fade-in text-left">
+    <div className="w-full flex flex-col gap-2xl font-sans animate-fade-in text-left">
       {/* Search & Filter Bar */}
       <div className="flex items-center gap-md w-full">
         <div className="relative w-full max-w-[348px]">
-          <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] z-10" />
-          <input
+          <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] z-10 pointer-events-none" />
+          <Input
             type="text"
             placeholder="Search notes"
             value={searchQuery}
@@ -177,12 +148,14 @@ export function NotesTab({ id }: { id?: string }) {
             className="w-full h-8 pl-9 pr-4 bg-white text-paragraph-sm placeholder-[#A4A4A4] border border-neutral-200 rounded-input focus-visible:outline-none focus-visible:border-[#7D52F4] focus-visible:ring-1 focus-visible:ring-[#7D52F4]/20 transition-all font-sans"
           />
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="icon-sm"
           className="size-8 rounded-[8px] bg-white border border-neutral-200 flex items-center justify-center text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 cursor-pointer transition-colors"
         >
           <RiFilter3Line className="size-4" />
-        </button>
+        </Button>
       </div>
 
       <div>
@@ -260,7 +233,7 @@ export function NotesTab({ id }: { id?: string }) {
                   {/* Header row */}
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-md">
-                      <div className={`size-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${note.avatarBg}`}>
+                      <div className={`size-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0  ${note.avatarBg}`}>
                         {note.avatarText}
                       </div>
                       <div className="flex items-center gap-xs text-[#171717] text-label-sm font-medium">
@@ -306,7 +279,7 @@ export function NotesTab({ id }: { id?: string }) {
                   {/* Header row */}
                   <div className="flex items-center justify-between w-full">
                     <div className="flex items-center gap-md">
-                      <div className={`size-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${note.avatarBg}`}>
+                      <div className={`size-8 rounded-full flex items-center justify-center font-semibold text-xs shrink-0  ${note.avatarBg}`}>
                         {note.avatarText}
                       </div>
                       <div className="flex items-center gap-xs text-[#171717] text-label-sm font-medium">

@@ -15,6 +15,7 @@ import {
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { Input } from "@/components/ui/input";
 
 interface LogEntry {
   id: number | string;
@@ -100,7 +101,7 @@ export default function ActivityLogsPage() {
   }, [logs, searchQuery, actionFilter]);
 
   return (
-    <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-xl font-sans bg-[#F7F7F7] min-h-screen text-left select-none">
+    <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-xl font-sans bg-[#F5F5F5] min-h-screen text-left">
       {/* Header Banner */}
       <div className="flex items-center justify-between border-b border-[#EBEBEB] pb-xl shrink-0">
         <div className="flex items-center gap-md">
@@ -132,9 +133,11 @@ export default function ActivityLogsPage() {
 
       {/* Filter & Search Bar */}
       <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-[16px_20px] flex items-center justify-between gap-md shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
-        <div className="flex items-center gap-md flex-1 max-w-[480px] bg-[#F7F7F7] border border-[#EBEBEB] rounded-[10px] px-md py-xs">
-          <RiSearchLine className="size-4 text-[#A4A4A4]" />
-          <input
+        <div className="flex items-center gap-md flex-1 max-w-[480px] bg-[#F5F5F5] border border-[#EBEBEB] rounded-[10px] px-md py-xs">
+          <RiSearchLine className="size-4 text-[#A4A4A4] shrink-0" />
+          <Input
+            variant="unstyled"
+            size="none"
             type="text"
             placeholder="Search by user, action, case ID, or document..."
             value={searchQuery}
@@ -148,7 +151,7 @@ export default function ActivityLogsPage() {
             <RiFilter3Line className="size-4 text-[#7B7B7B]" />
             <span>Filter:</span>
           </div>
-          <div className="flex bg-[#F5F5F5] rounded-[8px] p-0.5 select-none">
+          <div className="flex bg-[#F5F5F5] rounded-[8px] p-0.5">
             {[
               { id: "all", label: "All Activity" },
               { id: "updated", label: "Updates" },

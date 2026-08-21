@@ -629,7 +629,7 @@ export default function AddMigrantPage() {
   };
 
   return (
-    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-16 flex flex-col flex-1 ">
+    <div className="w-full min-h-full bg-[#F5F5F5] text-[#171717] font-sans pb-16 flex flex-col flex-1">
       {/* Hidden File Inputs */}
       <input
         type="file"
@@ -712,29 +712,29 @@ export default function AddMigrantPage() {
       </header>
 
       {/* Step Indicator Stepper */}
-      <div className="w-full bg-[#F7F7F7] pt-6 pb-4 border-b border-[#EBEBEB] mb-2 select-none">
+      <div className="w-full bg-[#F5F5F5] pt-6 pb-4 border-b border-[#EBEBEB] mb-2">
         <div className="max-w-[728px] mx-auto flex items-center justify-between">
           {/* Step 1: Get started */}
           <button
             type="button"
             onClick={() => setActiveStep(1)}
             aria-current={activeStep === 1 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group transition-all hover:opacity-90"
           >
             <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
+              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 transition-all ${
                 activeStep === 1
                   ? "bg-[#171717] text-white"
                   : activeStep > 1
-                  ? "bg-[#7D52F4] text-white"
-                  : "bg-[#EBEBEB] text-[#5C5C5C]"
+                  ? "bg-[#7D52F4] text-white group-hover:bg-[#683fd1]"
+                  : "bg-[#EBEBEB] text-[#5C5C5C] group-hover:bg-neutral-300"
               }`}
             >
               {activeStep > 1 ? <RiCheckLine className="size-3.5 text-white" /> : "1"}
             </div>
             <span
-              className={`text-[14px] font-medium ${
-                activeStep === 1 ? "text-[#171717]" : "text-[#5C5C5C]"
+              className={`text-[14px] font-medium transition-colors ${
+                activeStep === 1 ? "text-[#171717]" : "text-[#5C5C5C] group-hover:text-[#171717]"
               }`}
             >
               {viewMode === "admin" ? "Get started" : "Welcome"}
@@ -748,22 +748,22 @@ export default function AddMigrantPage() {
             type="button"
             onClick={() => setActiveStep(2)}
             aria-current={activeStep === 2 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group transition-all hover:opacity-90"
           >
             <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
+              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 transition-all ${
                 activeStep === 2
                   ? "bg-[#171717] text-white"
                   : activeStep > 2
-                  ? "bg-[#7D52F4] text-white"
-                  : "bg-[#EBEBEB] text-[#5C5C5C]"
+                  ? "bg-[#7D52F4] text-white group-hover:bg-[#683fd1]"
+                  : "bg-[#EBEBEB] text-[#5C5C5C] group-hover:bg-neutral-300"
               }`}
             >
               {activeStep > 2 ? <RiCheckLine className="size-3.5 text-white" /> : "2"}
             </div>
             <span
-              className={`text-[14px] font-medium ${
-                activeStep === 2 ? "text-[#171717]" : "text-[#5C5C5C]"
+              className={`text-[14px] font-medium transition-colors ${
+                activeStep === 2 ? "text-[#171717]" : "text-[#5C5C5C] group-hover:text-[#171717]"
               }`}
             >
               Personal details
@@ -777,22 +777,22 @@ export default function AddMigrantPage() {
             type="button"
             onClick={() => setActiveStep(3)}
             aria-current={activeStep === 3 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group transition-all hover:opacity-90"
           >
             <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
+              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 transition-all ${
                 activeStep === 3
                   ? "bg-[#171717] text-white"
                   : activeStep > 3
-                  ? "bg-[#7D52F4] text-white"
-                  : "bg-[#EBEBEB] text-[#5C5C5C]"
+                  ? "bg-[#7D52F4] text-white group-hover:bg-[#683fd1]"
+                  : "bg-[#EBEBEB] text-[#5C5C5C] group-hover:bg-neutral-300"
               }`}
             >
               {activeStep > 3 ? <RiCheckLine className="size-3.5 text-white" /> : "3"}
             </div>
             <span
-              className={`text-[14px] ${
-                activeStep === 3 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
+              className={`text-[14px] transition-colors ${
+                activeStep === 3 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C] group-hover:text-[#171717]"
               }`}
             >
               Employment
@@ -806,22 +806,22 @@ export default function AddMigrantPage() {
             type="button"
             onClick={() => setActiveStep(4)}
             aria-current={activeStep === 4 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group transition-all hover:opacity-90"
           >
             <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
+              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 transition-all ${
                 activeStep === 4
                   ? "bg-[#171717] text-white"
                   : activeStep > 4
-                  ? "bg-[#7D52F4] text-white"
-                  : "bg-[#EBEBEB] text-[#5C5C5C]"
+                  ? "bg-[#7D52F4] text-white group-hover:bg-[#683fd1]"
+                  : "bg-[#EBEBEB] text-[#5C5C5C] group-hover:bg-neutral-300"
               }`}
             >
               {activeStep > 4 ? <RiCheckLine className="size-3.5 text-white" /> : "4"}
             </div>
             <span
-              className={`text-[14px] ${
-                activeStep === 4 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
+              className={`text-[14px] transition-colors ${
+                activeStep === 4 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C] group-hover:text-[#171717]"
               }`}
             >
               Documents
@@ -835,18 +835,18 @@ export default function AddMigrantPage() {
             type="button"
             onClick={() => setActiveStep(5)}
             aria-current={activeStep === 5 ? "step" : undefined}
-            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group"
+            className="flex items-center gap-xs cursor-pointer border-0 bg-transparent p-0 group transition-all hover:opacity-90"
           >
             <div
-              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 ${
-                activeStep === 5 ? "bg-[#171717] text-white" : "bg-[#EBEBEB] text-[#5C5C5C]"
+              className={`size-5 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0 transition-all ${
+                activeStep === 5 ? "bg-[#171717] text-white" : "bg-[#EBEBEB] text-[#5C5C5C] group-hover:bg-neutral-300"
               }`}
             >
               5
             </div>
             <span
-              className={`text-[14px] ${
-                activeStep === 5 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C]"
+              className={`text-[14px] transition-colors ${
+                activeStep === 5 ? "font-medium text-[#171717]" : "font-normal text-[#5C5C5C] group-hover:text-[#171717]"
               }`}
             >
               {viewMode === "admin" ? "Review & Create" : "Review & Submit"}
@@ -895,7 +895,7 @@ export default function AddMigrantPage() {
             </div>
 
             {/* Photo Upload Card */}
-            <div className="bg-[#F7F7F7] rounded-[8px] p-4 flex items-center justify-between gap-4">
+            <div className="bg-[#F5F5F5] rounded-[8px] p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="w-[80px] h-[88px] bg-white border border-dashed border-[#D1D1D1] rounded-[8px] flex items-center justify-center shrink-0 overflow-hidden relative">
                   {photoPreview ? (
@@ -1165,7 +1165,7 @@ export default function AddMigrantPage() {
 
         {/* STEP 1: GET STARTED / WELCOME LANDING */}
         {activeStep === 1 && viewMode === "admin" && (
-          <div className="w-full flex flex-col items-center justify-center py-4 select-none gap-8">
+          <div className="w-full flex flex-col items-center justify-center py-4 gap-8">
             {/* Admin View Hero Header */}
             <div className="flex flex-col items-center text-center max-w-[586px] mx-auto">
               <h2 className="text-[32px] leading-[36px] font-medium text-[#171717] text-center font-aeonik-medium tracking-[-0.01em]">
@@ -1177,21 +1177,21 @@ export default function AddMigrantPage() {
 
               {/* Badges Row */}
               <div className="flex flex-wrap items-center justify-center gap-[11px] mt-6 mb-6">
-                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F5F5F5] rounded-full">
                   <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
                   <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
                     10–15 MINS TO COMPLETE
                   </span>
                 </div>
 
-                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F5F5F5] rounded-full">
                   <RiSaveFill className="size-4 text-[#7B7B7B] shrink-0" />
                   <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
                     PROGRESS SAVES AUTOMATICALLY
                   </span>
                 </div>
 
-                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F5F5F5] rounded-full">
                   <RiShieldFill className="size-4 text-[#7B7B7B] shrink-0" />
                   <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
                     ENCRYPTED &amp; PRIVATE
@@ -1223,7 +1223,7 @@ export default function AddMigrantPage() {
 
         {/* STEP 1: USER VIEW (MIGRANT VISA APPLICATION LANDING) */}
         {activeStep === 1 && viewMode === "user" && (
-          <div className="w-full flex flex-col items-center justify-center py-2 select-none gap-12">
+          <div className="w-full flex flex-col items-center justify-center py-2 gap-12">
             {/* Hero Header & Badges */}
             <div className="flex flex-col items-center text-center max-w-[586px] mx-auto">
               <h1 className="text-[40px] leading-[44px] font-medium text-[#7D52F4] text-center font-aeonik-medium tracking-[-0.01em]">
@@ -1235,21 +1235,21 @@ export default function AddMigrantPage() {
 
               {/* Badges Row */}
               <div className="flex flex-wrap items-center justify-center gap-[11px] mt-6 mb-6">
-                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F5F5F5] rounded-full">
                   <RiFlashlightFill className="size-4 text-[#7B7B7B] shrink-0" />
                   <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
                     10–15 MINS TO COMPLETE
                   </span>
                 </div>
 
-                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F5F5F5] rounded-full">
                   <RiSaveFill className="size-4 text-[#7B7B7B] shrink-0" />
                   <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
                     PROGRESS SAVES AUTOMATICALLY
                   </span>
                 </div>
 
-                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F7F7F7] rounded-full">
+                <div className="inline-flex items-center gap-[4px] px-[8px] py-[4px] bg-[#F5F5F5] rounded-full">
                   <RiShieldFill className="size-4 text-[#7B7B7B] shrink-0" />
                   <span className="text-[11px] font-medium text-[#7B7B7B] uppercase tracking-[0.02em] leading-[12px]">
                     ENCRYPTED &amp; PRIVATE
@@ -1283,7 +1283,7 @@ export default function AddMigrantPage() {
               {/* 3 Feature Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-[728px]">
                 {/* Card 1 */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-6">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col items-start gap-6">
                   <div className="w-[52px] h-[52px] rounded-[12px] bg-white shadow-[0px_3px_3px_-1.5px_rgba(0,0,0,0.04),0px_1px_1px_-0.5px_rgba(0,0,0,0.04),0px_0px_0px_1px_rgba(0,0,0,0.04)] flex items-center justify-center shrink-0 border border-neutral-200/50">
                     <RiIdCardLine className="size-8 text-[#171717]" />
                   </div>
@@ -1298,7 +1298,7 @@ export default function AddMigrantPage() {
                 </div>
 
                 {/* Card 2 */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-6">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col items-start gap-6">
                   <div className="w-[52px] h-[52px] rounded-[12px] bg-white shadow-[0px_3px_3px_-1.5px_rgba(0,0,0,0.04),0px_1px_1px_-0.5px_rgba(0,0,0,0.04),0px_0px_0px_1px_rgba(0,0,0,0.04)] flex items-center justify-center shrink-0 border border-neutral-200/50">
                     <RiUpload2Line className="size-8 text-[#171717]" />
                   </div>
@@ -1313,7 +1313,7 @@ export default function AddMigrantPage() {
                 </div>
 
                 {/* Card 3 */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col items-start gap-6">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col items-start gap-6">
                   <div className="w-[52px] h-[52px] rounded-[12px] bg-white shadow-[0px_3px_3px_-1.5px_rgba(0,0,0,0.04),0px_1px_1px_-0.5px_rgba(0,0,0,0.04),0px_0px_0px_1px_rgba(0,0,0,0.04)] flex items-center justify-center shrink-0 border border-neutral-200/50">
                     <RiSendPlane2Line className="size-8 text-[#171717]" />
                   </div>
@@ -1350,7 +1350,7 @@ export default function AddMigrantPage() {
                     2 items (already in your pocket)
                   </span>
                 </div>
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-4">
                   {/* Item 1 */}
                   <div className="flex items-start gap-3">
                     <RiFileTextLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
@@ -1389,7 +1389,7 @@ export default function AddMigrantPage() {
                     2 items (gotta be ready)
                   </span>
                 </div>
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-4">
                   {/* Item 1 */}
                   <div className="flex items-start gap-3">
                     <RiCalendarCheckLine className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
@@ -1428,7 +1428,7 @@ export default function AddMigrantPage() {
                     2 items (check your inbox)
                   </span>
                 </div>
-                <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-4">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-4">
                   {/* Item 1 */}
                   <div className="flex items-start gap-3">
                     <RiFileList3Line className="size-5 text-[#5C5C5C] shrink-0 mt-0.5" />
@@ -1846,7 +1846,7 @@ export default function AddMigrantPage() {
               </h2>
 
               {/* Drag & Drop Upload Container */}
-              <div className="w-full bg-[#F7F7F7] border border-[#EBEBEB] rounded-[16px] p-[24px] flex flex-col gap-[24px] shadow-x-small">
+              <div className="w-full bg-[#F5F5F5] border border-[#EBEBEB] rounded-[16px] p-[24px] flex flex-col gap-[24px] shadow-x-small">
                 {/* File Upload Button Dropzone */}
                 <button
                   type="button"
@@ -1856,7 +1856,7 @@ export default function AddMigrantPage() {
                     e.preventDefault();
                     handleDroppedFiles(e.dataTransfer.files);
                   }}
-                  className="w-full bg-white border border-dashed border-[#D1D1D1] hover:border-[#7D52F4] rounded-[12px] p-[32px] flex flex-col items-center justify-center gap-[20px] cursor-pointer transition-colors group select-none text-left font-sans"
+                  className="w-full bg-white border border-dashed border-[#D1D1D1] hover:border-[#7D52F4] rounded-[12px] p-[32px] flex flex-col items-center justify-center gap-[20px] cursor-pointer transition-colors group text-left font-sans"
                 >
                   <div className="size-[56px] bg-[#EFEBFF] rounded-[12px] flex items-center justify-center text-[#7D52F4] shrink-0 group-hover:scale-105 transition-transform">
                     <RiUpload2Line className="size-6 text-[#7D52F4]" />
@@ -1873,7 +1873,7 @@ export default function AddMigrantPage() {
                 </button>
 
                 {/* AI Smart Categorisation Banner */}
-                <div className="w-full bg-[#F7F7F7] border border-[#EBEBEB] rounded-[8px] p-3 flex items-start gap-3">
+                <div className="w-full bg-[#F5F5F5] border border-[#EBEBEB] rounded-[8px] p-3 flex items-start gap-3">
                   <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white mt-0.5">
                     <RiFileTextLine className="size-3.5 text-white" />
                   </div>
@@ -1900,7 +1900,7 @@ export default function AddMigrantPage() {
                 {checklist.map((item) => (
                   <div
                     key={item.id}
-                    className="w-full min-h-[48px] bg-[#F7F7F7] hover:bg-[#F2F2F2] rounded-[12px] px-[12px] py-[8px] flex items-center justify-between transition-colors"
+                    className="w-full min-h-[48px] bg-[#F5F5F5] hover:bg-[#F2F2F2] rounded-[12px] px-[12px] py-[8px] flex items-center justify-between transition-colors"
                   >
                     <div className="flex items-center gap-[8px] min-w-0 flex-1">
                       {/* Status Dot */}
@@ -1984,7 +1984,7 @@ export default function AddMigrantPage() {
             </h2>
 
             {/* 1. CASE CARD */}
-            <div className="bg-[#F7F7F7] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
+            <div className="bg-[#F5F5F5] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em]">
                   CASE
@@ -2011,7 +2011,7 @@ export default function AddMigrantPage() {
             </div>
 
             {/* 2. PERSONAL DETAILS CARD */}
-            <div className="bg-[#F7F7F7] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
+            <div className="bg-[#F5F5F5] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em]">
                   PERSONAL DETAILS
@@ -2106,7 +2106,7 @@ export default function AddMigrantPage() {
             </div>
 
             {/* 3. EMPLOYMENT CARD */}
-            <div className="bg-[#F7F7F7] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
+            <div className="bg-[#F5F5F5] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em]">
                   EMPLOYMENT
@@ -2187,7 +2187,7 @@ export default function AddMigrantPage() {
             </div>
 
             {/* 4. DOCUMENTS CARD */}
-            <div className="bg-[#F7F7F7] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
+            <div className="bg-[#F5F5F5] border border-[#F5F5F5] rounded-[16px] p-5 flex flex-col gap-3 shadow-x-small">
               <div className="flex items-center justify-between">
                 <span className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em]">
                   DOCUMENTS

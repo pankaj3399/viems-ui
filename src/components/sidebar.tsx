@@ -6,17 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { isAdmin } from "@/lib/auth";
 import { formatFullName, getInitials as getInitialsHelper } from "@/lib/utils";
 import {
-  LayoutGrid,
-  Users,
-  Sliders,
-  Settings,
-  Headphones,
-} from "lucide-react";
-import {
   RiPieChartLine,
   RiPieChartFill,
-  RiShieldCheckLine,
-  RiShieldCheckFill,
   RiShieldFill,
   RiShieldLine,
   RiFolderShieldFill,
@@ -26,15 +17,12 @@ import {
   RiFileTextLine,
   RiFileTextFill,
   RiArrowUpSLine,
-  RiArrowDownSLine,
   RiCustomerService2Line,
   RiCustomerService2Fill,
   RiLayoutGridLine,
   RiLayoutGridFill,
-  RiGroupLine,
-  RiGroupFill,
-  RiEqualizerLine,
-  RiEqualizerFill,
+  RiUserLine,
+  RiUserFill,
   RiTeamLine,
   RiTeamFill,
   RiArrowRightSLine,
@@ -44,7 +32,7 @@ import {
 import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { LogoIcon } from "@/components/Logo";
 
-const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
+const CasesIcon = ({ active, className, ...props }: { active?: boolean; className?: string } & React.SVGProps<SVGSVGElement>) => (
   active ? (
     <svg
       width="20"
@@ -52,6 +40,7 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className={className}
       {...props}
     >
       <path
@@ -66,6 +55,7 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
       viewBox="0 0 20 20"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      className={className}
       {...props}
     >
       <g transform="translate(2.5, 3)">
@@ -75,28 +65,6 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
         />
       </g>
     </svg>
-  )
-);
-
-const SettingsIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
-  active ? (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 17 17"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      {...props}
-    >
-      <path
-        d="M5.68934 2.17484L7.64459 0.21959C7.78524 0.0789866 7.97597 0 8.17484 0C8.37371 0 8.56444 0.0789866 8.70509 0.21959L10.6603 2.17484H13.4248C13.6238 2.17484 13.8145 2.25386 13.9552 2.39451C14.0958 2.53516 14.1748 2.72593 14.1748 2.92484V5.68934L16.1301 7.64459C16.2707 7.78524 16.3497 7.97597 16.3497 8.17484C16.3497 8.37371 16.2707 8.56444 16.1301 8.70509L14.1748 10.6603V13.4248C14.1748 13.6238 14.0958 13.8145 13.9552 13.9552C13.8145 14.0958 13.6238 14.1748 13.4248 14.1748H10.6603L8.70509 16.1301C8.56444 16.2707 8.37371 16.3497 7.64459 16.1301L5.68934 14.1748H2.92484C2.72593 14.1748 2.53516 14.0958 2.39451 13.9552C2.25386 13.8145 2.17484 13.6238 2.17484 13.4248V10.6603L0.21959 8.70509C0.0789866 8.56444 0 8.37371 0 8.17484C0 7.97597 0.0789866 7.78524 0.21959 7.64459L2.17484 5.68934V2.92484C2.17484 2.72593 2.25386 2.53516 2.39451 2.39451C2.53516 2.25386 2.72593 2.17484 2.92484 2.17484H5.68934ZM8.17484 10.4248C8.77158 10.4248 9.34387 10.1878 9.76583 9.76583C10.1878 9.34387 10.4248 8.77158 10.4248 8.17484C10.4248 7.5781 10.1878 7.00581 9.76583 6.58385C9.34387 6.16189 8.77158 5.92484 8.17484 5.92484C7.5781 5.92484 7.00581 6.16189 6.58385 6.58385C6.16189 7.00581 5.92484 7.5781 5.92484 8.17484C5.92484 8.77158 6.16189 9.34387 6.58385 9.76583C7.00581 10.1878 7.5781 10.4248 8.17484 10.4248V10.4248Z"
-        fill="currentColor"
-        fillRule="evenodd"
-        clipRule="evenodd"
-      />
-    </svg>
-  ) : (
-    <Settings {...props} />
   )
 );
 
@@ -127,39 +95,32 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     }
   }, [pathname]);
 
-  // Nav Items definition using original icons (LayoutGrid, Users, CasesIcon, PieChart, Sliders, SettingsIcon, Headphones)
   const mainNavItems = [
     {
       name: "Dashboard",
       href: "/dashboard",
-      icon: LayoutGrid,
     },
     {
       name: "Compliance",
       href: "/compliance",
-      icon: RiShieldCheckLine,
     },
     {
       name: "Migrants",
       href: "/migrants",
-      icon: Users,
     },
     {
       name: "Cases",
       href: "/cases",
-      icon: CasesIcon,
     },
     {
       name: "Insights",
       href: "/insights",
-      icon: RiPieChartLine,
     },
     ...(!userInfo || isAdmin(userInfo)
       ? [
           {
             name: "Team",
             href: "/team",
-            icon: RiTeamLine,
           },
         ]
       : []),
@@ -169,12 +130,10 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     {
       name: "Settings",
       href: "/settings",
-      icon: SettingsIcon,
     },
     {
       name: "Support",
       href: "/support",
-      icon: Headphones,
     },
   ];
 
@@ -209,22 +168,20 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
 
   return (
     <aside
-      className={`h-full flex flex-col bg-[#171717] rounded-[16px] text-white select-none shrink-0 font-sans overflow-hidden transition-all duration-300 ease-in-out ${
+      className={`h-full flex flex-col bg-[#171717] rounded-[16px] text-white shrink-0 font-sans overflow-hidden transition-all duration-300 ease-in-out ${
         isOpen ? "w-64" : "w-20"
       }`}
     >
       {/* Header Card [Sidebar] [1.0] */}
       <div
-        className={`h-16 w-full flex items-center bg-[#171717] rounded-[10px] shrink-0 transition-all duration-300 isolate select-none ${
+        className={`h-16 w-full flex items-center bg-[#171717] rounded-[10px] shrink-0 transition-all duration-300 isolate ${
           isOpen ? "py-3 pl-2 pr-[18px] gap-2 justify-between" : "p-2 justify-center"
         }`}
       >
         <button
           type="button"
           aria-label={!isOpen && onToggle ? "Expand sidebar" : "Go to dashboard"}
-          className={`flex items-center gap-2 bg-transparent border-0 text-left p-0 min-w-0 ${
-            !isOpen && onToggle ? "cursor-pointer" : "cursor-pointer"
-          }`}
+          className="flex items-center gap-2 bg-transparent border-0 text-left p-0 min-w-0 cursor-pointer hover:opacity-90 transition-opacity"
           onClick={() => {
             if (!isOpen && onToggle) {
               onToggle();
@@ -234,7 +191,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
           }}
           title={!isOpen ? "Expand Sidebar" : "viems"}
         >
-          {/* Group 636: Viems Logo SVG (41px x 33px) */}
+          {/* Viems Logo SVG (41px x 33px) */}
           <LogoIcon width={41} height={33} className="shrink-0 text-brand-medium" />
 
           {/* Text: viems (Aeonik 500, 24px, #FFFFFF) */}
@@ -245,7 +202,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 : "w-0 opacity-0 -translate-x-2 pointer-events-none overflow-hidden"
             }`}
           >
-            <span className="font-aeonik-medium font-medium text-[24px] leading-[32px] text-white tracking-[-0.01em] select-none">
+            <span className="font-aeonik-medium font-medium text-[24px] leading-[32px] text-white tracking-[-0.01em]">
               viems
             </span>
           </div>
@@ -259,7 +216,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
             title="Collapse Sidebar"
             aria-label="Collapse Sidebar"
           >
-            <RiLayoutRightLine className="size-5 shrink-0" />
+            <RiLayoutRightLine size={20} className="size-5 shrink-0" />
           </button>
         )}
       </div>
@@ -277,13 +234,12 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
         >
           {mainNavItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
 
             if (item.name === "Compliance") {
               const isComplianceActive = pathname.startsWith("/compliance");
 
               return (
-                <div key="Compliance" className={`flex flex-col gap-1 ${isOpen ? "w-full" : "items-center justify-center"}`}>
+                <div key="Compliance" className={`flex flex-col gap-1 ${isOpen ? "w-[208px]" : "items-center justify-center"}`}>
                   <button
                     type="button"
                     aria-label="Compliance"
@@ -295,29 +251,26 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                       }
                     }}
                     className={`relative flex items-center rounded-[8px] transition-all duration-300 border-0 cursor-pointer group ${
-                      isOpen ? "w-[208px] h-9 px-2.5 justify-between gap-2" : "size-10 justify-center p-0"
+                      isOpen ? "w-[208px] h-9 px-2.5 justify-start gap-2" : "size-10 justify-center p-0"
                     } ${
                       isComplianceActive
                         ? "bg-[#262626] text-white"
-                        : "text-[#7B7B7B] hover:bg-[#262626]/50 hover:text-white"
+                        : "text-white hover:bg-[#262626]/50"
                     }`}
                   >
                     {isComplianceActive ? (
-                      <RiShieldFill className="size-5 shrink-0 text-white transition-colors" />
+                      <RiShieldFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                     ) : (
-                      <RiShieldLine className="size-5 shrink-0 text-[#7B7B7B] group-hover:text-white transition-colors" />
+                      <RiShieldLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                     )}
                     {isOpen && (
                       <>
-                        <span
-                          className={`text-[14px] font-medium whitespace-nowrap transition-colors flex-1 text-left ${
-                            isComplianceActive ? "text-white" : "text-[#7B7B7B] group-hover:text-white"
-                          }`}
-                        >
+                        <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate text-white">
                           Compliance
                         </span>
                         <RiArrowUpSLine
-                          className={`size-5 text-[#7B7B7B] transition-transform ml-auto shrink-0 ${
+                          size={20}
+                          className={`size-5 text-[#5C5C5C] group-hover:text-white transition-all ml-auto shrink-0 ${
                             isComplianceOpen ? "" : "rotate-180"
                           }`}
                         />
@@ -331,52 +284,52 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                       {/* Subitem 1: Compliance Centre */}
                       <Link
                         href="/compliance"
-                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium ${
+                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium group ${
                           pathname === "/compliance"
                             ? "bg-[#262626] text-white"
-                            : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                            : "text-white hover:bg-[#262626]/50"
                         }`}
                       >
                         {pathname === "/compliance" ? (
-                          <RiFolderShieldFill className="size-5 shrink-0 text-white" />
+                          <RiFolderShieldFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                         ) : (
-                          <RiFolderShieldLine className="size-5 shrink-0 text-[#5C5C5C]" />
+                          <RiFolderShieldLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                         )}
-                        <span className="whitespace-nowrap truncate">Compliance Centre</span>
+                        <span className="whitespace-nowrap truncate text-white">Compliance Centre</span>
                       </Link>
 
                       {/* Subitem 2: RTW Checks */}
                       <Link
                         href="/compliance/rtw-checks"
-                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium ${
+                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium group ${
                           pathname.startsWith("/compliance/rtw-checks")
                             ? "bg-[#262626] text-white"
-                            : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                            : "text-white hover:bg-[#262626]/50"
                         }`}
                       >
                         {pathname.startsWith("/compliance/rtw-checks") ? (
-                          <RiFileCheckFill className="size-5 shrink-0 text-white" />
+                          <RiFileCheckFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                         ) : (
-                          <RiFileCheckLine className="size-5 shrink-0 text-[#5C5C5C]" />
+                          <RiFileCheckLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                         )}
-                        <span className="whitespace-nowrap truncate">RTW Checks</span>
+                        <span className="whitespace-nowrap truncate text-white">RTW Checks</span>
                       </Link>
 
                       {/* Subitem 3: Documents */}
                       <Link
                         href="/compliance/documents"
-                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium ${
+                        className={`relative flex items-center gap-2 h-9 px-2.5 rounded-[8px] transition-all border-0 text-[14px] font-medium group ${
                           pathname.startsWith("/compliance/documents")
                             ? "bg-[#262626] text-white"
-                            : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
+                            : "text-white hover:bg-[#262626]/50"
                         }`}
                       >
                         {pathname.startsWith("/compliance/documents") ? (
-                          <RiFileTextFill className="size-5 shrink-0 text-white" />
+                          <RiFileTextFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                         ) : (
-                          <RiFileTextLine className="size-5 shrink-0 text-[#5C5C5C]" />
+                          <RiFileTextLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                         )}
-                        <span className="whitespace-nowrap truncate">Documents</span>
+                        <span className="whitespace-nowrap truncate text-white">Documents</span>
                       </Link>
                     </div>
                   )}
@@ -393,27 +346,21 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 } ${
                   isActive
                     ? "bg-[#262626] text-white"
-                    : "text-white/70 hover:bg-[#262626]/50 hover:text-white"
+                    : "text-white hover:bg-[#262626]/50"
                 }`}
                 title={item.name}
               >
                 {item.name === "Dashboard" ? (
                   isActive ? (
-                    <RiLayoutGridFill className="size-5 shrink-0 text-white transition-colors" />
+                    <RiLayoutGridFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiLayoutGridLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
-                  )
-                ) : item.name === "Compliance" ? (
-                  isActive ? (
-                    <RiShieldCheckFill className="size-5 shrink-0 text-white transition-colors" />
-                  ) : (
-                    <RiShieldCheckLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiLayoutGridLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Migrants" ? (
                   isActive ? (
-                    <RiGroupFill className="size-5 shrink-0 text-white transition-colors" />
+                    <RiUserFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiGroupLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiUserLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Cases" ? (
                   <CasesIcon
@@ -424,30 +371,24 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                   />
                 ) : item.name === "Insights" ? (
                   isActive ? (
-                    <RiPieChartFill className="size-5 shrink-0 text-white transition-colors" />
+                    <RiPieChartFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiPieChartLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiPieChartLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : item.name === "Team" || item.name === "Admin" ? (
                   isActive ? (
-                    <RiTeamFill className="size-5 shrink-0 text-white transition-colors" />
+                    <RiTeamFill size={20} className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiTeamLine className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <RiTeamLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
-                ) : (
-                  <Icon
-                    className={`size-5 shrink-0 transition-colors ${
-                      isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
-                    }`}
-                  />
-                )}
+                ) : null}
                 {isOpen && (
                   <>
-                    <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate">
+                    <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate text-white">
                       {item.name}
                     </span>
                     {item.name === "Dashboard" && isActive && (
-                      <RiArrowRightSLine className="size-5 text-white shrink-0 ml-auto" />
+                      <RiArrowRightSLine size={20} className="size-5 text-white shrink-0 ml-auto" />
                     )}
                   </>
                 )}
@@ -469,7 +410,6 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
           >
             {supportNavItems.map((item) => {
               const isActive = pathname === item.href;
-              const Icon = item.icon;
 
               return (
                 <Link
@@ -480,35 +420,30 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                   } ${
                     isActive
                       ? "bg-[#262626] text-white"
-                      : "text-white/70 hover:bg-[#262626]/50 hover:text-white"
+                      : "text-white hover:bg-[#262626]/50"
                   }`}
                   title={item.name}
                 >
                   {item.name === "Settings" ? (
                     <RiSettings2Line
+                      size={20}
                       className={`size-5 shrink-0 transition-colors ${
                         isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
                       }`}
                     />
                   ) : item.name === "Support" ? (
                     isActive ? (
-                      <RiCustomerService2Fill className="size-5 shrink-0 text-white transition-colors" />
+                      <RiCustomerService2Fill size={20} className="size-5 shrink-0 text-white transition-colors" />
                     ) : (
-                      <RiCustomerService2Line className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                      <RiCustomerService2Line size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                     )
-                  ) : (
-                    <Icon
-                      className={`size-5 shrink-0 transition-colors ${
-                        isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
-                      }`}
-                    />
+                  ) : null}
+                  {isOpen && (
+                    <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate text-white">
+                      {item.name}
+                    </span>
                   )}
-                {isOpen && (
-                  <span className="text-[14px] font-medium whitespace-nowrap flex-1 text-left truncate">
-                    {item.name}
-                  </span>
-                )}
-              </Link>
+                </Link>
               );
             })}
           </nav>
@@ -529,7 +464,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
               }`}
               title="User Profile Menu"
             >
-              <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center shrink-0">
+              <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center shrink-0">
                 {getInitials()}
               </div>
               <div
@@ -547,7 +482,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 </span>
               </div>
               {isOpen && (
-                <RiArrowRightSLine className="size-5 text-[#5C5C5C] shrink-0" />
+                <RiArrowRightSLine size={20} className="size-5 text-[#5C5C5C] shrink-0" />
               )}
             </button>
           }

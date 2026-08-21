@@ -94,7 +94,7 @@ export function Logo({
 
   const content = (
     <div
-      className={cn("inline-flex items-center select-none", gapClass, className)}
+      className={cn("inline-flex items-center ", gapClass, className)}
       {...props}
     >
       <LogoIcon size={iconSize} className={iconClassName} />
@@ -116,7 +116,7 @@ export function Logo({
     return (
       <Link
         href={href}
-        className="inline-flex items-center group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-medium rounded-md"
+        className="inline-flex items-center group hover:opacity-85 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-medium rounded-md"
       >
         {content}
       </Link>

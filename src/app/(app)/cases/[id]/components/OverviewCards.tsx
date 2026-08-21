@@ -78,7 +78,7 @@ export function ProfileCard({ name, initials, avatar, employer, status, onAddNot
           className="size-[80px] rounded-full object-cover mb-md shrink-0"
         />
       ) : (
-        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[34px] tracking-[-0.015em] mb-md font-sans overflow-hidden select-none">
+        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] tracking-[-0.015em] mb-md font-sans overflow-hidden">
           {initials || "—"}
         </div>
       )}
@@ -248,7 +248,7 @@ export function PersonalDetailsCard({ personalInfo, passport, cos, onViewAll }: 
 
       <div className="bg-white border border-white rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] flex flex-col gap-[4px] w-full">
         {/* PERSONAL INFORMATION CARD */}
-        <div className="bg-[#F7F7F7] border border-white rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[2px]">
+        <div className="bg-[#F5F5F5] border border-white rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[2px]">
           <h4 className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em] mb-xs">PERSONAL INFORMATION</h4>
           <KVRow label="Full Name" value={personalInfo?.fullName} />
           <KVRow label="Gender" value={personalInfo?.gender} />
@@ -269,7 +269,7 @@ export function PersonalDetailsCard({ personalInfo, passport, cos, onViewAll }: 
         </div>
 
         {/* PASSPORT CARD */}
-        <div className="bg-[#F7F7F7] border border-white rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[2px]">
+        <div className="bg-[#F5F5F5] border border-white rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[2px]">
           <h4 className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em] mb-xs">PASSPORT</h4>
           <KVRow label="Passport Number" value={passport?.number} />
           <KVRow label="Issue Date" value={passport?.issueDate} />
@@ -277,7 +277,7 @@ export function PersonalDetailsCard({ personalInfo, passport, cos, onViewAll }: 
         </div>
 
         {/* CERTIFICATE OF SPONSORSHIP CARD */}
-        <div className="bg-[#F7F7F7] border border-white rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[2px]">
+        <div className="bg-[#F5F5F5] border border-white rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[2px]">
           <h4 className="text-[12px] font-medium text-[#171717] uppercase tracking-[0.04em] mb-xs">CERTIFICATE OF SPONSORSHIP</h4>
           <KVRow label="Status">
             <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] uppercase ${
@@ -364,7 +364,7 @@ interface TimelineEvent {
 function TimelineIcon({ type }: { type: string }) {
   const iconClass = "size-4 text-[#171717]";
   return (
-    <div className="size-8 rounded-full bg-[#F7F7F7] shadow-x-small flex items-center justify-center shrink-0">
+    <div className="size-8 rounded-full bg-[#F5F5F5] shadow-x-small flex items-center justify-center shrink-0">
       {type === "note" ? (
         <RiStickyNoteLine className={iconClass} />
       ) : type === "task" ? (

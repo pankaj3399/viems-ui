@@ -248,13 +248,15 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
   }, [casesList, searchQuery, countryFilter, statusFilter, sortField, sortDirection]);
 
   return (
-    <div className="flex flex-col gap-[32px] w-full font-sans select-none max-w-[1104px]">
+    <div className="flex flex-col gap-[32px] w-full font-sans max-w-[1104px]">
       {/* Toolbar / Filters Row */}
       <div className="flex items-center gap-[12px] w-full">
         {/* Search Bar */}
         <div className="w-[348px] h-[32px] bg-white border border-[#EBEBEB] rounded-[8px] px-[8px] py-[6px] flex items-center gap-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] focus-within:border-brand-medium focus-within:ring-2 focus-within:ring-brand-medium/20">
           <RiSearchLine className="size-5 text-[#A4A4A4] shrink-0" />
           <Input
+            variant="unstyled"
+            size="none"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -273,7 +275,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             setCountryFilter(null);
             setStatusFilter(null);
           }}
-          className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
+          className="size-8 bg-white border-0 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer shadow-x-small"
           title="Reset filter"
         >
           <RiFilter3Line className="size-4 shrink-0 text-[#5C5C5C]" />

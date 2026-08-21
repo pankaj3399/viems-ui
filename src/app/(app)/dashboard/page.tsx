@@ -14,7 +14,7 @@ import {
   RiCalendarEventLine,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName, getInitials, classifyCaseStage, getCaseAction } from "@/lib/utils";
+import { formatFullName, formatTitleCase, getInitials, classifyCaseStage, getCaseAction } from "@/lib/utils";
 import { mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefused } from "@/lib/case-mapper";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { useRouter } from "next/navigation";
@@ -73,7 +73,7 @@ function TopMetricCard({
     <button
       type="button"
       onClick={onClick}
-      className="bg-white rounded-[8px] p-[12px_16px] h-[70px] flex flex-col justify-between relative transition-all text-left w-full group cursor-pointer border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:shadow-md"
+      className="bg-white rounded-[8px] p-[12px_16px] h-[70px] flex flex-col justify-between relative transition-all text-left w-full group cursor-pointer border border-transparent hover:border-[#EBEBEB] hover:bg-neutral-50/40 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] hover:shadow-md"
     >
       <span className="text-[11px] font-medium tracking-[0.02em] text-[#171717] uppercase leading-[12px]">
         {title}
@@ -104,7 +104,7 @@ function TaskItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-row items-center p-[16px_12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-[#7D52F4]/40 hover:bg-[#FAFAFA] transition-all cursor-pointer select-none w-full group text-left h-[76px]"
+      className="flex flex-row items-center p-[16px_12px] gap-[12px] bg-white border border-[#EBEBEB] rounded-[12px] hover:border-[#7D52F4]/40 hover:bg-[#FAFAFA] transition-all cursor-pointer w-full group text-left h-[76px]"
     >
       <div className="flex flex-row items-center gap-[12px] flex-1 min-w-0">
         <div className="flex items-center justify-center p-[6px] size-[18px] shrink-0">
@@ -121,7 +121,7 @@ function TaskItem({
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-center size-6 bg-[#F7F7F7] group-hover:bg-[#7D52F4] rounded-full shrink-0 transition-colors">
+      <div className="flex items-center justify-center size-6 bg-[#F5F5F5] group-hover:bg-[#7D52F4] rounded-full shrink-0 transition-colors">
         <RiArrowRightSLine className="size-5 text-[#5C5C5C] group-hover:text-white transition-colors" />
       </div>
     </button>
@@ -152,13 +152,13 @@ function ActivityItem({
       {!isLast && (
         <div className="absolute left-[16px] top-[32px] bottom-[-8px] w-px bg-[#EBEBEB] z-0" />
       )}
-      <div className={`size-8 rounded-full ${avatarBg} flex items-center justify-center shrink-0 z-10 text-[14px] font-medium text-[#171717]`}>
+      <div className={`size-8 rounded-full ${avatarBg} flex items-center justify-center shrink-0 z-10 text-[12px] font-medium text-[#171717]`}>
         {avatarText}
       </div>
       <button
         type="button"
         onClick={onClick}
-        className="flex flex-col gap-[2px] min-w-0 flex-1 pt-[2px] pb-[8px] text-left border-0 bg-transparent cursor-pointer group"
+        className="flex flex-col gap-[2px] min-w-0 flex-1 pt-[2px] pb-[8px] px-1.5 -mx-1.5 rounded-[8px] hover:bg-neutral-50/60 text-left border-0 bg-transparent cursor-pointer group transition-colors"
       >
         <span className="text-[14px] font-medium text-[#171717] tracking-[-0.006em] leading-[20px] group-hover:text-[#7D52F4] transition-colors truncate">
           {title}
@@ -440,7 +440,7 @@ export default function DashboardPage() {
   const displayedTasks = React.useMemo(() => {
     const list = activeTaskTab === "missing" ? missingDocsTasks : tasksList;
     return list.map((t, idx) => {
-      const migrantName = formatFullName(t.firstName, t.lastName) || "Migrant";
+      const migrantName = formatFullName(t.firstName, t.lastName) || (typeof t.name === "string" ? formatTitleCase(t.name) : "") || "Migrant";
       let title = t.title;
       if (!title && Array.isArray(t.name) && t.name.length > 0) {
         title = `Upload ${t.name.map((n) => n.title || n.value).join(", ")}`;
@@ -487,7 +487,7 @@ export default function DashboardPage() {
           const diffMs = expDate.getTime() - Date.now();
           const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
           if (days > 0 && days <= 180) {
-            const name = formatFullName(c.first_name, c.last_name) || c.name || "Migrant";
+            const name = formatFullName(c.first_name, c.last_name) || formatTitleCase(c.name) || "Migrant";
             alerts.push({
               id: c.id,
               name,
@@ -617,12 +617,12 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col font-sans bg-[#F7F7F7] min-h-screen text-left select-none">
+    <div className="flex flex-col font-sans bg-[#F5F5F5] min-h-screen text-left">
       {/* ─── Top White Section Header (Rectangle 7 & Section Header [1.1]) ─── */}
       <div className="bg-white rounded-t-[16px] px-[40px] py-[32px] flex items-center justify-between border-b border-[#EBEBEB] shrink-0">
         <div className="flex items-center gap-[20px]">
-          {/* 48px Purple User Avatar */}
-          <div className="size-[48px] rounded-full bg-[#CAC0FF] text-[#351A75] flex items-center justify-center font-medium text-[16px] leading-[24px] tracking-[-0.011em] shrink-0 shadow-sm">
+          {/* 48px Grey User Avatar */}
+          <div className="size-[48px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] leading-none tracking-[-0.011em] shrink-0 shadow-sm">
             {userInitials}
           </div>
           <div className="flex flex-col gap-[4px]">
@@ -658,7 +658,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ─── Main Content Container (Background: #F7F7F7) ─── */}
+      {/* ─── Main Content Container (Background: #F5F5F5) ─── */}
       <div className="p-[32px_40px_64px] flex flex-col gap-[24px] w-full">
         {/* Top 4 Metrics Stat Row */}
         <div className="grid grid-cols-4 gap-[8px] w-full">
@@ -717,8 +717,8 @@ export default function DashboardPage() {
                     onClick={() => setActiveTaskTab("open")}
                     className={`flex flex-col items-start p-[12px_16px] gap-[2px] rounded-[8px] relative transition-all text-left cursor-pointer flex-1 h-[78px] border-0 ${
                       activeTaskTab === "open"
-                        ? "bg-[#F7F7F7] ring-1 ring-[#171717]"
-                        : "bg-[#F7F7F7] hover:bg-[#EBEBEB]"
+                        ? "bg-[#F5F5F5] ring-1 ring-[#171717]"
+                        : "bg-[#F5F5F5] hover:bg-[#EBEBEB]"
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
@@ -737,8 +737,8 @@ export default function DashboardPage() {
                     onClick={() => setActiveTaskTab("missing")}
                     className={`flex flex-col items-start p-[12px_16px] gap-[2px] rounded-[8px] relative transition-all text-left cursor-pointer flex-1 h-[78px] border-0 ${
                       activeTaskTab === "missing"
-                        ? "bg-[#F7F7F7] ring-1 ring-[#171717]"
-                        : "bg-[#F7F7F7] hover:bg-[#EBEBEB]"
+                        ? "bg-[#F5F5F5] ring-1 ring-[#171717]"
+                        : "bg-[#F5F5F5] hover:bg-[#EBEBEB]"
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
@@ -953,7 +953,7 @@ export default function DashboardPage() {
 
                 {/* ── Lower Calendar Events Panel ── */}
                 <div className="p-[4px] bg-white">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[16px]">
+                  <div className="bg-[#F5F5F5] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[16px]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-[8px]">
                         <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
@@ -997,7 +997,7 @@ export default function DashboardPage() {
                                 <span className={`size-[6px] rounded-full ${evt.color ?? "bg-[#7D52F4]"} shrink-0`} />
                                 
                                 {/* Date badge: 31px x 32px stack */}
-                                <div className="flex flex-col items-center justify-center p-[2px_4px] bg-[#F7F7F7] rounded-[4px] w-[31px] h-[32px] shrink-0">
+                                <div className="flex flex-col items-center justify-center p-[2px_4px] bg-[#F5F5F5] rounded-[4px] w-[31px] h-[32px] shrink-0">
                                   <span className="text-[10px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px] -my-[4px]">
                                     {dayNum}
                                   </span>
@@ -1077,7 +1077,7 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => router.push("/migrants?location=outside")}
-                      className="bg-[#F7F7F7] rounded-[8px] p-[12px_16px] flex flex-col justify-between h-[78px] flex-1 text-left relative transition-all cursor-pointer border-0 hover:bg-[#EBEBEB]"
+                      className="bg-[#F5F5F5] rounded-[8px] p-[12px_16px] flex flex-col justify-between h-[78px] flex-1 text-left relative transition-all cursor-pointer border-0 hover:bg-[#EBEBEB]"
                     >
                       <div className="flex items-center justify-between w-full">
                         <span className="text-[11px] font-medium text-[#171717] tracking-[0.02em] uppercase leading-[12px]">
@@ -1094,7 +1094,7 @@ export default function DashboardPage() {
 
                 {/* Bottom Section: LEAVE TO REMAIN ALERTS */}
                 <div className="bg-white p-[4px] rounded-b-[16px]">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[20px]">
+                  <div className="bg-[#F5F5F5] rounded-[16px] p-[20px_20px_16px] flex flex-col gap-[20px]">
                     <span className="text-[12px] font-medium text-[#171717] tracking-[0.04em] uppercase leading-[16px]">
                       LEAVE TO REMAIN ALERTS
                     </span>
@@ -1110,7 +1110,7 @@ export default function DashboardPage() {
                             key={alert.id}
                             type="button"
                             onClick={() => router.push(alert.caseId ? `/cases?caseId=${alert.caseId}` : "/migrants")}
-                            className="flex items-center justify-between w-full h-[24px] cursor-pointer border-0 bg-transparent p-0 group text-left"
+                            className="flex items-center justify-between w-full h-[28px] cursor-pointer border-0 bg-transparent px-1.5 -mx-1.5 rounded-[6px] hover:bg-neutral-50/70 group text-left transition-colors"
                           >
                             <div className="flex items-center gap-[8px]">
                               <div className={`size-6 rounded-full ${alert.avatarBg} font-medium text-[12px] flex items-center justify-center shrink-0`}>

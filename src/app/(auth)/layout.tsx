@@ -17,13 +17,13 @@ export default function AuthLayout({
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#171717] overflow-x-hidden antialiased">
       {/* ─── Figma Header Bar (Height 80px) ─────────────────────────────────── */}
-      <header className="h-20 w-full flex items-center px-8 bg-[#171717] shrink-0 select-none">
+      <header className="h-20 w-full flex items-center px-8 bg-[#171717] shrink-0">
         {/* Left Side: Viems Logo & Brand Name */}
         <Logo size="lg" textClassName="text-white font-sans" href="/login" />
       </header>
 
       {/* ─── Figma Inner Canvas (Frame-within-a-frame) ───────────────────────── */}
-      <main className="flex-1 flex flex-col mx-sm mb-sm rounded-card bg-[#F7F7F7] border border-neutral-200 overflow-hidden shadow-card-large min-h-[calc(100vh-80px-8px)]">
+      <main className="flex-1 flex flex-col mx-sm mb-sm rounded-card bg-[#F5F5F5] border border-neutral-200 overflow-hidden shadow-card-large min-h-[calc(100vh-80px-8px)]">
         {/* Children Container */}
         <div className="flex-1 flex flex-col items-center justify-start p-xl overflow-y-auto pt-[34px]">
           <div className="w-full max-w-[440px] pb-xl flex-1 flex flex-col">

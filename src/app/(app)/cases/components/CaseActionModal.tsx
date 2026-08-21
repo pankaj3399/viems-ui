@@ -199,14 +199,14 @@ export function CaseActionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="w-[440px] max-w-[440px] p-[20px] bg-white rounded-[20px] shadow-card-large border border-[#EBEBEB] gap-[16px] flex flex-col relative overflow-hidden select-none outline-none">
+      <DialogContent showCloseButton={false} className="w-[440px] max-w-[440px] p-[20px] bg-white rounded-[20px] shadow-card-large border border-[#EBEBEB] gap-[16px] flex flex-col relative overflow-hidden outline-none">
         <DialogTitle className="sr-only">{config.title}</DialogTitle>
 
-        {/* Absolute Positioned Figma Close Button (24x24px, radius 6px, bg #F7F7F7) */}
+        {/* Absolute Positioned Figma Close Button (24x24px, radius 6px, bg #F5F5F5) */}
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="absolute right-[20px] top-[20px] size-6 bg-[#F7F7F7] hover:bg-[#EBEBEB] text-[#5C5C5C] rounded-[6px] flex items-center justify-center transition-colors border-0 cursor-pointer z-10"
+          className="absolute right-[20px] top-[20px] size-6 bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] rounded-[6px] flex items-center justify-center transition-colors border-0 cursor-pointer z-10"
         >
           <RiCloseLine className="size-5 text-[#5C5C5C]" />
         </button>
@@ -220,11 +220,7 @@ export function CaseActionModal({
               className="size-[56px] rounded-full object-cover shrink-0"
             />
           ) : (
-            <div
-              className={`size-[56px] rounded-full flex items-center justify-center font-semibold text-sm shrink-0 select-none border ${getAvatarBg(
-                row.avatarText || "TJ"
-              )}`}
-            >
+            <div className="size-[56px] rounded-full flex items-center justify-center font-medium text-[12px] shrink-0 bg-[#EBEBEB] text-[#171717] select-none">
               {row.avatarText || "TJ"}
             </div>
           )}

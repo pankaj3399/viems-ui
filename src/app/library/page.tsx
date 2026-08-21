@@ -260,15 +260,15 @@ export default function LibraryPage() {
                   <div className="flex flex-col gap-xl">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">
                       <span className="text-h3-title text-neutral-900 dark:text-white">Title/H3 Title (Aeonik)</span>
-                      <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 40px / line-height: 48px / weight: 600</span>
+                      <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 40px / line-height: 48px / weight: 500</span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">
                       <span className="text-h5-title text-neutral-900 dark:text-white">Title/H5 Title (Aeonik)</span>
-                      <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 24px / line-height: 32px / weight: 600</span>
+                      <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 24px / line-height: 32px / weight: 500</span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">
                       <span className="text-h6-title text-neutral-900 dark:text-white">Landing Title/H6 Title (Inter)</span>
-                      <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 20px / line-height: 28px / weight: 550</span>
+                      <span className="text-subheading-2xs text-neutral-400 mt-xs sm:mt-0">font-size: 20px / line-height: 28px / weight: 500</span>
                     </div>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-neutral-50 dark:border-neutral-900 pb-sm">
                       <span className="text-label-sm text-neutral-900 dark:text-white">Label/Small (Inter)</span>
@@ -749,7 +749,7 @@ export default function LibraryPage() {
                                 <span className="text-paragraph-sm text-neutral-800 dark:text-neutral-100">{c.name}</span>
                               </Label>
                               {c.count !== undefined && (
-                                <Badge variant="success" className="text-subheading-2xs px-xs bg-success-light text-success-dark rounded-full font-bold select-none h-4 min-w-4 justify-center">
+                                <Badge variant="success" className="text-subheading-2xs px-xs bg-success-light text-success-dark rounded-full font-bold h-4 min-w-4 justify-center">
                                   {c.count}
                                 </Badge>
                               )}

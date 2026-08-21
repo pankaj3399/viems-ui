@@ -268,7 +268,7 @@ function DrawerAvatar({ avatarUrl, name }: { avatarUrl?: string; name: string })
   const [imageError, setImageError] = React.useState(false);
 
   return (
-    <div className="size-[56px] rounded-full overflow-hidden bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[16px] shrink-0">
+    <div className="size-[56px] rounded-full overflow-hidden bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 select-none">
       {avatarUrl && !imageError ? (
         <img
           src={avatarUrl}
@@ -901,7 +901,7 @@ export default function InsightsPage() {
     });
 
     return matched.map((c, idx) => {
-      const name = formatFullName(c.first_name, c.last_name) || c.name || `Applicant #${c.id || idx + 1}`;
+      const name = formatFullName(c.first_name, c.last_name) || (c.name ? toTitleCase(c.name) : "") || `Applicant #${c.id || idx + 1}`;
       const group = toTitleCase(c.group || c.group_name || "General Group");
       const caseNumber = c.caseNumber || c.caseId || (c.id ? `#${c.id}` : "—");
       const statusLabel = toTitleCase(c.case_status || selectedStatusKey);
@@ -945,7 +945,7 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] select-none bg-[#F7F7F7] min-h-full pb-[80px]">
+    <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] bg-[#F5F5F5] min-h-full pb-[80px]">
       
       {/* ─── Page Header ─── */}
       <div className="bg-white rounded-t-[16px] flex flex-col shrink-0">
@@ -1134,11 +1134,11 @@ export default function InsightsPage() {
                 </div>
 
                 {/* Interactive Chart Legend Footer */}
-                <div className="flex items-center gap-[16px] text-left pt-2 border-t border-[#EBEBEB]">
+                <div className="flex items-center gap-[8px] text-left pt-2 border-t border-[#EBEBEB]">
                   <button
                     type="button"
                     onClick={() => toggleSeries("Approved")}
-                    className={`flex items-center gap-[6px] cursor-pointer transition-opacity border-0 bg-transparent p-0 ${
+                    className={`flex items-center gap-[6px] cursor-pointer px-1.5 py-0.5 rounded-[6px] transition-all border-0 bg-transparent hover:bg-neutral-100 hover:opacity-80 ${
                       visibleSeries.Approved ? "opacity-100" : "opacity-40"
                     }`}
                   >
@@ -1151,7 +1151,7 @@ export default function InsightsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSeries("Refused")}
-                    className={`flex items-center gap-[6px] cursor-pointer transition-opacity border-0 bg-transparent p-0 ${
+                    className={`flex items-center gap-[6px] cursor-pointer px-1.5 py-0.5 rounded-[6px] transition-all border-0 bg-transparent hover:bg-neutral-100 hover:opacity-80 ${
                       visibleSeries.Refused ? "opacity-100" : "opacity-40"
                     }`}
                   >
@@ -1164,7 +1164,7 @@ export default function InsightsPage() {
                   <button
                     type="button"
                     onClick={() => toggleSeries("In Progress")}
-                    className={`flex items-center gap-[6px] cursor-pointer transition-opacity border-0 bg-transparent p-0 ${
+                    className={`flex items-center gap-[6px] cursor-pointer px-1.5 py-0.5 rounded-[6px] transition-all border-0 bg-transparent hover:bg-neutral-100 hover:opacity-80 ${
                       visibleSeries["In Progress"] ? "opacity-100" : "opacity-40"
                     }`}
                   >
@@ -1277,7 +1277,7 @@ export default function InsightsPage() {
                                 onClick={() => handleOpenStatusDrawer(seg.statusKey, seg.label)}
                                 onFocus={() => setHoveredPipelineSegment(seg.id)}
                                 onMouseEnter={() => setHoveredPipelineSegment(seg.id)}
-                                className="h-full flex items-center cursor-pointer group border-0 bg-transparent p-0 min-w-[4px]"
+                                className="h-full flex items-center cursor-pointer group border-0 bg-transparent p-0 min-w-[4px] hover:opacity-100 transition-opacity"
                                 style={{ width: `${seg.pct}%` }}
                                 title={`${seg.label}: ${seg.count} cases`}
                               >
@@ -1415,7 +1415,7 @@ export default function InsightsPage() {
                             key={origin.name}
                             type="button"
                             aria-label={`${origin.name}: ${origin.count} cases`}
-                            className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2 border-0 bg-transparent"
+                            className="absolute cursor-pointer -translate-x-1/2 -translate-y-1/2 flex items-center justify-center group z-10 p-2 border-0 bg-transparent hover:scale-110 transition-transform"
                             style={{ left: coords.left, top: coords.top }}
                             onFocus={() => setHoveredOrigin(origin.name)}
                             onMouseEnter={() => setHoveredOrigin(origin.name)}

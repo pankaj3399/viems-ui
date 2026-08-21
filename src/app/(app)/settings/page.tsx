@@ -79,12 +79,12 @@ function SettingsSwitch({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="relative w-[33px] h-[20px] cursor-pointer shrink-0 outline-none select-none disabled:opacity-50 disabled:cursor-not-allowed group focus-visible:ring-2 focus-visible:ring-[#7D52F4]/50 rounded-full border-0 bg-transparent p-0"
+      className="relative w-[33px] h-[20px] cursor-pointer shrink-0 outline-none disabled:opacity-50 disabled:cursor-not-allowed group hover:opacity-95 transition-opacity focus-visible:ring-2 focus-visible:ring-[#7D52F4]/50 rounded-full border-0 bg-transparent p-0"
     >
       {/* Track: 28px x 16px */}
       <span
-        className={`absolute rounded-full transition-colors duration-200 ${
-          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+        className={`absolute rounded-full transition-all duration-200 group-hover:brightness-95 ${
+          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-[#E0E0E0]"
         }`}
         style={{
           width: 28,
@@ -600,7 +600,7 @@ function SettingsContent() {
   };
 
   return (
-    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-[80px] select-none">
+    <div className="w-full min-h-full bg-[#F5F5F5] text-[#171717] font-sans pb-[80px]">
       {/* ─── Top Page Header [Section Header 1.1] ─── */}
       <div className="sticky top-0 z-20 bg-white border-b border-[#EBEBEB] rounded-t-[16px] px-6 md:px-[64px] py-[32px] shrink-0">
         <div className="max-w-[1232px] mx-auto flex flex-col gap-1">
@@ -726,7 +726,7 @@ function SettingsContent() {
                     {/* Banner / Avatar Section */}
                     <div className="flex items-center gap-[16px] py-[12px]">
                       {/* 80x80 Avatar Circle */}
-                      <div className="size-20 rounded-full bg-[#CAC0FF] text-[#351A75] font-aeonik-medium text-[24px] font-medium flex items-center justify-center shrink-0 overflow-hidden select-none">
+                      <div className="size-20 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center shrink-0 overflow-hidden select-none">
                         {avatarUrl ? (
                           <img
                             src={avatarUrl}
@@ -735,7 +735,7 @@ function SettingsContent() {
                             className="size-full object-cover"
                           />
                         ) : (
-                          <span className="font-aeonik-medium text-[#351A75] text-[24px] select-none tracking-tight">AM</span>
+                          <span className="font-medium text-[#171717] text-[12px] tracking-tight">AM</span>
                         )}
                       </div>
 
@@ -1089,7 +1089,7 @@ function SettingsContent() {
                           className={`px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium transition-all cursor-pointer border-0 ${
                             digestFrequency === freq
                               ? "bg-[#171717] text-white shadow-sm"
-                              : "bg-[#F7F7F7] text-[#5C5C5C] hover:bg-[#EBEBEB] hover:text-[#171717]"
+                              : "bg-[#F5F5F5] text-[#5C5C5C] hover:bg-[#EBEBEB] hover:text-[#171717]"
                           }`}
                         >
                           {freq}
@@ -1304,6 +1304,8 @@ function SettingsContent() {
                     <div className="w-[200px] md:w-[240px] h-[36px] bg-white border border-[#EBEBEB] rounded-[8px] px-3 flex items-center gap-2 shadow-x-small focus-within:border-[#171717] transition-all">
                       <RiSearchLine className="size-4 text-[#A4A4A4] shrink-0" />
                       <Input
+                        variant="unstyled"
+                        size="none"
                         type="text"
                         aria-label="Search team members"
                         placeholder="Search team..."
@@ -1369,12 +1371,12 @@ function SettingsContent() {
                               {member.avatarImage ? (
                                 <Avatar className="size-10 rounded-full shrink-0">
                                   <AvatarImage src={member.avatarImage} alt={member.name} />
-                                  <AvatarFallback className="bg-[#CAC0FF] text-[#351A75] font-medium text-[15px]">
+                                  <AvatarFallback className="bg-[#EBEBEB] text-[#171717] font-medium text-[12px]">
                                     {member.avatarText || getInitials(member.name)}
                                   </AvatarFallback>
                                 </Avatar>
                               ) : (
-                                <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-medium text-[15px] flex items-center justify-center shrink-0">
+                                <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center shrink-0">
                                   {member.avatarText || getInitials(member.name)}
                                 </div>
                               )}
@@ -1477,7 +1479,7 @@ function SettingsContent() {
       {memberToRemove && (
         <Dialog open={!!memberToRemove} onOpenChange={(open) => { if (!open) setMemberToRemove(null); }}>
           <DialogContent className="max-w-[420px] p-6 bg-white rounded-[16px] border border-[#EBEBEB] shadow-card-large font-sans">
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 pr-8">
               <h3 className="text-h6-title text-[#171717]">Remove team member</h3>
               <p className="text-paragraph-sm text-[#5C5C5C]">
                 Are you sure you want to remove <span className="font-semibold text-[#171717]">{memberToRemove.name}</span> from the organization? They will no longer have access to this workspace.
@@ -1514,7 +1516,7 @@ export default function SettingsPage() {
   return (
     <React.Suspense
       fallback={
-        <div className="w-full min-h-full bg-[#F7F7F7] flex items-center justify-center p-12">
+        <div className="w-full min-h-full bg-[#F5F5F5] flex items-center justify-center p-12">
           <RiRefreshLine className="size-8 animate-spin text-[#7D52F4]" />
         </div>
       }

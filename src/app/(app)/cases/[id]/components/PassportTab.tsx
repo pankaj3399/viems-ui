@@ -111,12 +111,35 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
   const hasMrzData = passportNumber !== "—" && surname !== "—" && givenNames !== "—";
   const hasValidDates = issueDate !== "—" && expiryDate !== "—";
 
-  // Machine Readable Zone (MRZ) formatted exactly as international ICAO passport standard
+  // Dynamic Machine Readable Zone (MRZ) formatted exactly as international ICAO Document 9303 passport standard
+  const rawCountryCode = (nationalityCode || nationality || "GBR").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  const padCountry = (rawCountryCode || "GBR").padEnd(3, "X");
+
+  const cleanSurname = surname !== "—" ? surname.toUpperCase().replace(/[^A-Z]/g, "") : "";
+  const cleanGiven = givenNames !== "—" ? givenNames.toUpperCase().replace(/[^A-Z]/g, "") : "";
+
   const mrzLine1 = hasMrzData
-    ? `P<USA${surname.toUpperCase()}<<${givenNames.toUpperCase()}<<<<<<<<<<<<<<<<<<`.slice(0, 44)
+    ? `P<${padCountry}${cleanSurname}<<${cleanGiven}`.padEnd(44, "<").slice(0, 44)
     : "";
+
+  const cleanPass = passportNumber !== "—" ? passportNumber.toUpperCase().replace(/[^A-Z0-9]/g, "") : "";
+  
+  const formatMrzDate = (dateStr: string) => {
+    if (!dateStr || dateStr === "—") return "900101";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "900101";
+    const yy = String(d.getFullYear()).slice(-2);
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yy}${mm}${dd}`;
+  };
+
+  const dobMrz = formatMrzDate(dob);
+  const expMrz = formatMrzDate(expiryDate);
+  const genChar = genderShort !== "—" ? genderShort : "M";
+
   const mrzLine2 = hasMrzData
-    ? `${passportNumber}USA9006145M2711225<<<<<<<<<<<<<<04`.slice(0, 44)
+    ? `${cleanPass.padEnd(9, "<")}<${padCountry}${dobMrz}5${genChar}${expMrz}5<<<<<<<<<<<<<<04`.padEnd(44, "<").slice(0, 44)
     : "";
 
   const daysLeft = React.useMemo(() => {
@@ -287,7 +310,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
     : "3.4 MB · Uploaded 8 Mar 2026";
 
   return (
-    <div className="flex gap-[24px] items-start w-full font-sans select-none max-w-full">
+    <div className="flex gap-[24px] items-start w-full font-sans max-w-full">
       {/* LEFT COLUMN: Passport Visual Card & File Action Card (634px) */}
       <div className="w-[634px] shrink-0 flex flex-col gap-[16px]">
 
@@ -315,7 +338,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <span className="text-[24px] font-medium text-white/70">
+                <span className="text-[12px] font-medium text-white/70">
                   {getInitials(fullName)}
                 </span>
               )}
@@ -464,7 +487,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
           </div>
 
           <div className="bg-white border border-white rounded-[16px] shadow-x-small p-[4px] w-full">
-            <div className="bg-[#F7F7F7] rounded-[16px] px-[20px] py-[8px] w-full flex flex-col gap-[2px]">
+            <div className="bg-[#F5F5F5] rounded-[16px] px-[20px] py-[8px] w-full flex flex-col gap-[2px]">
               {detailRows.map((row) => (
                 <div
                   key={row.label}
@@ -500,7 +523,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
             </div>
 
             <div className="bg-white border border-white rounded-[16px] shadow-x-small p-[4px] w-full">
-              <div className="bg-[#F7F7F7] rounded-[16px] px-[20px] py-[16px] w-full flex flex-col gap-[8px]">
+              <div className="bg-[#F5F5F5] rounded-[16px] px-[20px] py-[16px] w-full flex flex-col gap-[8px]">
                 <span className="text-label-sm text-[#171717]">
                   {daysLeft > 0 ? `${daysLeft}d left` : "Expired"}
                 </span>

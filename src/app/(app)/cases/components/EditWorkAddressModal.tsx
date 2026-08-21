@@ -141,7 +141,7 @@ export function EditWorkAddressModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-[680px] w-[680px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-[20px] bg-white border border-[#EBEBEB] shadow-regular-medium flex flex-col font-sans select-none"
+        className="sm:max-w-[680px] w-[680px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-[20px] bg-white border border-[#EBEBEB] shadow-regular-medium flex flex-col font-sans"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-[20px] py-[16px] border-b border-[#EBEBEB] shrink-0 h-[56px]">
@@ -152,7 +152,7 @@ export function EditWorkAddressModal({
             type="button"
             aria-label="Close"
             onClick={() => onOpenChange(false)}
-            className="size-6 rounded-[6px] bg-[#F7F7F7] text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors cursor-pointer"
+            className="size-6 rounded-[6px] bg-[#F5F5F5] text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors cursor-pointer"
           >
             <XIcon className="size-4" />
           </button>

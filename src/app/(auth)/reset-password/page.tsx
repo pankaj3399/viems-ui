@@ -98,7 +98,7 @@ function ResetPasswordForm() {
     return (
       <Card className="bg-transparent text-card-foreground p-lg border-none shadow-none ring-0">
         <CardHeader className="text-center pb-md">
-          <CardTitle className="text-h5-title font-bold tracking-tight text-error-dark flex flex-col items-center gap-sm">
+          <CardTitle className="text-h5-title font-medium tracking-tight text-error-dark flex flex-col items-center gap-sm">
             <AlertCircle className="size-12 text-error-dark shrink-0" />
             Link Expired
           </CardTitle>
@@ -125,7 +125,7 @@ function ResetPasswordForm() {
   return (
     <Card className="bg-transparent text-card-foreground p-lg border-none shadow-none ring-0">
       <CardHeader className="text-center pb-md">
-        <CardTitle className="text-h5-title font-bold tracking-tight text-neutral-900 dark:text-white flex flex-col items-center gap-xs">
+        <CardTitle className="text-h5-title font-medium tracking-tight text-neutral-900 dark:text-white flex flex-col items-center gap-xs">
           <KeyRound className="size-8 text-brand-medium shrink-0" />
           Reset Password
         </CardTitle>

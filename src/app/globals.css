@@ -114,7 +114,8 @@
   --color-info-light: oklch(0.958 0.020 267.2);
   --color-info-dark: oklch(0.294 0.122 267.3);
 
-  --color-neutral-50: oklch(0.976 0.000 180.6);
+  --color-neutral-50: oklch(0.969 0.000 180.6); /* #F5F5F5 / bg/weak-50 */
+  --color-weak-50: oklch(0.969 0.000 180.6); /* #F5F5F5 / bg/weak-50 */
   --color-neutral-100: oklch(0.970 0.000 180.6);
   --color-neutral-200: oklch(0.940 0.000 180.6);
   --color-neutral-300: oklch(0.861 0.000 180.6);
@@ -238,7 +239,7 @@
   font-family: var(--font-aeonik);
   font-size: 40px;
   line-height: 48px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
@@ -246,7 +247,7 @@
   font-family: var(--font-aeonik);
   font-size: 24px;
   line-height: 32px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.005em;
 }
 
@@ -269,7 +270,7 @@
   font-family: var(--font-sans);
   font-size: 20px;
   line-height: 28px;
-  font-weight: 550;
+  font-weight: 500;
   letter-spacing: -0.006em;
 }
 

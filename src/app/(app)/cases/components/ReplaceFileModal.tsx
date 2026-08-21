@@ -116,7 +116,7 @@ export function ReplaceFileModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
       
       {/* ─── STEP 1: FORM MODAL (Left Card in Screenshot) ───────────────────── */}
       {step === "form" && (
@@ -124,7 +124,7 @@ export function ReplaceFileModal({
           
           {/* Header */}
           <div className="flex items-center justify-between w-full">
-            <h2 className="text-[18px] font-semibold text-[#171717] tracking-tight">
+            <h2 className="text-[18px] font-medium font-aeonik-medium text-[#171717] tracking-tight">
               Replace file
             </h2>
             <button

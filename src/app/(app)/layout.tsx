@@ -78,7 +78,7 @@ export default function ProtectedAppLayout({
   }
 
   return (
-    <div className="h-screen w-screen flex overflow-hidden bg-[#171717] font-sans select-none">
+    <div className="h-screen w-screen flex overflow-hidden bg-[#171717] font-sans">
       {/* Sidebar Navigation */}
       <Sidebar userInfo={userInfo} isOpen={isSidebarOpen} onToggle={handleToggleSidebar} />
 
@@ -133,7 +133,7 @@ export default function ProtectedAppLayout({
         </header>
 
         {/* Gray Main Workspace Panel [Rectangle 6] */}
-        <main className="flex-1 bg-[#F7F7F7] rounded-[16px] shadow-x-small overflow-y-auto overflow-x-hidden min-w-0 flex flex-col">
+        <main className="flex-1 bg-[#F5F5F5] rounded-[16px] shadow-x-small overflow-y-auto overflow-x-hidden min-w-0 flex flex-col">
           {children}
         </main>
       </div>

@@ -25,110 +25,6 @@ interface TaskItem {
   isCompleted: boolean;
 }
 
-const initialTasks: TaskItem[] = [
-  // General (1 of 3 completed)
-  {
-    id: "t1",
-    category: "General",
-    title: "Onboard Migrant",
-    description: "Walk the migrant through the information and steps required to begin.",
-    status: "general",
-    isCompleted: false,
-  },
-  {
-    id: "t2",
-    category: "General",
-    title: "Assign Case Manager",
-    description: "Assign a primary immigration advisor to oversee this case.",
-    status: "completed",
-    isCompleted: true,
-  },
-  {
-    id: "t3",
-    category: "General",
-    title: "Confirm Case Scope",
-    description: "Review target start date and sponsor license constraints.",
-    status: "completed",
-    isCompleted: true,
-  },
-
-  // Compliance (1 of 3 completed)
-  {
-    id: "t4",
-    category: "Compliance",
-    title: "Complete RTW check",
-    description:
-      "No share code result has been uploaded. The employer must verify migrant's right to work in the UK before employment commences or within 28 days.",
-    status: "crucial",
-    isCompleted: false,
-  },
-  {
-    id: "t5",
-    category: "Compliance",
-    title: "Verify address with proof document",
-    description: "Confirm migrant home address against utility bill or bank statement.",
-    status: "completed",
-    isCompleted: true,
-  },
-  {
-    id: "t6",
-    category: "Compliance",
-    title: "Check passport validity",
-    description: "Ensure migrant passport has at least 6 months validity from intended travel date.",
-    status: "completed",
-    isCompleted: true,
-  },
-
-  // Reporting (1 of 1 completed)
-  {
-    id: "t7",
-    category: "Reporting",
-    title: "Schedule first SMS report",
-    description: "Set up automated UKVI SMS report notification schedule for key milestones.",
-    status: "completed",
-    isCompleted: true,
-  },
-
-  // Documents (0 of 3 completed)
-  {
-    id: "t8",
-    category: "Documents",
-    title: "Upload Migrant Signed Docs (MSDs)",
-    description: "Upload documents that have been reviewed and signed by the migrant.",
-    status: "under_review",
-    isCompleted: false,
-  },
-  {
-    id: "t9",
-    category: "Documents",
-    title: "Upload qualification certificates",
-    description:
-      "Degree certificate and ENIC/NARIC statement are both missing. Required for Appendix D compliance and SOC code justification.",
-    status: "crucial",
-    isCompleted: false,
-  },
-  {
-    id: "t10",
-    category: "Documents",
-    title: "Upload visa grant letter",
-    description:
-      "Visa decision letter not yet stored in vault. Required to confirm visa conditions and expiry date on file.",
-    status: "crucial",
-    isCompleted: false,
-  },
-
-  // Visa & Immigration (0 of 1 completed)
-  {
-    id: "t11",
-    category: "Visa & Immigration",
-    title: "Plan visa renewal",
-    description:
-      "Current visa expires 31 Mar 2027. The renewal window opens approximately 10 months before expiry. Set a reminder for January 2027.",
-    status: "general",
-    isCompleted: false,
-  },
-];
-
 interface RawTaskPayload {
   id?: string | number;
   title?: string;
@@ -243,33 +139,43 @@ export function TasksTab({ caseId }: { caseId?: string }) {
     "Visa & Immigration",
   ];
 
-  const handleToggleComplete = (taskId: string) => {
+  const handleToggleComplete = async (taskId: string) => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
     const nextState = !targetTask.isCompleted;
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, isCompleted: nextState, status: nextState ? "completed" : "general" }
+          : t
+      )
+    );
     toast.success(
       nextState
         ? `"${targetTask.title}" marked as complete`
         : `"${targetTask.title}" marked as pending`
     );
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId
-          ? { ...t, isCompleted: nextState, status: nextState ? "completed" : t.status }
-          : t
-      )
-    );
+    if (!isNaN(Number(taskId))) {
+      try {
+        const formData = new FormData();
+        formData.append("completed", String(nextState));
+        formData.append("status", nextState ? "completed" : "pending");
+        await apiClient.patch(`${ENDPOINTS.tasks.base}/${taskId}`, { body: formData });
+      } catch (err) {
+        console.error("Failed to update task on backend:", err);
+      }
+    }
   };
 
   const handleResolve = (task: TaskItem) => {
     toast.info(`Resolving "${task.title}"`, {
-      description: "Opening action handler...",
+      description: "Action initiated for task",
     });
     handleToggleComplete(task.id);
   };
 
   return (
-    <div className="w-full flex flex-col gap-8 font-sans select-none animate-fade-in text-left">
+    <div className="w-full flex flex-col gap-8 font-sans animate-fade-in text-left">
       {error && (
         <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-4 text-[14px] text-[#FB3748] flex items-center justify-between">
           <span>{error}</span>

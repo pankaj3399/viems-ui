@@ -12,15 +12,15 @@ const badgeVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80 hover:bg-neutral-200/80",
         destructive:
-          "bg-error-light text-error-dark focus-visible:ring-error-dark/20 hover:brightness-95",
+          "bg-error-light text-error-dark focus-visible:ring-error-dark/20 hover:bg-[#FDD5D7] hover:text-[#520C12]",
         outline:
           "border-border text-foreground hover:bg-muted [a]:hover:bg-muted",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
-        success: "bg-success-light text-success-dark hover:brightness-95",
-        warning: "bg-warning-light text-warning-dark hover:brightness-95",
-        info: "bg-info-light text-info-dark hover:brightness-95",
+        success: "bg-success-light text-success-dark hover:bg-[#D0F2DF] hover:text-[#06331C]",
+        warning: "bg-warning-light text-warning-dark hover:bg-[#FEEFC7] hover:text-[#4D3B12]",
+        info: "bg-info-light text-info-dark hover:bg-[#D7E4FF] hover:text-[#0D194B]",
         "neutral-lighter": "bg-neutral-100 text-neutral-600 hover:bg-neutral-200",
       },
     },

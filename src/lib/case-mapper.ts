@@ -1,4 +1,4 @@
-import { formatFullName, getInitials, getCaseAction } from "./utils";
+import { formatFullName, formatTitleCase, getInitials, getCaseAction } from "./utils";
 import { getCountryInfo } from "./country";
 import { CASE_STATUSES } from "@/app/(app)/cases/case-status-data";
 import { RawCaseRecord, VISA_OUTCOME_CODES } from "@/types/api";
@@ -66,7 +66,10 @@ export function getStatusDetails(rawStatus?: string): { label: string; color: "s
 }
 
 export function mapBackendCaseToRow(c: RawCaseRecord, completedActions?: Set<string>): CaseRow {
-  const name = formatFullName(c.first_name, c.last_name);
+  const name =
+    formatFullName(c.first_name, c.last_name) ||
+    formatTitleCase((c as any).name || (c as any).stage_name || (c as any).stageName) ||
+    "Unknown Migrant";
   const initials = getInitials(name);
 
   const { label: status, color: statusColor } = getStatusDetails(c.case_status);
@@ -183,3 +186,43 @@ export function isCaseRefused(c: CaseRow | RawCaseRecord): boolean {
     c.visa === VISA_OUTCOME_CODES.REFUSED
   );
 }
+
+export function isCaseInProgress(c: CaseRow | RawCaseRecord): boolean {
+  if (!c) return false;
+  if (isCaseRefused(c)) return false;
+
+  const s = String(c.status || c.case_status || "").toLowerCase().replace(/_/g, " ").trim();
+
+  // Exclude approved / granted / done
+  if (
+    s === "visa approved" ||
+    s === "approved" ||
+    s.includes("approved") ||
+    s === "granted" ||
+    s === "done"
+  ) {
+    return false;
+  }
+
+  // Exclude closed / archived / withdrawn
+  if (
+    s === "case closed" ||
+    s === "closed" ||
+    s.includes("closed") ||
+    s === "archived" ||
+    s.includes("archived") ||
+    s === "application withdrawn" ||
+    s === "withdrawn" ||
+    s.includes("withdrawn")
+  ) {
+    return false;
+  }
+
+  // Exclude ineligible / high risk
+  if (s === "ineligible / high risk" || s === "ineligible high risk" || s.includes("ineligible")) {
+    return false;
+  }
+
+  return true;
+}
+

@@ -66,7 +66,7 @@ export function CaseHeader({
   const activeSoc = socCode || null;
 
   return (
-    <div className="px-[64px] pt-[32px] pb-[24px] flex items-center justify-between font-sans select-none">
+    <div className="px-[64px] pt-[32px] pb-[24px] flex items-center justify-between font-sans">
       {/* Left: Back Button + Avatar + Name & Subtitle */}
       <div className="flex items-center gap-[16px] flex-1 min-w-0">
         {/* Back Button */}
@@ -88,7 +88,7 @@ export function CaseHeader({
             className="size-14 rounded-full object-cover shrink-0"
           />
         ) : (
-          <div className="size-14 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[20px] shrink-0 font-sans select-none">
+          <div className="size-14 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 font-sans">
             {initials}
           </div>
         )}

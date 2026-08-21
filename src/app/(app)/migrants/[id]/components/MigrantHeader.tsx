@@ -91,15 +91,15 @@ export function MigrantHeader({
   const statusLabel = approvalStatus || "UNKNOWN";
 
   return (
-    <div className="px-[64px] pt-[32px] pb-[24px] flex items-center justify-between font-sans select-none bg-white rounded-t-[16px]">
+    <div className="px-[64px] pt-[32px] pb-[24px] flex items-center justify-between font-sans bg-white rounded-t-[16px]">
       {/* Left: Back Button + Avatar + Name & Subtitle */}
       <div className="flex items-center gap-[16px] flex-1 min-w-0">
-        {/* Back Button: 32×32, #F7F7F7, rounded-[10px], shadow-x-small */}
+        {/* Back Button: 32×32, #F5F5F5, rounded-[10px], shadow-x-small */}
         <Button
           type="button"
           variant="ghost"
           onClick={onBack}
-          className="size-[32px] p-0 bg-[#F7F7F7] hover:bg-[#EBEBEB] shadow-x-small rounded-[10px] flex items-center justify-center cursor-pointer transition-colors border-0 shrink-0 text-[#5C5C5C] hover:text-[#171717]"
+          className="size-[32px] p-0 bg-[#F5F5F5] hover:bg-[#EBEBEB] shadow-x-small rounded-[10px] flex items-center justify-center cursor-pointer transition-colors border-0 shrink-0 text-[#5C5C5C] hover:text-[#171717]"
           title="Go back"
         >
           <RiArrowLeftSLine className="size-5" />
@@ -114,7 +114,7 @@ export function MigrantHeader({
             className="size-[56px] rounded-full object-cover shrink-0"
           />
         ) : (
-          <div className="size-[56px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[20px] shrink-0 font-sans select-none">
+          <div className="size-[56px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 font-sans">
             {initials}
           </div>
         )}

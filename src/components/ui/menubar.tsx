@@ -59,7 +59,7 @@ function MenubarTrigger({
     <DropdownMenuTrigger
       data-slot="menubar-trigger"
       className={cn(
-        "flex cursor-pointer items-center rounded-sm px-1.5 py-[2px] text-sm font-medium outline-hidden select-none transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted",
+        "flex cursor-pointer items-center rounded-sm px-1.5 py-[2px] text-sm font-medium outline-hidden  transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted",
         className
       )}
       {...props}
@@ -120,7 +120,7 @@ function MenubarCheckboxItem({
       data-slot="menubar-checkbox-item"
       data-inset={inset}
       className={cn(
-        "relative flex cursor-pointer items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden select-none transition-colors hover:bg-accent hover:text-accent-foreground data-focus:bg-accent data-focus:text-accent-foreground data-focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "relative flex cursor-pointer items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden  transition-colors hover:bg-accent hover:text-accent-foreground data-focus:bg-accent data-focus:text-accent-foreground data-focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className
       )}
       checked={checked}
@@ -156,7 +156,7 @@ function MenubarRadioItem({
       data-slot="menubar-radio-item"
       data-inset={inset}
       className={cn(
-        "relative flex cursor-pointer items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden select-none transition-colors hover:bg-accent hover:text-accent-foreground data-focus:bg-accent data-focus:text-accent-foreground data-focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "relative flex cursor-pointer items-center gap-1.5 rounded-md py-1 pr-1.5 pl-7 text-sm outline-hidden  transition-colors hover:bg-accent hover:text-accent-foreground data-focus:bg-accent data-focus:text-accent-foreground data-focus:**:text-accent-foreground data-inset:pl-7 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}

@@ -58,15 +58,17 @@ interface ComplianceCardProps {
   tasks: number;
   docs: number;
   items: ComplianceItem[];
+  onViewAll?: () => void;
 }
 
-export function ComplianceCard({ percentage, tasks, docs, items }: ComplianceCardProps) {
+export function ComplianceCard({ percentage, tasks, docs, items, onViewAll }: ComplianceCardProps) {
   return (
     <div className="flex flex-col gap-lg">
       <div className="flex items-center justify-between">
         <h2 className="font-aeonik-medium text-[20px] text-[#171717] leading-[32px]">Compliance health</h2>
         <button
           type="button"
+          onClick={onViewAll}
           className="text-label-sm text-[#5C5C5C] hover:text-[#171717] cursor-pointer transition-colors bg-transparent border-0 p-0"
         >
           View all
