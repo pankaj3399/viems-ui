@@ -37,7 +37,10 @@ export function DeleteTravelHistoryModal({
   const [submitting, setSubmitting] = React.useState(false);
 
   const handleDelete = async () => {
-    if (!migrantId || !recordId) return;
+    if (!migrantId || !recordId) {
+      toast.error("Missing migrant or record identifier");
+      return;
+    }
 
     try {
       setSubmitting(true);

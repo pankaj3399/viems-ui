@@ -147,13 +147,13 @@ export function UserProfileDropdown({
           <span className="flex-1">Help & support</span>
         </DropdownMenuItem>
 
-        {/* Item: What's new */}
+        {/* Item: Notifications */}
         <DropdownMenuItem
           onClick={() => router.push("/notifications")}
           className="w-[284px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[12px] font-medium text-[#5C5C5C] hover:bg-neutral-50 hover:text-neutral-900"
         >
           <RiNotification3Line className="size-5 text-[#A4A4A4]" />
-          <span className="flex-1">What&apos;s new</span>
+          <span className="flex-1">Notifications</span>
         </DropdownMenuItem>
 
         {/* Divider */}

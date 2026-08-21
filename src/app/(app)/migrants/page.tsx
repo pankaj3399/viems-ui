@@ -104,7 +104,8 @@ export default function MigrantsPage() {
         const mapped: MigrantRow[] = rawArr.map((c, i) => {
           const name = formatFullName(c.first_name, c.last_name) || c.name || "Unknown Migrant";
           const initials = getInitials(name) || "—";
-          const caseId = c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/2026` : `CASE-${i + 1}`);
+          const year = c.created_at || c.createdAt ? new Date(c.created_at || c.createdAt).getFullYear() : new Date().getFullYear();
+          const caseId = c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/${year}` : `CASE-${i + 1}`);
           
           const rawVal =
             c.nationality_value ||
@@ -184,7 +185,7 @@ export default function MigrantsPage() {
               migrationColor = "active";
             } else {
               migration = "Unknown";
-              migrationColor = "archived";
+              migrationColor = "unknown";
             }
           }
 
@@ -202,10 +203,10 @@ export default function MigrantsPage() {
             } else {
               actionColor = "blue";
             }
-          } else if (migrationColor === "pending" || migration.includes("RTW PENDING")) {
+          } else if (migrationColor === "pending" || migration.toUpperCase().includes("RTW PENDING")) {
             action = "Check RTW";
             actionColor = "red";
-          } else if (migrationColor === "pre" || migration.includes("PRE-ARRIVAL")) {
+          } else if (migrationColor === "pre" || migration.toUpperCase().includes("PRE-ARRIVAL")) {
             action = "Schedule RTW check";
             actionColor = "yellow";
           } else if (migrationColor === "withdrawn" || normStatus.includes("refused") || normStatus.includes("withdrawn")) {
@@ -279,7 +280,6 @@ export default function MigrantsPage() {
       count,
     }));
   }, [migrants]);
-
   React.useEffect(() => {
     setCurrentPage(1);
   }, [countryFilter, statusFilter, needsActionOnly, searchQuery, sortField, sortDirection]);
@@ -290,7 +290,7 @@ export default function MigrantsPage() {
         const cf = countryFilter.toLowerCase().trim();
         const matches =
           m.countryCode.toLowerCase() === cf ||
-          m.country.toLowerCase().includes(cf) ||
+          m.country.toLowerCase() === cf ||
           m.countryHalf.toLowerCase() === cf;
         if (!matches) return false;
       }
@@ -314,13 +314,19 @@ export default function MigrantsPage() {
     if (!sortField) return list;
 
     return [...list].sort((a, b) => {
-      const valA = (a[sortField] || "").toString().toLowerCase();
-      const valB = (b[sortField] || "").toString().toLowerCase();
-      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
-      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      if (sortField === "status" || sortField === "migration" || sortField === "name" || sortField === "country" || sortField === "caseId" || sortField === "group") {
+        const valA = (a[sortField] || "").toString().toLowerCase();
+        const valB = (b[sortField] || "").toString().toLowerCase();
+        if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      }
       return 0;
     });
   }, [migrants, countryFilter, statusFilter, needsActionOnly, searchQuery, sortField, sortDirection]);
+
+  const hasActiveFilters = Boolean(
+    searchQuery || countryFilter || statusFilter || needsActionOnly || sortField
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredMigrants.length / itemsPerPage));
 
@@ -427,16 +433,19 @@ export default function MigrantsPage() {
           </div>
 
           {/* Filter Button */}
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            onClick={resetFilters}
-            className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] shrink-0"
-            title="Reset filters"
-          >
-            <RiFilter3Line className="size-5 text-[#5C5C5C]" />
-          </Button>
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              aria-label="Reset filters"
+              onClick={resetFilters}
+              className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] shrink-0"
+              title="Reset filters"
+            >
+              <RiFilter3Line className="size-5 text-[#5C5C5C]" />
+            </Button>
+          )}
 
           {/* Country Filter Dropdown */}
           <CountryFilterDropdown
@@ -598,7 +607,7 @@ export default function MigrantsPage() {
 
                 return (
                   <div
-                    key={migrant.id ? `migrant-${migrant.id}-${idx}` : `migrant-${migrant.caseId}-${idx}`}
+                    key={migrant.id ? `migrant-${migrant.id}` : `migrant-${migrant.caseId}`}
                     role="button"
                     tabIndex={0}
                     onClick={(e) => {

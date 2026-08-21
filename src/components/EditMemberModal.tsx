@@ -52,7 +52,7 @@ const STANDARD_ROLES = [
 
 // Normalizer: ensures every string is properly formatted with first letter capitalized
 export function normalizeRoleDisplay(role: string): string {
-  if (!role) return "Case Manager";
+  if (!role) return "Compliance Officer";
   const r = role.trim().toUpperCase();
   if (r === "ADMIN") return "Admin";
   if (r === "CASE MANAGER" || r === "CASE_MANAGER") return "Case Manager";

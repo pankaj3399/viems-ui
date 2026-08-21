@@ -442,11 +442,16 @@ export interface RawTravelHistoryRecord {
   direction?: string;
   type?: string;
   port?: string;
+  airport?: string;
   location?: string;
   routeFlight?: string;
   flightNumber?: string;
   method?: string;
   transport?: string;
+  airline?: string;
+  status?: string;
+  notes?: string;
+  country?: string;
 }
 
 export interface UserProfileResponse {

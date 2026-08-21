@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DocumentItem } from "./types";
+import { getInitials } from "@/lib/utils";
 
 interface FilePreviewModalProps {
   isOpen: boolean;
@@ -413,7 +414,7 @@ export function FilePreviewModal({
                     </h3>
                     <div className="bg-[#F9FAFB] rounded-[12px] p-3.5 flex items-center gap-3 border border-[#F3F4F6]">
                       <div className="size-10 rounded-full bg-neutral-800 text-white font-medium flex items-center justify-center shrink-0">
-                        {document.migrantName ? document.migrantName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "VI"}
+                        {document.migrantName ? getInitials(document.migrantName) : "VI"}
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className="text-[14px] font-semibold text-[#171717] truncate">

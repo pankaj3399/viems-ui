@@ -101,7 +101,7 @@ export function ReplaceFileModal({
     };
 
     toast.success(`${documentType || document.name} replaced successfully`, {
-      description: "AI automatically extracted 9 fields and updated the profile details.",
+      description: "Successfully updated document details.",
     });
 
     if (onReplaceSuccess) {

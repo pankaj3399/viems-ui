@@ -33,7 +33,7 @@ import { TravelHistoryModal, TravelHistoryRecordData } from "@/app/(app)/cases/c
 import { DeleteTravelHistoryModal } from "@/app/(app)/cases/components/DeleteTravelHistoryModal";
 
 interface TravelHistoryRow {
-  id: number;
+  id: number | null;
   direction: "IN" | "OUT";
   date: string;
   dateValue: number;
@@ -47,7 +47,7 @@ interface TravelHistoryRow {
 }
 
 interface TravelHistoryTabProps {
-  migrant?: { id?: string | number; [key: string]: unknown } | null;
+  migrant?: { id?: string | number; migrantId?: string | number; [key: string]: unknown } | null;
   migrantId?: string | number;
 }
 
@@ -63,7 +63,7 @@ function formatTableDate(rawDate?: string): string {
 }
 
 export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHistoryTabProps) {
-  const effectiveMigrantId = propMigrantId || migrant?.id || (migrant as any)?.migrantId;
+  const effectiveMigrantId = propMigrantId || migrant?.id || migrant?.migrantId;
   
   const [searchQuery, setSearchQuery] = React.useState("");
   const [directionFilter, setDirectionFilter] = React.useState<"ALL" | "IN" | "OUT">("ALL");
@@ -96,12 +96,12 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
         ENDPOINTS.migrants.travelHistory(effectiveMigrantId)
       );
       if (Array.isArray(res)) {
-        const mapped: TravelHistoryRow[] = res.map((r: any, idx: number) => {
-          const rawDate = r.travelDate || r.date || "";
+        const mapped: TravelHistoryRow[] = res.map((r: RawTravelHistoryRecord) => {
+          const rawDate = r.travelDate || (r as any).date || "";
           const d = rawDate ? new Date(rawDate) : null;
           const dateValue = d && !isNaN(d.getTime()) ? d.getTime() : 0;
-          const numId = typeof r.id === "number" ? r.id : idx + 1;
-          const rawDir = (r.direction || r.type || "IN").toUpperCase();
+          const numId = typeof r.id === "number" ? r.id : (typeof r.id === "string" && !isNaN(Number(r.id)) ? Number(r.id) : null);
+          const rawDir = (r.direction || (r as any).type || "IN").toUpperCase();
           const direction: "IN" | "OUT" = rawDir === "OUT" || rawDir === "LEAVING" ? "OUT" : "IN";
 
           return {
@@ -110,18 +110,21 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
             date: formatTableDate(rawDate),
             rawDate,
             dateValue,
-            port: r.airport || r.port || r.location || "—",
-            routeFlight: r.flightNumber || r.routeFlight || "—",
-            method: r.airline || r.method || r.transport || "Air",
+            port: r.airport || (r as any).port || (r as any).location || "—",
+            routeFlight: r.flightNumber || (r as any).routeFlight || "—",
+            method: (r as any).airline || r.method || (r as any).transport || "Air",
             status: r.status,
             notes: r.notes,
-            country: r.country,
+            country: (r as any).country,
           };
         });
         setRecords(mapped);
+      } else {
+        setRecords([]);
       }
     } catch (err: unknown) {
       console.error("Failed to load travel history:", err);
+      setRecords([]);
     } finally {
       setLoading(false);
     }
@@ -132,24 +135,17 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
   }, [fetchTravelHistory]);
 
   const filteredRecords = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const list = records.filter((item) => {
-      // Direction filter
-      if (directionFilter !== "ALL" && item.direction !== directionFilter) {
-        return false;
-      }
-
-      // Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        return (
-          item.direction.toLowerCase().includes(q) ||
-          item.date.toLowerCase().includes(q) ||
-          item.port.toLowerCase().includes(q) ||
-          item.routeFlight.toLowerCase().includes(q) ||
-          item.method.toLowerCase().includes(q)
-        );
-      }
-      return true;
+      const matchesDirection = directionFilter === "ALL" || item.direction === directionFilter;
+      const matchesSearch = !q || (
+        item.direction.toLowerCase().includes(q) ||
+        item.date.toLowerCase().includes(q) ||
+        item.port.toLowerCase().includes(q) ||
+        item.routeFlight.toLowerCase().includes(q) ||
+        item.method.toLowerCase().includes(q)
+      );
+      return matchesDirection && matchesSearch;
     });
 
     if (!sortField) return list;
@@ -174,6 +170,7 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
   };
 
   const handleOpenEdit = (row: TravelHistoryRow) => {
+    if (row.id === null) return;
     setEditingRecord({
       id: row.id,
       direction: row.direction === "IN" ? "Entering" : "Leaving",
@@ -189,6 +186,7 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
   };
 
   const handleOpenDelete = (row: TravelHistoryRow) => {
+    if (row.id === null) return;
     setRecordToDelete({
       id: row.id,
       direction: row.direction,
@@ -291,13 +289,13 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
           </Popover>
         </div>
 
-        {/* Add Record Action */}
+        {/* Add Record Button */}
         <Button
           type="button"
           onClick={handleOpenAdd}
-          className="h-[32px] px-3 bg-[#171717] hover:bg-[#262626] text-white rounded-[8px] flex items-center gap-[6px] text-[13px] font-medium shadow-[0px_1px_2px_rgba(10,13,20,0.03)] cursor-pointer transition-colors"
+          className="h-[32px] px-[12px] bg-[#171717] hover:bg-neutral-800 text-white rounded-[8px] text-[13px] font-medium flex items-center gap-[6px] transition-colors cursor-pointer border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] shrink-0"
         >
-          <RiAddLine className="size-4" />
+          <RiAddLine className="size-4 shrink-0" />
           <span>Add Record</span>
         </Button>
       </div>
@@ -306,76 +304,65 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
       <div className="flex flex-col gap-[8px] w-full">
         {/* Table Header */}
         <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-4 flex items-center gap-[24px] w-full">
-          {/* Badge spacer column */}
-          <div className="w-[48px] shrink-0" />
-
-          {/* DATE Header */}
+          <div className="w-[48px] text-[12px] font-semibold text-[#A4A4A4] uppercase tracking-[0.04em]">
+            TYPE
+          </div>
           <Button
             type="button"
             variant="ghost"
             onClick={() => handleSort("date")}
-            className="w-[116px] flex items-center gap-1 text-[12px] font-medium text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
+            className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>DATE</span>
             {renderSortIcon("date")}
           </Button>
-
-          {/* PORT Header */}
           <Button
             type="button"
             variant="ghost"
             onClick={() => handleSort("port")}
-            className="w-[352px] flex items-center gap-1 text-[12px] font-medium text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
+            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
-            <span>PORT</span>
+            <span>PORT / AIRPORT</span>
             {renderSortIcon("port")}
           </Button>
-
-          {/* ROUTE/FLIGHT Header */}
           <Button
             type="button"
             variant="ghost"
             onClick={() => handleSort("routeFlight")}
-            className="w-[352px] flex items-center gap-1 text-[12px] font-medium text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
+            className="w-[352px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
-            <span>ROUTE/FLIGHT</span>
+            <span>ROUTE / FLIGHT</span>
             {renderSortIcon("routeFlight")}
           </Button>
-
-          {/* METHOD Header */}
           <Button
             type="button"
             variant="ghost"
             onClick={() => handleSort("method")}
-            className="w-[132px] flex items-center gap-1 text-[12px] font-medium text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
+            className="w-[132px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
             <span>METHOD</span>
             {renderSortIcon("method")}
           </Button>
-
-          {/* Actions spacer */}
           <div className="w-[36px] shrink-0" />
         </div>
 
-        {/* Table Rows */}
-        <div className="flex flex-col gap-[4px] w-full">
+        {/* Table Body */}
+        <div className="flex flex-col gap-[8px] w-full">
           {loading ? (
-            <div className="w-full bg-white border border-[#EBEBEB] rounded-[16px] p-8 text-center flex flex-col items-center justify-center">
-              <span className="text-[14px] font-medium text-[#5C5C5C] animate-pulse">Loading travel history...</span>
+            <div className="w-full h-[120px] bg-white rounded-[16px] flex items-center justify-center text-neutral-400">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-neutral-800"></div>
             </div>
           ) : filteredRecords.length === 0 ? (
-            <div className="w-full bg-white border border-[#EBEBEB] rounded-[16px] p-12 text-center flex flex-col items-center justify-center gap-3">
-              <div className="size-12 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#A4A4A4]">
-                <RiSuitcase2Line className="size-6" />
+            <div className="w-full py-12 bg-white rounded-[16px] flex flex-col items-center justify-center gap-2 text-[#5C5C5C] border border-dashed border-[#EBEBEB]">
+              <div className="size-10 rounded-full bg-[#F5F5F5] flex items-center justify-center text-[#A4A4A4]">
+                <RiSuitcase2Line className="size-5" />
               </div>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-[15px] font-medium text-[#171717]">No travel history found</span>
-                <span className="text-[13px] text-[#7B7B7B]">
-                  {searchQuery || directionFilter !== "ALL"
-                    ? "Try adjusting your search query or filter."
-                    : "No movement records have been added for this migrant yet."}
-                </span>
-              </div>
+              <span className="text-[14px] font-medium text-[#171717]">No travel records found</span>
+              <p className="text-[12px] text-[#A4A4A4]">
+                {searchQuery || directionFilter !== "ALL"
+                  ? "Try adjusting your filters or search query"
+                  : "Start by logging a travel movement for this migrant"}
+              </p>
               <Button
                 type="button"
                 onClick={handleOpenAdd}
@@ -387,9 +374,9 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
               </Button>
             </div>
           ) : (
-            filteredRecords.map((row) => (
+            filteredRecords.map((row, idx) => (
               <div
-                key={row.id}
+                key={row.id !== null ? row.id : `travel-${row.rawDate}-${idx}`}
                 className="group w-full h-[56px] bg-white border border-transparent hover:border-[#EBEBEB] rounded-[16px] px-4 flex items-center gap-[24px] transition-all shadow-[0px_1px_2px_rgba(10,13,20,0.03)]"
               >
                 {/* Direction Badge (IN / OUT) */}
@@ -427,39 +414,41 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
 
                 {/* Row Actions Menu */}
                 <div className="w-[36px] shrink-0 flex items-center justify-end">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <button
-                          type="button"
-                          className="size-7 opacity-0 group-hover:opacity-100 hover:bg-[#F5F5F5] rounded-[6px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-all cursor-pointer border-0"
-                          title="Record options"
+                  {row.id !== null && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <button
+                            type="button"
+                            className="size-7 opacity-0 group-hover:opacity-100 hover:bg-[#F5F5F5] rounded-[6px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-all cursor-pointer border-0"
+                            title="Record options"
+                          >
+                            <RiMore2Line className="size-4" />
+                          </button>
+                        }
+                      />
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-[150px] bg-white border border-[#EBEBEB] rounded-[12px] shadow-regular-medium p-1 flex flex-col gap-0.5 z-50 font-sans"
+                      >
+                        <DropdownMenuItem
+                          onClick={() => handleOpenEdit(row)}
+                          className="px-2.5 py-1.5 text-[13px] font-medium text-[#171717] hover:bg-[#F5F5F5] rounded-[6px] flex items-center gap-2 cursor-pointer transition-colors"
                         >
-                          <RiMore2Line className="size-4" />
-                        </button>
-                      }
-                    />
-                    <DropdownMenuContent
-                      align="end"
-                      className="w-[150px] bg-white border border-[#EBEBEB] rounded-[12px] shadow-regular-medium p-1 flex flex-col gap-0.5 z-50 font-sans"
-                    >
-                      <DropdownMenuItem
-                        onClick={() => handleOpenEdit(row)}
-                        className="px-2.5 py-1.5 text-[13px] font-medium text-[#171717] hover:bg-[#F5F5F5] rounded-[6px] flex items-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <RiEditBoxLine className="size-4 text-[#5C5C5C]" />
-                        <span>Edit</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator className="my-1 bg-[#EBEBEB]" />
-                      <DropdownMenuItem
-                        onClick={() => handleOpenDelete(row)}
-                        className="px-2.5 py-1.5 text-[13px] font-medium text-[#FB3748] hover:bg-[#FFF5F5] rounded-[6px] flex items-center gap-2 cursor-pointer transition-colors"
-                      >
-                        <RiDeleteBinLine className="size-4 text-[#FB3748]" />
-                        <span>Delete</span>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                          <RiEditBoxLine className="size-4 text-[#5C5C5C]" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator className="my-1 bg-[#EBEBEB]" />
+                        <DropdownMenuItem
+                          onClick={() => handleOpenDelete(row)}
+                          className="px-2.5 py-1.5 text-[13px] font-medium text-[#FB3748] hover:bg-[#FFF5F5] rounded-[6px] flex items-center gap-2 cursor-pointer transition-colors"
+                        >
+                          <RiDeleteBinLine className="size-4 text-[#FB3748]" />
+                          <span>Delete</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
             ))
@@ -471,7 +460,7 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
       <TravelHistoryModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
-        migrantId={effectiveMigrantId}
+        migrantId={effectiveMigrantId || ""}
         record={editingRecord}
         onSuccess={fetchTravelHistory}
       />
@@ -480,7 +469,7 @@ export function TravelHistoryTab({ migrant, migrantId: propMigrantId }: TravelHi
       <DeleteTravelHistoryModal
         open={isDeleteModalOpen}
         onOpenChange={setIsDeleteModalOpen}
-        migrantId={effectiveMigrantId}
+        migrantId={effectiveMigrantId || ""}
         recordId={recordToDelete?.id || null}
         recordInfo={recordToDelete}
         onSuccess={fetchTravelHistory}

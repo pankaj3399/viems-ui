@@ -19,7 +19,7 @@ interface StatusFilterDropdownProps {
 
 function formatStatusLabel(label: string) {
   if (!label) return "";
-  if (label === label.toUpperCase() && label.length > 3) {
+  if (label.includes("_") || (label === label.toUpperCase() && label.length > 3)) {
     return label
       .toLowerCase()
       .split(/[\s_]+/)
@@ -51,6 +51,14 @@ export function StatusFilterDropdown({
       return statusColors[status];
     }
     if (
+      normalized.includes("withdrawn") ||
+      normalized.includes("refused") ||
+      normalized.includes("rejected") ||
+      normalized.includes("rtw pending")
+    ) {
+      return "#FB3748";
+    }
+    if (
       normalized.includes("active") ||
       normalized.includes("compliance") ||
       normalized.includes("approved") ||
@@ -68,14 +76,6 @@ export function StatusFilterDropdown({
       normalized.includes("in_progress")
     ) {
       return "#F6B51E";
-    }
-    if (
-      normalized.includes("withdrawn") ||
-      normalized.includes("refused") ||
-      normalized.includes("rejected") ||
-      normalized.includes("rtw pending")
-    ) {
-      return "#FB3748";
     }
     return "#7B7B7B";
   };

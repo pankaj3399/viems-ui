@@ -254,7 +254,7 @@ function mapBackendMigrantToDetail(c: any) {
   // Case ID & CoS
   const caseIdDisplay = c.caseIdNumber && c.relatedYear
     ? `${c.caseIdNumber}/${c.relatedYear}`
-    : c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/2026` : "—");
+    : c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}` : "—");
 
   const cosRef = c.cosStatus?.assigned?.cosNumber || c.cosNumber || c.cosReference || m.cases?.[0]?.cosNumber || "";
   const socCode = c.personal?.jobSocCode || c.personal?.socCode || c.socCode || m.cases?.[0]?.jobSocCode || "";
@@ -277,25 +277,16 @@ function mapBackendMigrantToDetail(c: any) {
 
   const fullHomeAddress = addressLines.length > 0 ? addressLines.join("\n") : "";
 
-  // Emergency contact from localStorage or database
+  // Emergency contact from database object
   const realMigrantId = c.migrant?.id || c.migrant_id || m.id || c.id || "";
   const migrantIdStr = String(realMigrantId);
-  let emergency = {
-    name: "",
-    relationship: "",
-    phone: "",
-    email: "",
+  const ec = m.emergencyContact || m.contacts?.emergency_contact || m.emergency_contact || m.contacts || {};
+  const emergency = {
+    name: ec.name || ec.emergency_contact_name || "",
+    relationship: ec.relationship || ec.emergency_contact_relationship || "",
+    phone: ec.phone || ec.emergency_contact_phone || "",
+    email: ec.email || ec.emergency_contact_email || "",
   };
-  if (typeof window !== "undefined" && migrantIdStr) {
-    const stored = localStorage.getItem(`emergency_${migrantIdStr}`);
-    if (stored) {
-      try {
-        emergency = JSON.parse(stored);
-      } catch (e) {
-        console.error("Failed to parse emergency contact:", e);
-      }
-    }
-  }
 
   return {
     id: m.id || c.id || 1,
@@ -342,7 +333,7 @@ function mapBackendMigrantToDetail(c: any) {
     },
     visa: {
       daysLeft,
-      totalDays: totalDays || 365,
+      totalDays: totalDays || 0,
       startDate: visaStartDate ? new Date(visaStartDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
       endDate: visaEndDate ? new Date(visaEndDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—",
       renewalWindow,
@@ -394,7 +385,12 @@ export default function MigrantDetailPage() {
         if (caseRes && (caseRes.id || caseRes.caseNumber || caseRes.migrant || caseRes.personal)) {
           caseData = caseRes;
         }
-      } catch (e) {}
+      } catch (e: any) {
+        const status = e?.status || e?.response?.status;
+        if (status && status !== 404 && status !== 400) {
+          throw e;
+        }
+      }
 
       if (caseData) {
         // ID is a Case ID: lookup the linked migrant ID specifically
@@ -670,16 +666,17 @@ export default function MigrantDetailPage() {
         }}
         onConfirm={async () => {
           try {
-            if (!id) return;
+            const targetId = migrant?.migrantId || id;
+            if (!targetId) return;
             let success = false;
             try {
               await apiClient.delete(ENDPOINTS.cases.toArchive, {
-                data: { data: [{ id }] },
+                data: { data: [{ id: targetId }] },
               });
               success = true;
             } catch (e) {
               await apiClient.delete(`${ENDPOINTS.migrants.base}/to-archive`, {
-                data: { data: [{ id }] },
+                data: { data: [{ id: targetId }] },
               });
               success = true;
             }
@@ -704,16 +701,17 @@ export default function MigrantDetailPage() {
         }}
         onConfirm={async () => {
           try {
-            if (!id) return;
+            const targetId = migrant?.migrantId || id;
+            if (!targetId) return;
             let success = false;
             try {
               await apiClient.delete(ENDPOINTS.cases.archive, {
-                data: { data: [{ id }] },
+                data: { data: [{ id: targetId }] },
               });
               success = true;
             } catch (e) {
               await apiClient.delete(`${ENDPOINTS.migrants.base}/archive`, {
-                data: { data: [{ id }] },
+                data: { data: [{ id: targetId }] },
               });
               success = true;
             }
@@ -735,7 +733,7 @@ export default function MigrantDetailPage() {
           try {
             const formData = new FormData();
             files.forEach((f: File) => formData.append("files", f));
-            formData.append("migrant_id", id);
+            formData.append("migrant_id", migrant?.migrantId || id);
             await apiClient.post(ENDPOINTS.files.upload, formData);
             toast.success("Documents uploaded successfully");
             loadMigrantDetail();

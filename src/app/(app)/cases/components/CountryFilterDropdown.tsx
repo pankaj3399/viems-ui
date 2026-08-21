@@ -77,9 +77,7 @@ export function CountryFilterDropdown({
           variant="outline"
           size="sm"
           className={`h-8 w-auto min-w-[125px] px-[10px] py-[6px] justify-between font-medium rounded-[8px] bg-white border border-[#EBEBEB] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer ${
-            open
-              ? "border-[#171717] text-[#171717]"
-              : value
+            open || value
               ? "border-[#171717] text-[#171717]"
               : "border-[#EBEBEB] text-[#5C5C5C]"
           }`}
@@ -172,7 +170,7 @@ export function CountryFilterDropdown({
         {/* Footer */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-neutral-100 bg-white">
           <span className="text-[13px] text-[#5C5C5C] font-normal whitespace-nowrap shrink-0">
-            {totalCount} results
+            {filteredCountries.length} results
           </span>
           <div className="flex items-center gap-2">
             <Button

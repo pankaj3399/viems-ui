@@ -70,7 +70,6 @@ export function Flag({ country, className = "", ...props }: FlagProps) {
       );
 
     case "ZA":
-    case "SA":
       return (
         <svg className={finalClass} viewBox="0 0 24 24" fill="none" {...props}>
           <rect width="24" height="24" fill="#E21C21" />

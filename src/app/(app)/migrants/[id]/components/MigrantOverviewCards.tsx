@@ -20,10 +20,10 @@ export function MigrantProfileCard({
   initials,
   avatar,
   employer,
-  status = "VISA ACTIVE",
+  status = "UNKNOWN",
 }: MigrantProfileCardProps) {
   const [imgError, setImgError] = React.useState(false);
-  const statusStyle = getStatusBadgeStyle(status || "VISA ACTIVE");
+  const statusStyle = getStatusBadgeStyle(status || "UNKNOWN");
   const displayName = name || "—";
   const displayInitials = initials || "—";
   const displayEmployer = employer || "—";
@@ -57,7 +57,7 @@ export function MigrantProfileCard({
       {/* Status Badge */}
       <div className={`inline-flex items-center gap-[4px] h-[20px] px-[8px] py-[2px] rounded-full text-[11px] font-medium uppercase tracking-[0.02em] ${statusStyle.bg} ${statusStyle.text}`}>
         <span className={`size-1.5 rounded-full ${statusStyle.dot}`} />
-        <span>{status || "VISA ACTIVE"}</span>
+        <span>{status || "UNKNOWN"}</span>
       </div>
     </div>
   );

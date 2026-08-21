@@ -225,7 +225,7 @@ export function SmartUploadModal({
             </span>
           </div>
           <p className="text-[13px] text-[#6B7280] font-normal leading-relaxed pl-7">
-            Drop your files in and system categorises them, extracts key details, updates the profile, and flags anything missing or mismatched.
+            Drop your files in and the system categorises them, extracts key details, updates the profile, and flags anything missing or mismatched.
           </p>
         </div>
 

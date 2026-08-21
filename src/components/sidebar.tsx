@@ -218,6 +218,7 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
       >
         <button
           type="button"
+          aria-label={!isOpen && onToggle ? "Expand sidebar" : "Go to dashboard"}
           className={`flex items-center gap-2 bg-transparent border-0 text-left p-0 min-w-0 ${
             !isOpen && onToggle ? "cursor-pointer" : "cursor-pointer"
           }`}

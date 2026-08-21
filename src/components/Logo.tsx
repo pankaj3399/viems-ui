@@ -114,7 +114,10 @@ export function Logo({
 
   if (href) {
     return (
-      <Link href={href} className="inline-flex items-center group focus:outline-none">
+      <Link
+        href={href}
+        className="inline-flex items-center group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-medium rounded-md"
+      >
         {content}
       </Link>
     );

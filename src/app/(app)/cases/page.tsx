@@ -1441,11 +1441,11 @@ export default function CasesPage() {
                         key={row.id ? `case-refusal-${row.id}` : `case-refusal-${row.caseId}-${idx}`}
                         role="button"
                         tabIndex={0}
-                        onClick={() => router.push(`/cases/${row.id}`)}
+                        onClick={() => { if (row.id) router.push(`/cases/${row.id}`); }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            router.push(`/cases/${row.id}`);
+                            if (row.id) router.push(`/cases/${row.id}`);
                           }
                         }}
                         className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
@@ -1495,7 +1495,7 @@ export default function CasesPage() {
 
                         <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
                           <CaseRowMenu
-                            onViewDetails={() => router.push(`/cases/${row.id}`)}
+                            onViewDetails={() => { if (row.id) router.push(`/cases/${row.id}`); }}
                             onChangeStatus={() => {
                               setStatusModalRow(row);
                               setStatusModalOpen(true);
@@ -1628,11 +1628,11 @@ export default function CasesPage() {
                         key={row.id ? `case-row-${row.id}` : `case-row-${row.caseId}-${idx}`}
                         role="button"
                         tabIndex={0}
-                        onClick={() => router.push(`/cases/${row.id}`)}
+                        onClick={() => { if (row.id) router.push(`/cases/${row.id}`); }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            router.push(`/cases/${row.id}`);
+                            if (row.id) router.push(`/cases/${row.id}`);
                           }
                         }}
                         className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
@@ -1706,7 +1706,7 @@ export default function CasesPage() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActionModalRow(row);
-                                setActionModalOpen(true);
+                                actionModalOpen ? null : setActionModalOpen(true);
                               }}
                             >
                               {row.action}
@@ -1720,7 +1720,7 @@ export default function CasesPage() {
 
                         <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
                           <CaseRowMenu
-                            onViewDetails={() => router.push(`/cases/${row.id}`)}
+                            onViewDetails={() => { if (row.id) router.push(`/cases/${row.id}`); }}
                             onChangeStatus={() => {
                               setStatusModalRow(row);
                               setStatusModalOpen(true);

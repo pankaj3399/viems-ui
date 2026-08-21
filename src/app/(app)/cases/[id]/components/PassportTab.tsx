@@ -11,12 +11,41 @@ import { Flag } from "@/components/ui/flag";
 import { getInitials } from "@/lib/utils";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { FileDocument } from "@/types/api";
 import { FilePreviewModal } from "../../components/FilePreviewModal";
 import { SmartUploadModal } from "../../components/SmartUploadModal";
 import { toast } from "sonner";
 
 interface PassportTabProps {
-  migrant?: any;
+  migrant?: {
+    id?: string | number;
+    migrantId?: string | number;
+    name?: string;
+    avatar?: string;
+    caseId?: string;
+    employer?: string;
+    personalInfo?: {
+      firstName?: string;
+      lastName?: string;
+      nationality?: string;
+      country?: string;
+      nationalityCode?: string;
+      countryOfBirthCode?: string;
+      dob?: string;
+      gender?: string;
+      maritalStatus?: string;
+      cityOfBirth?: string;
+    };
+    passport?: {
+      number?: string;
+      issueDate?: string;
+      expiryDate?: string;
+      issuingAuthority?: string;
+      surname?: string;
+      givenNames?: string;
+    };
+    [key: string]: unknown;
+  } | null;
   onEditPassport?: () => void;
   /** Called after a passport document is uploaded so parent can refresh */
   onPassportUploaded?: () => void;
@@ -48,51 +77,63 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
   const [isUploadOpen, setIsUploadOpen] = React.useState(false);
   const [passportFile, setPassportFile] = React.useState<PassportFileInfo | null>(null);
   const [loadingFile, setLoadingFile] = React.useState(false);
+  const [now, setNow] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    setNow(Date.now());
+  }, []);
 
   // ─── Derived fields with accurate data mapping ────────────────────────────
-  const surname = migrant?.personalInfo?.lastName || migrant?.passport?.surname || "Johnson";
-  const givenNames = migrant?.personalInfo?.firstName || migrant?.passport?.givenNames || "Taylor";
-  const fullName = migrant?.name || `${givenNames} ${surname}`.trim();
+  const surname = migrant?.personalInfo?.lastName || migrant?.passport?.surname || "—";
+  const givenNames = migrant?.personalInfo?.firstName || migrant?.passport?.givenNames || "—";
+  const fullName = migrant?.name || (givenNames !== "—" || surname !== "—" ? `${givenNames !== "—" ? givenNames : ""} ${surname !== "—" ? surname : ""}`.trim() : "—");
 
-  const nationality = migrant?.personalInfo?.nationality || migrant?.personalInfo?.country || "United States";
-  const nationalityCode = migrant?.personalInfo?.nationalityCode || "US";
-  const countryOfBirthCode = migrant?.personalInfo?.countryOfBirthCode || nationalityCode || "US";
+  const nationality = migrant?.personalInfo?.nationality || migrant?.personalInfo?.country || "—";
+  const nationalityCode = migrant?.personalInfo?.nationalityCode || "";
+  const countryOfBirthCode = migrant?.personalInfo?.countryOfBirthCode || nationalityCode || "";
 
-  const dob = migrant?.personalInfo?.dob || "14 Jun 1990";
-  const rawGender = migrant?.personalInfo?.gender || "Male";
-  const gender = rawGender.toLowerCase() === "m" ? "Male" : rawGender.toLowerCase() === "f" ? "Female" : rawGender;
-  const genderShort = gender ? gender.charAt(0).toUpperCase() : "M";
-  const maritalStatus = migrant?.personalInfo?.maritalStatus || "Married";
-  const cityOfBirth = migrant?.personalInfo?.cityOfBirth || "Los Angeles";
-  const placeOfBirthDisplay = cityOfBirth ? (cityOfBirth.includes("CA") ? cityOfBirth : `${cityOfBirth}, CA`) : "Los Angeles, CA";
+  const dob = migrant?.personalInfo?.dob || "—";
+  const rawGender = migrant?.personalInfo?.gender || "";
+  const gender = rawGender ? (rawGender.toLowerCase() === "m" ? "Male" : rawGender.toLowerCase() === "f" ? "Female" : rawGender) : "—";
+  const genderShort = gender !== "—" ? gender.charAt(0).toUpperCase() : "—";
+  const maritalStatus = migrant?.personalInfo?.maritalStatus || "—";
+  const cityOfBirth = migrant?.personalInfo?.cityOfBirth || "—";
+  const placeOfBirthDisplay = cityOfBirth ? cityOfBirth : "—";
 
-  const passportNumber = migrant?.passport?.number || "LQ41932345";
-  const issueDate = migrant?.passport?.issueDate || "22 Nov 2022";
-  const expiryDate = migrant?.passport?.expiryDate || "22 Nov 2027";
-  const issuingAuthority = migrant?.passport?.issuingAuthority || "United States Department of State";
+  const passportNumber = migrant?.passport?.number || "—";
+  const issueDate = migrant?.passport?.issueDate || "—";
+  const expiryDate = migrant?.passport?.expiryDate || "—";
+  const issuingAuthority = migrant?.passport?.issuingAuthority || "—";
   const avatar = migrant?.avatar;
 
-  const nationalityUpper = nationality ? nationality.toUpperCase() : "UNITED STATES OF AMERICA";
+  const nationalityUpper = nationality !== "—" ? nationality.toUpperCase() : "—";
+
+  const hasMrzData = passportNumber !== "—" && surname !== "—" && givenNames !== "—";
+  const hasValidDates = issueDate !== "—" && expiryDate !== "—";
 
   // Machine Readable Zone (MRZ) formatted exactly as international ICAO passport standard
-  const mrzLine1 = `P<USA${surname.toUpperCase()}<<${givenNames.toUpperCase()}<<<<<<<<<<<<<<<<<<`.slice(0, 44);
-  const mrzLine2 = `${passportNumber}USA9006145M2711225<<<<<<<<<<<<<<04`.slice(0, 44);
+  const mrzLine1 = hasMrzData
+    ? `P<USA${surname.toUpperCase()}<<${givenNames.toUpperCase()}<<<<<<<<<<<<<<<<<<`.slice(0, 44)
+    : "";
+  const mrzLine2 = hasMrzData
+    ? `${passportNumber}USA9006145M2711225<<<<<<<<<<<<<<04`.slice(0, 44)
+    : "";
 
   const daysLeft = React.useMemo(() => {
     if (!expiryDate || expiryDate === "—") return 608;
     const expTime = new Date(expiryDate).getTime();
     if (isNaN(expTime)) return 608;
-    return Math.max(0, Math.ceil((expTime - Date.now()) / (1000 * 60 * 60 * 24)));
-  }, [expiryDate]);
+    return Math.max(0, Math.ceil((expTime - now) / (1000 * 60 * 60 * 24)));
+  }, [expiryDate, now]);
 
   const progressPercent = React.useMemo(() => {
     if (!issueDate || !expiryDate || issueDate === "—" || expiryDate === "—") return 80;
     const start = new Date(issueDate).getTime();
     const end = new Date(expiryDate).getTime();
     if (isNaN(start) || isNaN(end) || end <= start) return 80;
-    const pct = Math.min(100, Math.max(0, ((end - Date.now()) / (end - start)) * 100));
+    const pct = Math.min(100, Math.max(0, ((end - now) / (end - start)) * 100));
     return Math.round(pct);
-  }, [issueDate, expiryDate]);
+  }, [issueDate, expiryDate, now]);
 
   // ─── Load real passport file from API ────────────────────────────────────
   React.useEffect(() => {
@@ -103,21 +144,23 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
 
       try {
         setLoadingFile(true);
-        const res = await apiClient.get<any>(`${ENDPOINTS.files.base}?migrant_id=${migrantId}`);
-        const filesList = Array.isArray(res) ? res : res?.data || res?.files || [];
+        const res = await apiClient.get<FileDocument[] | { data?: FileDocument[]; files?: FileDocument[] }>(
+          `${ENDPOINTS.files.base}?migrant_id=${migrantId}`
+        );
+        const filesList: FileDocument[] = Array.isArray(res) ? res : res?.data || res?.files || [];
 
-        const passportDoc = filesList.find((f: any) =>
-          (f.category || f.type || f.name || "").toLowerCase().includes("passport") ||
-          (f.file_type || "").toLowerCase().includes("passport")
+        const passportDoc = filesList.find((f: FileDocument) =>
+          ((f as any).category || (f as any).type || f.originalName || f.filename || "").toLowerCase().includes("passport") ||
+          ((f as any).file_type || "").toLowerCase().includes("passport")
         );
 
         if (active && passportDoc) {
           setPassportFile({
             id: passportDoc.id,
-            name: passportDoc.name || passportDoc.file_name || "Passport",
-            size: passportDoc.size ? formatBytes(Number(passportDoc.size)) : passportDoc.file_size || "3.4 MB",
-            uploadDate: passportDoc.created_at ? formatUploadDate(passportDoc.created_at) : "8 Mar 2026",
-            fileUrl: passportDoc.url || passportDoc.file_url || undefined,
+            name: passportDoc.originalName || passportDoc.filename || "Passport",
+            size: passportDoc.size ? formatBytes(Number(passportDoc.size)) : "3.4 MB",
+            uploadDate: passportDoc.uploadDate ? formatUploadDate(passportDoc.uploadDate) : "8 Mar 2026",
+            fileUrl: (passportDoc as any).url || (passportDoc as any).file_url || undefined,
           });
         }
       } catch {
@@ -135,12 +178,20 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
     try {
       toast.loading("Preparing download…", { id: "dl-passport" });
       let downloadUrl = passportFile?.fileUrl;
+      let blobUrlToRevoke: string | null = null;
 
       if (!downloadUrl && passportFile?.id) {
-        const token = typeof window !== "undefined"
-          ? (localStorage.getItem("access_token") || localStorage.getItem("token") || "")
-          : "";
-        downloadUrl = `${ENDPOINTS.files.view(passportFile.id)}${token ? `?Authorization=${encodeURIComponent(token)}` : ""}`;
+        try {
+          const response = await apiClient.get<Response>(
+            ENDPOINTS.files.view(passportFile.id),
+            { raw: true }
+          );
+          const blob = await response.blob();
+          downloadUrl = URL.createObjectURL(blob);
+          blobUrlToRevoke = downloadUrl;
+        } catch {
+          // Fallback if view endpoint fails
+        }
       }
 
       if (!downloadUrl) {
@@ -150,14 +201,17 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
 
       const a = document.createElement("a");
       a.href = downloadUrl;
-      a.download = `${fullName.replace(/\s+/g, "_")}_Passport.pdf`;
+      a.download = `${(fullName !== "—" ? fullName : "Passport").replace(/\s+/g, "_")}_Passport.pdf`;
       a.target = "_blank";
       a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+      if (blobUrlToRevoke) {
+        URL.revokeObjectURL(blobUrlToRevoke);
+      }
       toast.success("Download started.", { id: "dl-passport" });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Download failed:", err);
       toast.error("Failed to download file.", { id: "dl-passport" });
     }
@@ -175,10 +229,10 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
       formData.append("category", "passport");
       formData.append("file_type", "passport");
 
-      const res = await apiClient.post<any>(ENDPOINTS.files.upload, formData);
+      const res = await apiClient.post<FileDocument[] | { files?: FileDocument[] }>(ENDPOINTS.files.upload, formData);
       toast.success("Passport document uploaded successfully.");
 
-      const uploaded = Array.isArray(res) ? res[0] : res?.files?.[0] || res;
+      const uploaded: any = Array.isArray(res) ? res[0] : (res as any)?.files?.[0] || res;
       if (uploaded) {
         setPassportFile({
           id: uploaded.id,
@@ -190,7 +244,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
       }
 
       onPassportUploaded?.();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Passport upload failed:", err);
       throw err;
     }
@@ -205,8 +259,10 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
       label: "Nationality",
       custom: (
         <div className="flex items-center gap-[4px]">
-          <Flag country={nationalityCode} className="size-5 rounded-full object-cover shrink-0" />
-          <span className="text-label-sm text-[#171717]">{nationalityCode}</span>
+          {nationalityCode && (
+            <Flag country={nationalityCode} className="size-5 rounded-full object-cover shrink-0" />
+          )}
+          <span className="text-label-sm text-[#171717]">{nationalityCode || nationality}</span>
         </div>
       ),
     },
@@ -322,14 +378,16 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="w-full border-t border-white/20" />
-
-          {/* MRZ Code */}
-          <div className="font-mono text-[12px] leading-[16px] text-white/40 tracking-[0.04em] uppercase break-all">
-            <div>{mrzLine1}</div>
-            <div>{mrzLine2}</div>
-          </div>
+          {/* Divider & MRZ Code */}
+          {hasMrzData && (
+            <>
+              <div className="w-full border-t border-white/20" />
+              <div className="font-mono text-[12px] leading-[16px] text-white/40 tracking-[0.04em] uppercase break-all">
+                <div>{mrzLine1}</div>
+                <div>{mrzLine2}</div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Passport File Card (634px x 72px) */}
@@ -431,39 +489,41 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
         </div>
 
         {/* Validity */}
-        <div className="flex flex-col gap-[12px] w-full">
-          <div className="flex items-center h-[30px]">
-            <div className="flex items-center py-[8px]">
-              <h2 className="font-aeonik-medium text-[20px] text-[#171717]" style={{ lineHeight: 1 }}>
-                Validity
-              </h2>
-            </div>
-          </div>
-
-          <div className="bg-white border border-white rounded-[16px] shadow-x-small p-[4px] w-full">
-            <div className="bg-[#F7F7F7] rounded-[16px] px-[20px] py-[16px] w-full flex flex-col gap-[8px]">
-              <span className="text-label-sm text-[#171717]">
-                {daysLeft > 0 ? `${daysLeft}d left` : "Expired"}
-              </span>
-
-              <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-[#7D52F4] rounded-full transition-all duration-500"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-paragraph-compact text-[#5C5C5C]">
-                  Issued {issueDate}
-                </span>
-                <span className="text-paragraph-compact text-[#5C5C5C]">
-                  Expires {expiryDate}
-                </span>
+        {hasValidDates && (
+          <div className="flex flex-col gap-[12px] w-full">
+            <div className="flex items-center h-[30px]">
+              <div className="flex items-center py-[8px]">
+                <h2 className="font-aeonik-medium text-[20px] text-[#171717]" style={{ lineHeight: 1 }}>
+                  Validity
+                </h2>
               </div>
             </div>
+
+            <div className="bg-white border border-white rounded-[16px] shadow-x-small p-[4px] w-full">
+              <div className="bg-[#F7F7F7] rounded-[16px] px-[20px] py-[16px] w-full flex flex-col gap-[8px]">
+                <span className="text-label-sm text-[#171717]">
+                  {daysLeft > 0 ? `${daysLeft}d left` : "Expired"}
+                </span>
+
+                <div className="w-full h-[6px] bg-[#EBEBEB] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#7D52F4] rounded-full transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-paragraph-compact text-[#5C5C5C]">
+                    Issued {issueDate}
+                  </span>
+                  <span className="text-paragraph-compact text-[#5C5C5C]">
+                    Expires {expiryDate}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* File Preview Modal */}

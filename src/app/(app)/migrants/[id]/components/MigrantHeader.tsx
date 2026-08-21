@@ -49,12 +49,12 @@ function getStatusDotColor(status?: string) {
 }
 
 function getStatusTextColor(status?: string) {
-  if (!status) return "#0B4627";
+  if (!status) return "#5C5C5C";
   const s = status.toUpperCase();
   if (s.includes("APPROVED") || s.includes("ACTIVE") || s.includes("GRANTED")) return "#0B4627";
   if (s.includes("REFUSED") || s.includes("EXPIRED") || s.includes("REJECTED")) return "#7F1D1D";
   if (s.includes("PENDING") || s.includes("DRAFT")) return "#92400E";
-  return "#0B4627";
+  return "#5C5C5C";
 }
 
 export function MigrantHeader({
@@ -88,7 +88,7 @@ export function MigrantHeader({
 
   const dotColor = getStatusDotColor(approvalStatus);
   const textColor = getStatusTextColor(approvalStatus);
-  const statusLabel = approvalStatus || "VISA APPROVED";
+  const statusLabel = approvalStatus || "UNKNOWN";
 
   return (
     <div className="px-[64px] pt-[32px] pb-[24px] flex items-center justify-between font-sans select-none bg-white rounded-t-[16px]">

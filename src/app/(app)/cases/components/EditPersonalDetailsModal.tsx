@@ -19,7 +19,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
-import { XIcon, FileText, Upload, Calendar } from "lucide-react";
+import { XIcon, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditPersonalDetailsModalProps {
@@ -92,6 +92,11 @@ function formatDisplayDate(isoVal: string): string {
   if (/\d{2}\s*\/\s*\d{2}\s*\/\s*\d{4}/.test(cleaned)) {
     return cleaned;
   }
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(cleaned);
+  if (match) {
+    const [, y, m, d] = match;
+    return `${d} / ${m} / ${y}`;
+  }
   const dateObj = new Date(cleaned);
   if (isNaN(dateObj.getTime())) {
     return "";
@@ -115,22 +120,25 @@ export function EditPersonalDetailsModal({
   const [dob, setDob] = React.useState("");
   const [gender, setGender] = React.useState("");
   const [maritalStatus, setMaritalStatus] = React.useState("");
-  const [nationality, setNationality] = React.useState("");
   const [countryOfBirth, setCountryOfBirth] = React.useState("");
+  const [nationality, setNationality] = React.useState("");
   const [cityOfBirth, setCityOfBirth] = React.useState("");
+  const [stageName, setStageName] = React.useState("");
+  const [withStageName, setWithStageName] = React.useState(false);
+
+  // Passport states
+  const [passportId, setPassportId] = React.useState<number | string | null>(null);
   const [passportNumber, setPassportNumber] = React.useState("");
   const [passportIssueDate, setPassportIssueDate] = React.useState("");
   const [passportExpiryDate, setPassportExpiryDate] = React.useState("");
 
   // Preserved database states
   const [migrantData, setMigrantData] = React.useState<any>(null);
-  const [passportId, setPassportId] = React.useState<number | null>(null);
-  const [stageName, setStageName] = React.useState("");
-  const [withStageName, setWithStageName] = React.useState(false);
   const [contacts, setContacts] = React.useState<any>(null);
 
   // Dropdown options lists
   const [nationalities, setNationalities] = React.useState<{ id: string; value: string }[]>(DEFAULT_NATIONALITIES);
+  const [hasRealNationalities, setHasRealNationalities] = React.useState(false);
   const [countries, setCountries] = React.useState<{ id: string; value: string }[]>(DEFAULT_COUNTRIES);
 
   const [isLoading, setIsLoading] = React.useState(false);
@@ -193,6 +201,7 @@ export function EditPersonalDetailsModal({
           const initData = await apiClient.get<any>(ENDPOINTS.initData.byName("start"));
           if (initData?.Nationalities && Array.isArray(initData.Nationalities) && initData.Nationalities.length > 0) {
             setNationalities(initData.Nationalities);
+            setHasRealNationalities(true);
           }
           if (initData?.Countries && Array.isArray(initData.Countries) && initData.Countries.length > 0) {
             setCountries(initData.Countries);
@@ -242,19 +251,6 @@ export function EditPersonalDetailsModal({
     loadData();
   }, [open, migrantId, initialData, populateFromObject]);
 
-  const handleUploadClick = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".pdf,.jpg,.jpeg,.png";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        toast.success(`Uploaded ${file.name}`);
-      }
-    };
-    input.click();
-  };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!migrantId) return;
@@ -269,6 +265,10 @@ export function EditPersonalDetailsModal({
       // Build payload matching MigrantClientDto requirements
       const contactEmail = contacts?.contact_email || "";
 
+      const resolvedNationality = hasRealNationalities
+        ? (nationality ? (isNaN(Number(nationality)) ? nationality : Number(nationality)) : null)
+        : (migrantData?.user?.personalInfo?.nationality?.id || migrantData?.personalInfo?.nationality || null);
+
       const overrides: any = {
         first_name: firstName,
         last_name: lastName,
@@ -276,7 +276,7 @@ export function EditPersonalDetailsModal({
         date_of_birth: isoDob || null,
         marital_status: maritalStatus || null,
         country_of_birth: countryOfBirth || null,
-        nationality: nationality ? (isNaN(Number(nationality)) ? nationality : Number(nationality)) : null,
+        nationality: resolvedNationality,
         place_of_birth: cityOfBirth || null,
         stage_name: stageName,
         with_stage_name: Boolean(withStageName),
@@ -295,11 +295,11 @@ export function EditPersonalDetailsModal({
       const cleanPassportNumber = (passportNumber || "").replace(/^[—\-]+$/, "").trim();
       if (cleanPassportNumber) {
         overrides.passport = {
-          ...(passportId ? { id: typeof passportId === "number" ? passportId : parseInt(passportId, 10) } : {}),
+          ...(passportId ? { id: typeof passportId === "number" ? passportId : parseInt(passportId as string, 10) } : {}),
           passport_number: cleanPassportNumber,
-          place_of_issue: cityOfBirth || countryOfBirth || "UK",
-          issue_passport_date: isoIssueDate || "2020-01-01",
-          expired_passport_date: isoExpiryDate || "2030-01-01",
+          place_of_issue: cityOfBirth || countryOfBirth || null,
+          issue_passport_date: isoIssueDate || null,
+          expired_passport_date: isoExpiryDate || null,
           is_actual: true,
         };
       }
@@ -334,6 +334,7 @@ export function EditPersonalDetailsModal({
             type="button"
             variant="ghost"
             size="icon"
+            aria-label="Close"
             onClick={() => onOpenChange(false)}
             className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
           >
@@ -343,26 +344,6 @@ export function EditPersonalDetailsModal({
 
         {/* Scrollable Form Content */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-[20px] flex flex-col gap-[16px] bg-white">
-          {/* AI Auto-fill Banner */}
-          <div className="flex items-center justify-between p-[12px_24px_12px_8px] gap-lg bg-[#F7F7F7] rounded-[8px] shrink-0">
-            <div className="flex items-center gap-lg">
-              <div className="size-6 rounded-[6.4px] bg-[#7D52F4] flex items-center justify-center shrink-0">
-                <FileText className="size-3.5 text-[#EFEBFF]" />
-              </div>
-              <span className="text-[13px] leading-[20px] text-[#171717] tracking-[-0.006em]">
-                Upload a passport and AI will auto-fill these fields for you.
-              </span>
-            </div>
-            <Button
-              type="button"
-              onClick={handleUploadClick}
-              className="flex items-center gap-xs px-md py-[6px] h-8 bg-[#171717] hover:bg-neutral-800 text-white rounded-[8px] text-[14px] font-medium leading-[20px] tracking-[-0.006em] transition-all cursor-pointer select-none border-0"
-            >
-              <Upload className="size-3.5 text-white" />
-              Upload
-            </Button>
-          </div>
-
           {isLoading ? (
             <div className="flex-1 flex flex-col items-center justify-center py-20 text-[#5C5C5C]">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>

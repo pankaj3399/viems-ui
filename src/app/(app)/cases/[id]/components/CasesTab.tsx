@@ -49,6 +49,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
   const resolvedMigrantId = migrantId || (migrant?.id ? String(migrant.id) : null);
 
   React.useEffect(() => {
+    let active = true;
     async function fetchCases() {
       if (!resolvedMigrantId) return;
       try {
@@ -110,14 +111,24 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             const dateObj = dateStr ? new Date(dateStr) : null;
             const dateValue = dateObj && !isNaN(dateObj.getTime()) ? dateObj.getTime() : 0;
             
-            // Format case ID nicely as 431/2026 (remove '#' prefix if present)
-            let caseIdStr = c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/2026` : "—");
+            // Format case ID (remove '#' prefix if present)
+            let caseIdStr = c.caseIdDisplay || c.caseNumber || (c.id ? String(c.id) : "—");
             if (c.caseIdNumber && c.relatedYear) {
               caseIdStr = `${c.caseIdNumber}/${c.relatedYear}`;
             }
             caseIdStr = caseIdStr.replace(/^#/, "");
 
-            const rawCountry = c.nationality_value || c.nationality_title || c.country || (migrant as any)?.personalInfo?.nationalityCode || (migrant as any)?.personalInfo?.nationality || "";
+            const migrantPersonalInfo =
+              migrant && typeof migrant === "object" && "personalInfo" in migrant && typeof migrant.personalInfo === "object" && migrant.personalInfo !== null
+                ? (migrant.personalInfo as { nationalityCode?: string; nationality?: string })
+                : undefined;
+            const rawCountry =
+              c.nationality_value ||
+              c.nationality_title ||
+              c.country ||
+              migrantPersonalInfo?.nationalityCode ||
+              migrantPersonalInfo?.nationality ||
+              "";
             const { code: countryCode, full: countryLabel } = getCountryInfo(rawCountry);
 
             return {
@@ -127,7 +138,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
                 ? dateObj.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
                 : "—",
               dateValue,
-              visaType: c.job_title || c.visaType || c.personal?.jobTitle || "Creative Worker",
+              visaType: c.job_title || c.visaType || c.personal?.jobTitle || "—",
               group: c.group_name || c.personal?.groupName || "—",
               countryCode,
               countryLabel,
@@ -137,18 +148,29 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
               immigrationType,
             };
           });
-          setCasesList(mapped);
+          if (active) {
+            setCasesList(mapped);
+          }
         } else {
-          setCasesList([]);
+          if (active) {
+            setCasesList([]);
+          }
         }
       } catch (err) {
         console.error("Failed to fetch cases for tab:", err);
-        setCasesList([]);
+        if (active) {
+          setCasesList([]);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
     fetchCases();
+    return () => {
+      active = false;
+    };
   }, [resolvedMigrantId, migrant]);
 
   const availableStatuses = React.useMemo(() => {
@@ -282,7 +304,7 @@ export function CasesTab({ migrant, migrantId }: CasesTabProps) {
             onClick={() => handleSort("caseId")}
             className="w-[116px] flex items-center gap-1 text-[12px] font-semibold text-[#A4A4A4] hover:text-[#171717] uppercase tracking-[0.04em] cursor-pointer bg-transparent hover:bg-transparent border-0 p-0 text-left transition-colors justify-start"
           >
-            <span>CADE ID</span>
+            <span>CASE ID</span>
             {renderSortIcon("caseId")}
           </Button>
           <Button

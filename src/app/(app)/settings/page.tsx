@@ -46,6 +46,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getInitials } from "@/lib/utils";
 
@@ -118,7 +123,7 @@ function SettingsContent() {
   const initialTab: SettingsTab =
     tabParam && ["PROFILE", "SECURITY", "NOTIFICATIONS", "PREFERENCES", "TEAM"].includes(tabParam)
       ? tabParam
-      : "SECURITY";
+      : "PROFILE";
 
   const [activeTab, setActiveTab] = React.useState<SettingsTab>(initialTab);
 
@@ -134,12 +139,12 @@ function SettingsContent() {
   }, [tabParam]);
 
   // Profile Form States
-  const [firstName, setFirstName] = React.useState("Alex");
-  const [lastName, setLastName] = React.useState("Marin");
-  const [email, setEmail] = React.useState("alex.marin@viems.io");
-  const [phone, setPhone] = React.useState("+1 555-555-5555");
-  const [dob, setDob] = React.useState("1990-05-15");
-  const [gender, setGender] = React.useState("Male");
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [dob, setDob] = React.useState("");
+  const [gender, setGender] = React.useState("");
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
   const [timezone, setTimezone] = React.useState("(UTC) Edinburgh, London");
   const [dateFormat, setDateFormat] = React.useState("Month, Day Year");
@@ -180,6 +185,7 @@ function SettingsContent() {
   const [teamSearchQuery, setTeamSearchQuery] = React.useState("");
   const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
   const [editingMember, setEditingMember] = React.useState<TeamMember | null>(null);
+  const [memberToRemove, setMemberToRemove] = React.useState<{ id: string; name: string } | null>(null);
 
   const [currentUserId, setCurrentUserId] = React.useState<number | string | undefined>(undefined);
   const [loading, setLoading] = React.useState(false);
@@ -187,12 +193,12 @@ function SettingsContent() {
 
   // Snapshot for restoring state on Cancel
   const [profileSnapshot, setProfileSnapshot] = React.useState({
-    firstName: "Alex",
-    lastName: "Marin",
-    email: "alex.marin@viems.io",
-    phone: "+1 555-555-5555",
-    dob: "1990-05-15",
-    gender: "Male",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    dob: "",
+    gender: "",
     avatarUrl: null as string | null,
     timezone: "(UTC) Edinburgh, London",
     dateFormat: "Month, Day Year",
@@ -249,9 +255,9 @@ function SettingsContent() {
 
         // Fetch timezones from backend
         try {
-          const tzRes = await apiClient.get<Array<{ id: string; name: string; content?: string }>>(ENDPOINTS.users.settings);
+          const tzRes = await apiClient.get<any>(ENDPOINTS.users.settings);
           if (Array.isArray(tzRes) && tzRes.length > 0) {
-            const mapped = tzRes.map((t) => ({
+            const mapped = tzRes.map((t: any) => ({
               id: String(t.id),
               name: t.name || t.content || `(UTC) Timezone ${t.id}`,
             }));
@@ -259,6 +265,15 @@ function SettingsContent() {
             if (mapped[0]) {
               setTimezone(mapped[0].name);
               setProfileSnapshot((prev) => ({ ...prev, timezone: mapped[0].name }));
+            }
+          } else if (tzRes && typeof tzRes === "object") {
+            if (tzRes.timezone) {
+              setTimezone(tzRes.timezone);
+              setProfileSnapshot((prev) => ({ ...prev, timezone: tzRes.timezone }));
+            }
+            if (tzRes.dateFormat) {
+              setDateFormat(tzRes.dateFormat);
+              setProfileSnapshot((prev) => ({ ...prev, dateFormat: tzRes.dateFormat }));
             }
           }
         } catch (err) {
@@ -328,7 +343,7 @@ function SettingsContent() {
           const fullName = `${fName} ${lName}`.trim() || emp.email || "Team Member";
           const initials = getInitials(fullName) || "TM";
 
-          const jobTitle = (emp.jobTitle || emp.user?.role?.value || "Compliance Officer").toUpperCase();
+          const jobTitle = emp.jobTitle || emp.user?.role?.value || "";
           const userStatus = (emp.userStatus || emp.user?.status?.value || "active").toLowerCase();
           const isInvited = userStatus.includes("invite") || userStatus.includes("pending");
 
@@ -337,10 +352,10 @@ function SettingsContent() {
             name: fullName,
             firstName: fName,
             lastName: lName,
-            email: emp.email || emp.user?.email || "member@viems.io",
+            email: emp.email || emp.user?.email || "",
             avatarText: initials,
             avatarImage: emp.avatar ? `/api/files/image/${emp.avatar}` : undefined,
-            role: isInvited ? "INVITED" : jobTitle,
+            role: isInvited ? "INVITED" : (jobTitle ? jobTitle.toUpperCase() : "—"),
             smsRole: emp.smsRole || "—",
             status: isInvited ? "invited" : "active",
           };
@@ -383,10 +398,6 @@ function SettingsContent() {
         await apiClient.patch(ENDPOINTS.users.profile, {
           personal: {
             avatar: base64Data,
-            firstName,
-            lastName,
-            gender,
-            dateOfBirth: dob,
           },
         });
         toast.success("Profile photo updated successfully.");
@@ -810,11 +821,11 @@ function SettingsContent() {
                           <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-[12px] pointer-events-none z-10" />
                           <Input
                             id="settings-dob"
-                            type="text"
+                            type="date"
                             disabled={loading}
                             value={dob}
                             onChange={(e) => setDob(e.target.value)}
-                            placeholder="DD / MM / YYYY"
+                            placeholder="YYYY-MM-DD"
                             className="w-full h-[40px] pl-[40px] pr-[12px] text-[14px] text-[#171717] bg-white border border-[#EBEBEB] rounded-[10px] shadow-x-small outline-none focus:border-[#7D52F4] focus:ring-1 focus:ring-[#7D52F4]/20 transition-all placeholder:text-[#A4A4A4] disabled:opacity-50"
                           />
                         </div>
@@ -988,6 +999,7 @@ function SettingsContent() {
                       <Input
                         id="security-current-password"
                         type="password"
+                        autoComplete="current-password"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         placeholder="Enter current password"
@@ -1006,6 +1018,7 @@ function SettingsContent() {
                       <Input
                         id="security-new-password"
                         type="password"
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Minimum 12 characters"
@@ -1024,6 +1037,7 @@ function SettingsContent() {
                       <Input
                         id="security-confirm-password"
                         type="password"
+                        autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="Re-enter new password"
@@ -1291,6 +1305,7 @@ function SettingsContent() {
                       <RiSearchLine className="size-4 text-[#A4A4A4] shrink-0" />
                       <Input
                         type="text"
+                        aria-label="Search team members"
                         placeholder="Search team..."
                         value={teamSearchQuery}
                         onChange={(e) => setTeamSearchQuery(e.target.value)}
@@ -1369,7 +1384,7 @@ function SettingsContent() {
                                   {member.name}
                                 </span>
                                 <span className="text-[13px] text-[#5C5C5C] leading-[18px] truncate">
-                                  {member.email}
+                                  {member.email || "—"}
                                 </span>
                               </div>
                             </div>
@@ -1398,15 +1413,17 @@ function SettingsContent() {
                                     <span>Edit Permissions</span>
                                   </DropdownMenuItem>
 
-                                  <DropdownMenuItem
-                                    onClick={() => handleCopyEmail(member.email)}
-                                    className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#171717] hover:bg-neutral-50 rounded-[6px] cursor-pointer"
-                                  >
-                                    <RiFileCopyLine className="size-4 text-[#5C5C5C]" />
-                                    <span>Copy Email</span>
-                                  </DropdownMenuItem>
+                                  {member.email && (
+                                    <DropdownMenuItem
+                                      onClick={() => handleCopyEmail(member.email)}
+                                      className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#171717] hover:bg-neutral-50 rounded-[6px] cursor-pointer"
+                                    >
+                                      <RiFileCopyLine className="size-4 text-[#5C5C5C]" />
+                                      <span>Copy Email</span>
+                                    </DropdownMenuItem>
+                                  )}
 
-                                  {member.status === "invited" && (
+                                  {member.status === "invited" && member.email && (
                                     <DropdownMenuItem
                                       onClick={() => handleResendInvite(member.email, member.id)}
                                       className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#171717] hover:bg-neutral-50 rounded-[6px] cursor-pointer"
@@ -1419,7 +1436,7 @@ function SettingsContent() {
                                   <DropdownMenuSeparator className="my-1 border-t border-[#EBEBEB]" />
 
                                   <DropdownMenuItem
-                                    onClick={() => handleRemoveTeamMember(member.id, member.name)}
+                                    onClick={() => setMemberToRemove({ id: member.id, name: member.name })}
                                     className="flex items-center gap-2 px-3 py-2 text-[13px] text-[#FB3748] hover:bg-red-50 rounded-[6px] cursor-pointer"
                                   >
                                     <RiDeleteBinLine className="size-4 text-[#FB3748]" />
@@ -1455,6 +1472,40 @@ function SettingsContent() {
         onClose={() => setEditingMember(null)}
         onUpdateMember={handleUpdateTeamMember}
       />
+
+      {/* Remove Member Confirmation Dialog */}
+      {memberToRemove && (
+        <Dialog open={!!memberToRemove} onOpenChange={(open) => { if (!open) setMemberToRemove(null); }}>
+          <DialogContent className="max-w-[420px] p-6 bg-white rounded-[16px] border border-[#EBEBEB] shadow-card-large font-sans">
+            <div className="flex flex-col gap-3">
+              <h3 className="text-h6-title text-[#171717]">Remove team member</h3>
+              <p className="text-paragraph-sm text-[#5C5C5C]">
+                Are you sure you want to remove <span className="font-semibold text-[#171717]">{memberToRemove.name}</span> from the organization? They will no longer have access to this workspace.
+              </p>
+            </div>
+            <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMemberToRemove(null)}
+                className="h-9 px-4 rounded-[8px] text-[13px] border-[#EBEBEB] text-[#5C5C5C] hover:bg-[#F5F5F5]"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  handleRemoveTeamMember(memberToRemove.id, memberToRemove.name);
+                  setMemberToRemove(null);
+                }}
+                className="h-9 px-4 rounded-[8px] text-[13px] bg-[#FB3748] hover:bg-[#D92D3E] text-white"
+              >
+                Remove
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

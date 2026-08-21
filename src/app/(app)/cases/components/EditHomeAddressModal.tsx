@@ -60,6 +60,7 @@ export function EditHomeAddressModal({
   // Preserved/resolved database states
   const [migrantData, setMigrantData] = React.useState<any>(null);
   const [countries, setCountries] = React.useState<{ id: string; value: string }[]>(DEFAULT_COUNTRIES);
+  const [hasRealCountries, setHasRealCountries] = React.useState(false);
   const [citiesList, setCitiesList] = React.useState<{ id: string; value: string }[]>([]);
 
   const [isLoading, setIsLoading] = React.useState(false);
@@ -83,16 +84,16 @@ export function EditHomeAddressModal({
       setCity(c.city.name);
     } else if (typeof c.city === "string") {
       setCity(c.city);
-    } else if (pInfo.cityOfBirth) {
-      setCity(pInfo.cityOfBirth);
+    } else {
+      setCity("");
     }
 
     if (c.country?.name) {
       setSelectedCountryName(c.country.name);
     } else if (typeof c.country === "string") {
       setSelectedCountryName(c.country);
-    } else if (pInfo.nationality) {
-      setSelectedCountryName(pInfo.nationality);
+    } else {
+      setSelectedCountryName("");
     }
   }, []);
 
@@ -115,6 +116,7 @@ export function EditHomeAddressModal({
           const initData = await apiClient.get<any>(ENDPOINTS.initData.byName("start"));
           if (initData?.Countries && Array.isArray(initData.Countries) && initData.Countries.length > 0) {
             setCountries(initData.Countries);
+            setHasRealCountries(true);
           }
         } catch {
           // Keep default
@@ -205,14 +207,21 @@ export function EditHomeAddressModal({
       }
 
       // Build payload preserving unchanged details
+      const contactsPatch: any = {
+        address_line_1: addressLine1,
+        address_line_2: addressLine2 || null,
+        zip_code: postCode,
+        city: resolvedCityId || null,
+      };
+
+      if (hasRealCountries && currentCountryId) {
+        contactsPatch.country = parseInt(currentCountryId, 10);
+      } else if (migrantData.contacts?.country?.id) {
+        contactsPatch.country = migrantData.contacts.country.id;
+      }
+
       const payload = buildMigrantPatchPayload(migrantData, {
-        contacts: {
-          address_line_1: addressLine1,
-          address_line_2: addressLine2 || null,
-          zip_code: postCode,
-          country: currentCountryId ? parseInt(currentCountryId, 10) : migrantData.contacts?.country?.id,
-          city: resolvedCityId || null,
-        },
+        contacts: contactsPatch,
       });
 
       await apiClient.patch(ENDPOINTS.migrants.byId(migrantId), payload);
@@ -242,6 +251,7 @@ export function EditHomeAddressModal({
             type="button"
             variant="ghost"
             size="icon"
+            aria-label="Close"
             onClick={() => onOpenChange(false)}
             className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
           >

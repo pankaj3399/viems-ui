@@ -63,23 +63,13 @@ export function EditContactDetailsModal({
     setPersonalEmail(m.contacts?.contact_email || m.contact?.email || m.personalEmail || "");
     setMobilePhone(m.contacts?.phone_1 || m.contact?.phone || m.phone || m.mobilePhone || "");
 
-    // Load emergency contacts from localStorage or object
-    try {
-      const stored = localStorage.getItem(`emergency_${migrantId}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setEmergencyName(parsed.name || "");
-        setEmergencyRelationship(parsed.relationship || "Spouse");
-        setEmergencyEmail(parsed.email || "");
-        setEmergencyPhone(parsed.phone || "");
-      } else if (m.emergencyContact) {
-        setEmergencyName(m.emergencyContact.name || "");
-        setEmergencyRelationship(m.emergencyContact.relationship || "Spouse");
-        setEmergencyEmail(m.emergencyContact.email || "");
-        setEmergencyPhone(m.emergencyContact.phone || "");
-      }
-    } catch {}
-  }, [migrantId]);
+    // Load emergency contacts from object
+    const ec = m.emergencyContact || m.contacts?.emergency_contact || m.emergency_contact || m.contacts || {};
+    setEmergencyName(ec.name || ec.emergency_contact_name || "");
+    setEmergencyRelationship(ec.relationship || ec.emergency_contact_relationship || "Spouse");
+    setEmergencyEmail(ec.email || ec.emergency_contact_email || "");
+    setEmergencyPhone(ec.phone || ec.emergency_contact_phone || "");
+  }, []);
 
   React.useEffect(() => {
     if (initialData && open) {
@@ -89,6 +79,7 @@ export function EditContactDetailsModal({
 
   // Load existing details
   React.useEffect(() => {
+    let ignore = false;
     async function loadData() {
       if (!open || !migrantId) return;
 
@@ -123,17 +114,22 @@ export function EditContactDetailsModal({
           } catch {}
         }
 
-        if (migrant) {
+        if (!ignore && migrant) {
           populateFromObject(migrant);
         }
       } catch (err) {
         console.error("Failed to load contacts details:", err);
       } finally {
-        setIsLoading(false);
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
     }
 
     loadData();
+    return () => {
+      ignore = true;
+    };
   }, [open, migrantId, initialData, populateFromObject]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -143,23 +139,28 @@ export function EditContactDetailsModal({
     try {
       setIsSaving(true);
 
-      // Save emergency contact locally
-      localStorage.setItem(
-        `emergency_${migrantId}`,
-        JSON.stringify({
-          name: emergencyName,
-          relationship: emergencyRelationship,
-          email: emergencyEmail,
-          phone: emergencyPhone,
-        })
-      );
-
       // Build payload matching MigrantClientDto requirements
       const payload = buildMigrantPatchPayload(migrantData, {
         contacts: {
           contact_email: personalEmail || workEmail || migrantData.user?.email || "",
           contact_number: mobilePhone,
           phone_1: mobilePhone,
+          emergency_contact: {
+            name: emergencyName,
+            relationship: emergencyRelationship,
+            email: emergencyEmail,
+            phone: emergencyPhone,
+          },
+          emergency_contact_name: emergencyName,
+          emergency_contact_relationship: emergencyRelationship,
+          emergency_contact_email: emergencyEmail,
+          emergency_contact_phone: emergencyPhone,
+        },
+        emergencyContact: {
+          name: emergencyName,
+          relationship: emergencyRelationship,
+          email: emergencyEmail,
+          phone: emergencyPhone,
         },
       });
 
@@ -190,6 +191,7 @@ export function EditContactDetailsModal({
             type="button"
             variant="ghost"
             size="icon"
+            aria-label="Close"
             onClick={() => onOpenChange(false)}
             className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
           >

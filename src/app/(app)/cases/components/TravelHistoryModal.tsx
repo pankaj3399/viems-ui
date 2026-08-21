@@ -71,15 +71,23 @@ export function TravelHistoryModal({
         
         let dateStr = "";
         if (record.travelDate) {
-          const d = new Date(record.travelDate);
-          if (!isNaN(d.getTime())) {
-            dateStr = d.toISOString().split("T")[0];
+          const raw = record.travelDate.trim();
+          if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+            dateStr = raw;
           } else {
-            dateStr = record.travelDate;
+            const d = new Date(raw);
+            if (!isNaN(d.getTime())) {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, "0");
+              const day = String(d.getDate()).padStart(2, "0");
+              dateStr = `${y}-${m}-${day}`;
+            } else {
+              dateStr = record.travelDate;
+            }
           }
         }
         setTravelDate(dateStr);
-        setPort(record.airport || record.country || "");
+        setPort(record.airport || "");
         setRouteFlight(record.flightNumber || "");
         setMethod(record.method || "Air");
         setCountry(record.country || "UK");
@@ -87,7 +95,11 @@ export function TravelHistoryModal({
         setNotes(record.notes || "");
       } else {
         setDirection("Entering");
-        setTravelDate(new Date().toISOString().split("T")[0]);
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+        setTravelDate(`${y}-${m}-${day}`);
         setPort("");
         setRouteFlight("");
         setMethod("Air");
