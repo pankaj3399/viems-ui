@@ -31,6 +31,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { formatFullName, getInitials } from "@/lib/format";
 
 import { apiClient } from "@/lib/api-client";
@@ -567,10 +569,10 @@ export default function ComplianceDocumentsPage() {
 
           <form onSubmit={handleUploadSubmit} className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="upload-migrant-name-input" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="upload-migrant-name-input" className="text-[13px] font-medium text-[#171717]">
                 Migrant Name
-              </label>
-              <input
+              </Label>
+              <Input
                 id="upload-migrant-name-input"
                 type="text"
                 value={selectedMigrant}
@@ -582,9 +584,10 @@ export default function ComplianceDocumentsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="upload-doc-type-select" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="upload-doc-type-select" className="text-[13px] font-medium text-[#171717]">
                 Document Type
-              </label>
+              </Label>
+              {/* ui-native-fallback */}
               <select
                 id="upload-doc-type-select"
                 value={selectedDocType}
@@ -602,10 +605,10 @@ export default function ComplianceDocumentsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="upload-expiry-date-input" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="upload-expiry-date-input" className="text-[13px] font-medium text-[#171717]">
                 Expiry Date
-              </label>
-              <input
+              </Label>
+              <Input
                 id="upload-expiry-date-input"
                 type="date"
                 value={expiryDate}
@@ -616,11 +619,12 @@ export default function ComplianceDocumentsPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="doc-file-upload" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="doc-file-upload" className="text-[13px] font-medium text-[#171717]">
                 Document File (PDF, PNG, JPG)
-              </label>
+              </Label>
               <div className="border-2 border-dashed border-[#EBEBEB] rounded-[10px] p-4 text-center flex flex-col items-center justify-center gap-2 hover:border-[#7D52F4]/50 transition-colors bg-[#FAF8FF]/50 cursor-pointer">
                 <RiUpload2Line className="size-6 text-[#7D52F4]" />
+                {/* ui-native-fallback */}
                 <input
                   type="file"
                   onChange={(e) => {
@@ -632,15 +636,13 @@ export default function ComplianceDocumentsPage() {
                   className="hidden"
                   id="doc-file-upload"
                 />
-                <label
+                <Label
                   htmlFor="doc-file-upload"
-                  className="text-[13px] text-[#7D52F4] font-medium hover:underline cursor-pointer"
+                  className="text-[13px] font-medium text-[#7D52F4] cursor-pointer"
                 >
                   {fileName ? fileName : "Click to select a file"}
-                </label>
-                <span className="text-[11px] text-[#A4A4A4]">
-                  Max file size: 10MB
-                </span>
+                </Label>
+                <span className="text-[11px] text-[#A4A4A4]">Maximum file size: 25MB</span>
               </div>
             </div>
 

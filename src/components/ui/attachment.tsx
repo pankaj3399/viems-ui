@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 const attachmentVariants = cva(
-  "group/attachment relative flex w-fit max-w-full min-w-0 shrink-0 flex-wrap rounded-xl border bg-card text-card-foreground transition-colors focus-within:ring-1 focus-within:ring-ring/50 has-[>a,>button]:hover:bg-muted/50 data-[state=error]:border-destructive/30 data-[state=idle]:border-dashed",
+  "group/attachment relative flex w-fit max-w-full min-w-0 shrink-0 flex-wrap rounded-xl border bg-card text-card-foreground transition-all duration-200 hover:border-neutral-400 dark:hover:border-neutral-600 hover:shadow-xs focus-within:ring-1 focus-within:ring-ring/50 has-[>a,>button]:hover:bg-muted/50 data-[state=error]:border-destructive/30 data-[state=idle]:border-dashed",
   {
     variants: {
       size: {
@@ -170,7 +170,7 @@ function AttachmentTrigger({
     props: mergeProps<"button">(
       {
         type: render ? type : (type ?? "button"),
-        className: cn("absolute inset-0 z-10 outline-none", className),
+        className: cn("absolute inset-0 z-10 cursor-pointer outline-none", className),
       },
       props
     ),

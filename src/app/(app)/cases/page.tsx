@@ -29,6 +29,7 @@ import {
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ChangeCaseStatusModal } from "./components/ChangeCaseStatusModal";
 import { CaseStatusDropdown } from "./components/CaseStatusDropdown";
 import { MarkVisaRefusedModal } from "./components/MarkVisaRefusedModal";
@@ -952,7 +953,7 @@ export default function CasesPage() {
                           const checked = tempStatus === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempStatus(opt.value)}>
+                              <Label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempStatus(opt.value)}>
                                 <input
                                   type="radio"
                                   name="statusFilter"
@@ -972,7 +973,7 @@ export default function CasesPage() {
                                 <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
                                   {opt.count}
                                 </span>
-                              </label>
+                              </Label>
                               {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -984,7 +985,7 @@ export default function CasesPage() {
                       <div className="flex flex-col gap-[12px] w-full">
                         {/* Option 1: All countries */}
                         <React.Fragment key="all">
-                          <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempCountry("all")}>
+                          <Label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempCountry("all")}>
                             <input
                               type="radio"
                               name="countryFilter"
@@ -1003,7 +1004,7 @@ export default function CasesPage() {
                             <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
                               {cases.length}
                             </span>
-                          </label>
+                          </Label>
                           <div className="w-full h-0 border-b border-[#EBEBEB]" />
                         </React.Fragment>
 
@@ -1047,7 +1048,7 @@ export default function CasesPage() {
 
                             return (
                               <React.Fragment key={opt.value}>
-                                <label
+                                <Label
                                   className="flex items-center justify-between cursor-pointer w-full group py-0.5"
                                   onClick={() => setTempCountry(opt.value)}
                                 >
@@ -1082,7 +1083,7 @@ export default function CasesPage() {
                                   <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
                                     {count}
                                   </span>
-                                </label>
+                                </Label>
                                 {i < countryList.length - 1 && (
                                   <div className="w-full h-0 border-b border-[#EBEBEB]" />
                                 )}
@@ -1104,7 +1105,7 @@ export default function CasesPage() {
                           const checked = tempMigration === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempMigration(opt.value)}>
+                              <Label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempMigration(opt.value)}>
                                 <input
                                   type="radio"
                                   name="migrationFilter"
@@ -1118,7 +1119,7 @@ export default function CasesPage() {
                                   <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                                 </div>
                                 <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                              </label>
+                              </Label>
                               {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -1138,7 +1139,7 @@ export default function CasesPage() {
                           const checked = tempSeverity === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempSeverity(opt.value)}>
+                              <Label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempSeverity(opt.value)}>
                                 <input
                                   type="radio"
                                   name="severityFilter"
@@ -1162,7 +1163,7 @@ export default function CasesPage() {
                                 <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#0B4627]">
                                   {opt.count}
                                 </span>
-                              </label>
+                              </Label>
                               {i < 4 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -1181,7 +1182,7 @@ export default function CasesPage() {
                           const checked = tempQuickFilter === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempQuickFilter(opt.value)}>
+                              <Label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempQuickFilter(opt.value)}>
                                 <input
                                   type="radio"
                                   name="quickFilter"
@@ -1195,7 +1196,7 @@ export default function CasesPage() {
                                   <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                                 </div>
                                 <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                              </label>
+                              </Label>
                               {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );

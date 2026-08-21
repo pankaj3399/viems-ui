@@ -39,6 +39,9 @@ import { ENDPOINTS } from "@/lib/api-endpoints";
 import { getTokenPayload } from "@/lib/auth";
 import { toast } from "sonner";
 import { InviteMigrantModal } from "@/components/InviteMigrantModal";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface PersonalDetailsState {
   firstName: string;
@@ -177,9 +180,9 @@ function QuickInvitePanel({
 
         <form onSubmit={onSendInvite} className="flex flex-col sm:flex-row items-center gap-[8px] w-full">
           <div className="flex-1 w-full">
-            <label htmlFor="quickInviteEmail" className="sr-only">
+            <Label htmlFor="quickInviteEmail" className="sr-only">
               Migrant email address
-            </label>
+            </Label>
             <input
               id="quickInviteEmail"
               type="email"
@@ -925,9 +928,9 @@ export default function AddMigrantPage() {
             {/* First Name & Last Name */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="firstName" className="text-[14px] font-medium text-[#171717]">
                   First Name
-                </label>
+                </Label>
                 <input
                   id="firstName"
                   type="text"
@@ -939,9 +942,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="lastName" className="text-[14px] font-medium text-[#171717]">
                   Last Name
-                </label>
+                </Label>
                 <input
                   id="lastName"
                   type="text"
@@ -956,9 +959,9 @@ export default function AddMigrantPage() {
             {/* Date of Birth & Gender */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="dob" className="text-[14px] font-medium text-[#171717]">
                   Date of Birth
-                </label>
+                </Label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -973,9 +976,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="gender" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="gender" className="text-[14px] font-medium text-[#171717]">
                   Gender
-                </label>
+                </Label>
                 <div className="relative">
                   <select
                     id="gender"
@@ -997,9 +1000,9 @@ export default function AddMigrantPage() {
             {/* Marital Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="maritalStatus" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="maritalStatus" className="text-[14px] font-medium text-[#171717]">
                   Marital Status
-                </label>
+                </Label>
                 <div className="relative">
                   <select
                     id="maritalStatus"
@@ -1022,9 +1025,9 @@ export default function AddMigrantPage() {
             {/* Nationality & Country of Birth */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="nationality" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="nationality" className="text-[14px] font-medium text-[#171717]">
                   Nationality
-                </label>
+                </Label>
                 <div className="relative">
                   <select
                     id="nationality"
@@ -1049,9 +1052,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="countryOfBirth" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="countryOfBirth" className="text-[14px] font-medium text-[#171717]">
                   Country of Birth
-                </label>
+                </Label>
                 <div className="relative">
                   <select
                     id="countryOfBirth"
@@ -1079,9 +1082,9 @@ export default function AddMigrantPage() {
             {/* Passport Number, Issue Date & Expiry Date */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="passportNumber" className="text-[14px] font-medium text-[#171717]">
                   Passport Number
-                </label>
+                </Label>
                 <input
                   id="passportNumber"
                   type="text"
@@ -1093,9 +1096,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="passportIssueDate" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="passportIssueDate" className="text-[14px] font-medium text-[#171717]">
                   Issue Date
-                </label>
+                </Label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -1110,9 +1113,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="passportExpiryDate" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="passportExpiryDate" className="text-[14px] font-medium text-[#171717]">
                   Expiry Date
-                </label>
+                </Label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#A4A4A4] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -1130,9 +1133,9 @@ export default function AddMigrantPage() {
             {/* Email Address & Phone Number */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="personalEmail" className="text-[14px] font-medium text-[#171717]">
                   Email Address
-                </label>
+                </Label>
                 <input
                   id="personalEmail"
                   type="email"
@@ -1144,9 +1147,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="mobilePhone" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="mobilePhone" className="text-[14px] font-medium text-[#171717]">
                   Phone Number
-                </label>
+                </Label>
                 <input
                   id="mobilePhone"
                   type="tel"
@@ -1506,9 +1509,9 @@ export default function AddMigrantPage() {
 
             {/* CoS Reference Field */}
             <div className="flex flex-col gap-1">
-              <label htmlFor="cosReference" className="text-[14px] font-medium text-[#171717]">
+              <Label htmlFor="cosReference" className="text-[14px] font-medium text-[#171717]">
                 CoS Reference (if available)
-              </label>
+              </Label>
               <input
                 id="cosReference"
                 type="text"
@@ -1522,9 +1525,9 @@ export default function AddMigrantPage() {
             {/* Employer / Sponsor Field */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-1">
-                <label htmlFor="employerSponsor" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="employerSponsor" className="text-[14px] font-medium text-[#171717]">
                   Employer / Sponsor
-                </label>
+                </Label>
                 <RiInformationLine className="size-4 text-[#A4A4A4]" />
               </div>
               <input
@@ -1540,9 +1543,9 @@ export default function AddMigrantPage() {
             {/* Job Title & SOC Code Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="jobTitle" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="jobTitle" className="text-[14px] font-medium text-[#171717]">
                   Job Title
-                </label>
+                </Label>
                 <div className="relative">
                   <select
                     id="jobTitle"
@@ -1578,9 +1581,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="socCode" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="socCode" className="text-[14px] font-medium text-[#171717]">
                   SOC Code
-                </label>
+                </Label>
                 <input
                   id="socCode"
                   type="text"
@@ -1595,9 +1598,9 @@ export default function AddMigrantPage() {
             {/* Start Date & End Date (Grid Row) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex flex-col gap-1">
-                <label htmlFor="startDate" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="startDate" className="text-[14px] font-medium text-[#171717]">
                   Start Date
-                </label>
+                </Label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#5C5C5C] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -1612,9 +1615,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="endDate" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="endDate" className="text-[14px] font-medium text-[#171717]">
                   End Date
-                </label>
+                </Label>
                 <div className="relative">
                   <RiCalendarLine className="size-5 text-[#5C5C5C] absolute left-3 top-2.5 pointer-events-none" />
                   <input
@@ -1632,9 +1635,9 @@ export default function AddMigrantPage() {
             {/* Contract, Hours/Week, Annual Salary */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-6 flex flex-col gap-1">
-                <label htmlFor="contractType" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="contractType" className="text-[14px] font-medium text-[#171717]">
                   Contract
-                </label>
+                </Label>
                 <div className="relative">
                   <select
                     id="contractType"
@@ -1654,9 +1657,9 @@ export default function AddMigrantPage() {
 
               <div className="md:col-span-3 flex flex-col gap-1">
                 <div className="flex items-center gap-1">
-                  <label htmlFor="hoursPerWeek" className="text-[14px] font-medium text-[#171717]">
+                  <Label htmlFor="hoursPerWeek" className="text-[14px] font-medium text-[#171717]">
                     Hours/Week
-                  </label>
+                  </Label>
                   <RiInformationLine className="size-4 text-[#A4A4A4]" />
                 </div>
                 <input
@@ -1671,9 +1674,9 @@ export default function AddMigrantPage() {
 
               <div className="md:col-span-3 flex flex-col gap-1">
                 <div className="flex items-center gap-1">
-                  <label htmlFor="annualSalary" className="text-[14px] font-medium text-[#171717]">
+                  <Label htmlFor="annualSalary" className="text-[14px] font-medium text-[#171717]">
                     Annual Salary
-                  </label>
+                  </Label>
                   <RiInformationLine className="size-4 text-[#A4A4A4]" />
                 </div>
                 <input
@@ -1690,9 +1693,9 @@ export default function AddMigrantPage() {
             {/* Address Details */}
             <div className="flex flex-col gap-4 pt-2">
               <div className="flex flex-col gap-1">
-                <label htmlFor="workAddressLine1" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="workAddressLine1" className="text-[14px] font-medium text-[#171717]">
                   Address
-                </label>
+                </Label>
                 <input
                   id="workAddressLine1"
                   type="text"
@@ -1704,9 +1707,9 @@ export default function AddMigrantPage() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label htmlFor="workAddressLine2" className="text-[14px] font-medium text-[#171717]">
+                <Label htmlFor="workAddressLine2" className="text-[14px] font-medium text-[#171717]">
                   Address Line 2 <span className="font-normal text-[#5C5C5C]">(Optional)</span>
-                </label>
+                </Label>
                 <input
                   id="workAddressLine2"
                   type="text"
@@ -1719,9 +1722,9 @@ export default function AddMigrantPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="workCity" className="text-[14px] font-medium text-[#171717]">
+                  <Label htmlFor="workCity" className="text-[14px] font-medium text-[#171717]">
                     City
-                  </label>
+                  </Label>
                   <input
                     id="workCity"
                     type="text"
@@ -1733,9 +1736,9 @@ export default function AddMigrantPage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label htmlFor="workPostCode" className="text-[14px] font-medium text-[#171717]">
+                  <Label htmlFor="workPostCode" className="text-[14px] font-medium text-[#171717]">
                     Post Code
-                  </label>
+                  </Label>
                   <input
                     id="workPostCode"
                     type="text"

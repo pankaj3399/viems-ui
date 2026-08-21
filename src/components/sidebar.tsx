@@ -20,8 +20,11 @@ import {
   RiShieldFill,
   RiShieldLine,
   RiFolderShieldFill,
+  RiFolderShieldLine,
   RiFileCheckLine,
+  RiFileCheckFill,
   RiFileTextLine,
+  RiFileTextFill,
   RiArrowUpSLine,
   RiArrowDownSLine,
   RiCustomerService2Line,
@@ -334,7 +337,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                             : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
                         }`}
                       >
-                        <RiFolderShieldFill className={`size-5 shrink-0 ${pathname === "/compliance" ? "text-white" : "text-[#5C5C5C]"}`} />
+                        {pathname === "/compliance" ? (
+                          <RiFolderShieldFill className="size-5 shrink-0 text-white" />
+                        ) : (
+                          <RiFolderShieldLine className="size-5 shrink-0 text-[#5C5C5C]" />
+                        )}
                         <span className="whitespace-nowrap truncate">Compliance Centre</span>
                       </Link>
 
@@ -347,7 +354,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                             : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
                         }`}
                       >
-                        <RiFileCheckLine className={`size-5 shrink-0 ${pathname.startsWith("/compliance/rtw-checks") ? "text-white" : "text-[#5C5C5C]"}`} />
+                        {pathname.startsWith("/compliance/rtw-checks") ? (
+                          <RiFileCheckFill className="size-5 shrink-0 text-white" />
+                        ) : (
+                          <RiFileCheckLine className="size-5 shrink-0 text-[#5C5C5C]" />
+                        )}
                         <span className="whitespace-nowrap truncate">RTW Checks</span>
                       </Link>
 
@@ -360,7 +371,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                             : "text-[#5C5C5C] hover:bg-[#1f1f1f] hover:text-white"
                         }`}
                       >
-                        <RiFileTextLine className={`size-5 shrink-0 ${pathname.startsWith("/compliance/documents") ? "text-white" : "text-[#5C5C5C]"}`} />
+                        {pathname.startsWith("/compliance/documents") ? (
+                          <RiFileTextFill className="size-5 shrink-0 text-white" />
+                        ) : (
+                          <RiFileTextLine className="size-5 shrink-0 text-[#5C5C5C]" />
+                        )}
                         <span className="whitespace-nowrap truncate">Documents</span>
                       </Link>
                     </div>

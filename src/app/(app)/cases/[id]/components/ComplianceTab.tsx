@@ -11,6 +11,7 @@ import {
   RiArrowDownSLine,
   RiCalendarLine,
 } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
 
 // ─── Donut Chart Component (75% Compliant) ──────────────────────────────────
 function ComplianceDonutChart({ percentage = 75 }: { percentage?: number }) {
@@ -252,9 +253,9 @@ export function ComplianceTab({ id }: { id?: string }) {
             <h3 className="font-aeonik-medium text-[20px] leading-[32px] text-[#171717]">
               Priority tasks
             </h3>
-            <button type="button" className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0">
+            <Button type="button" variant="ghost" className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0 p-0 h-auto">
               Go to Tasks
-            </button>
+            </Button>
           </div>
 
           {/* Filter Pills Bar */}
@@ -518,9 +519,9 @@ export function ComplianceTab({ id }: { id?: string }) {
           <h3 className="font-aeonik-medium text-[20px] leading-[32px] text-[#171717]">
             Required documents
           </h3>
-          <button type="button" className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0">
+          <Button type="button" variant="ghost" className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0 p-0 h-auto">
             Go to Documents
-          </button>
+          </Button>
         </div>
 
         <div className="bg-white border border-[#F5F5F5] rounded-[16px] divide-y divide-neutral-100 overflow-hidden shadow-2xs">

@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { ImportMigrantsModal } from "./components/ImportMigrantsModal";
 import { AddEventModal } from "./components/AddEventModal";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 // Helper to parse Year, Month (0-indexed), and Day without UTC timezone shifts
 function parseLocalDateParts(dateStr: string | number | Date): { year: number; month: number; day: number } {
@@ -646,14 +647,14 @@ export default function DashboardPage() {
           </button>
           
           {/* + New migrant Button */}
-          <button 
+          <Button 
             type="button"
             onClick={() => router.push("/migrants/create")}
             className="flex items-center justify-center gap-[4px] px-[12px] h-[36px] bg-[#7D52F4] hover:bg-[#6C3EE8] text-white rounded-[8px] text-[14px] font-medium leading-[20px] tracking-[-0.006em] transition-all cursor-pointer border-0 shadow-sm"
           >
             <RiAddLine className="size-5 text-white" />
             New migrant
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -697,13 +698,14 @@ export default function DashboardPage() {
                 <h2 className="text-[20px] font-medium text-[#171717] leading-[32px] font-aeonik-medium">
                   Tasks
                 </h2>
-                <button 
+                <Button 
                   type="button"
+                  variant="ghost"
                   onClick={() => router.push("/cases?quick=needs_action")}
-                  className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 bg-transparent"
+                  className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 bg-transparent p-0 h-auto"
                 >
                   Go to Cases
-                </button>
+                </Button>
               </div>
 
               {/* Tasks Container */}
