@@ -19,7 +19,6 @@ import {
   RiCalendarLine,
   RiArrowDownSLine,
   RiUser3Line,
-  RiSparklingFill,
 } from "@remixicon/react";
 import { toast } from "sonner";
 
@@ -529,7 +528,7 @@ export default function MigrantOnboardingPage() {
             <div className="bg-[#EFEBFF] rounded-[8px] p-3 px-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="size-6 rounded-[6px] bg-[#7D52F4] flex items-center justify-center shrink-0 text-white">
-                  <RiSparklingFill className="size-3.5 text-white" />
+                  <RiFileTextLine className="size-3.5 text-white" />
                 </div>
                 <span className="text-[13px] font-normal text-[#171717] leading-[20px]">
                   {passportUploaded

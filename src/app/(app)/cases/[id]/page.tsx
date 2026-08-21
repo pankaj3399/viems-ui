@@ -452,6 +452,7 @@ export default function MigrantOverviewPage() {
   const [activeTab, setActiveTab] = React.useState("Overview");
 
   const [migrant, setMigrant] = React.useState<any>(null);
+  const [rawMigrantData, setRawMigrantData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
 
   const [isPersonalModalOpen, setIsPersonalModalOpen] = React.useState(false);
@@ -482,6 +483,7 @@ export default function MigrantOverviewPage() {
           ...(fullMigrantData || {}),
         },
       };
+      setRawMigrantData(combined.migrant || fullMigrantData || caseResponse?.migrant || null);
       const detail = mapBackendCaseToDetail(combined);
       setMigrant(detail);
     } catch (err) {
@@ -849,7 +851,11 @@ export default function MigrantOverviewPage() {
             </div>
           </div>
         ) : activeTab === "Passport" ? (
-          <PassportTab migrant={migrant} onEditPassport={() => setIsPersonalModalOpen(true)} />
+          <PassportTab
+            migrant={migrant}
+            onEditPassport={() => setIsPersonalModalOpen(true)}
+            onPassportUploaded={() => loadCaseDetail()}
+          />
         ) : activeTab === "Documents" ? (
           <DocumentsTab caseId={id} />
         ) : activeTab === "Tasks" ? (
@@ -901,18 +907,21 @@ export default function MigrantOverviewPage() {
             open={isPersonalModalOpen}
             onOpenChange={setIsPersonalModalOpen}
             migrantId={migrant.migrantId}
+            initialData={rawMigrantData || migrant}
             onSuccess={loadCaseDetail}
           />
           <EditHomeAddressModal
             open={isAddressModalOpen}
             onOpenChange={setIsAddressModalOpen}
             migrantId={migrant.migrantId}
+            initialData={rawMigrantData || migrant}
             onSuccess={loadCaseDetail}
           />
           <EditContactDetailsModal
             open={isContactModalOpen}
             onOpenChange={setIsContactModalOpen}
             migrantId={migrant.migrantId}
+            initialData={rawMigrantData || migrant}
             onSuccess={loadCaseDetail}
           />
           <EditEmploymentDetailsModal

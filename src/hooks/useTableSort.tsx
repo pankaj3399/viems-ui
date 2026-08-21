@@ -48,12 +48,12 @@ export function useTableSort<T>(
     (field: keyof T) => {
       if (sortState.field === field) {
         return sortState.direction === "asc" ? (
-          <RiArrowUpSLine className="size-3.5 text-[#171717]" />
+          <RiArrowUpSLine className="size-5 text-[#171717]" />
         ) : (
-          <RiArrowDownSLine className="size-3.5 text-[#171717]" />
+          <RiArrowDownSLine className="size-5 text-[#171717]" />
         );
       }
-      return <RiExpandUpDownFill className="size-3 text-[#A4A4A4]" />;
+      return <RiExpandUpDownFill className="size-5 text-[#A4A4A4]" />;
     },
     [sortState.field, sortState.direction]
   );

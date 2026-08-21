@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
-import { XIcon, Upload, Calendar, Info, Sparkles } from "lucide-react";
+import { XIcon, Upload, Calendar, Info, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface EditEmploymentDetailsModalProps {
@@ -142,7 +142,7 @@ export function EditEmploymentDetailsModal({
           <div className="flex items-center justify-between p-[12px_16px] gap-[12px] bg-[#F7F7F7] rounded-[8px] min-h-[56px] shrink-0 w-full">
             <div className="flex items-center gap-[12px] flex-1 min-w-0">
               <div className="size-[24px] rounded-[6.4px] bg-[#7D52F4] flex items-center justify-center shrink-0">
-                <Sparkles className="size-3.5 text-[#EFEBFF] fill-[#EFEBFF]" />
+                <FileText className="size-3.5 text-[#EFEBFF]" />
               </div>
               <span className="text-[13px] leading-[20px] text-[#171717] tracking-[-0.006em] flex-1 min-w-0">
                 Upload the CoS reference and AI will auto-fill these fields for you.

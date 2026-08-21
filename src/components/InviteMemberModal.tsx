@@ -207,6 +207,8 @@ export function InviteMemberModal({
                     </SelectTrigger>
                     <SelectContent className="bg-white border border-[#EBEBEB] rounded-[10px] shadow-card-large z-[60]">
                       <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="Case Manager">Case Manager</SelectItem>
+                      <SelectItem value="Viewer">Viewer</SelectItem>
                       <SelectItem value="Authorising Officer">Authorising Officer</SelectItem>
                       <SelectItem value="Compliance Officer">Compliance Officer</SelectItem>
                       <SelectItem value="HR Manager">HR Manager</SelectItem>

@@ -26,13 +26,28 @@ interface EditHomeAddressModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   migrantId: string;
+  initialData?: any;
   onSuccess: () => void;
 }
+
+const DEFAULT_COUNTRIES = [
+  { id: "1", value: "United States" },
+  { id: "2", value: "United Kingdom" },
+  { id: "3", value: "Canada" },
+  { id: "4", value: "Australia" },
+  { id: "5", value: "India" },
+  { id: "6", value: "Ireland" },
+  { id: "7", value: "Germany" },
+  { id: "8", value: "France" },
+  { id: "9", value: "Spain" },
+  { id: "10", value: "Italy" },
+];
 
 export function EditHomeAddressModal({
   open,
   onOpenChange,
   migrantId,
+  initialData,
   onSuccess,
 }: EditHomeAddressModalProps) {
   // Form states
@@ -44,11 +59,49 @@ export function EditHomeAddressModal({
 
   // Preserved/resolved database states
   const [migrantData, setMigrantData] = React.useState<any>(null);
-  const [countries, setCountries] = React.useState<{ id: string; value: string }[]>([]);
+  const [countries, setCountries] = React.useState<{ id: string; value: string }[]>(DEFAULT_COUNTRIES);
+  const [hasRealCountries, setHasRealCountries] = React.useState(false);
   const [citiesList, setCitiesList] = React.useState<{ id: string; value: string }[]>([]);
 
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+
+  const populateFromObject = React.useCallback((m: any) => {
+    if (!m) return;
+    setMigrantData(m);
+    const c = m.contacts || m.contact || m;
+    const pInfo = m.personalInfo || {};
+
+    const addr1 = c.address_line_1 || c.addressLine1 || (Array.isArray(pInfo.address) ? pInfo.address[0] : "") || "";
+    const addr2 = c.address_line_2 || c.addressLine2 || (Array.isArray(pInfo.address) && pInfo.address.length > 1 ? pInfo.address[1] : "") || "";
+    const zip = c.zip_code || c.postCode || c.postcode || "";
+
+    setAddressLine1(addr1);
+    setAddressLine2(addr2);
+    setPostCode(zip);
+    
+    if (c.city?.name) {
+      setCity(c.city.name);
+    } else if (typeof c.city === "string") {
+      setCity(c.city);
+    } else {
+      setCity("");
+    }
+
+    if (c.country?.name) {
+      setSelectedCountryName(c.country.name);
+    } else if (typeof c.country === "string") {
+      setSelectedCountryName(c.country);
+    } else {
+      setSelectedCountryName("");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (initialData && open) {
+      populateFromObject(initialData);
+    }
+  }, [initialData, open, populateFromObject]);
 
   // Load countries list and migrant's existing contacts
   React.useEffect(() => {
@@ -58,45 +111,57 @@ export function EditHomeAddressModal({
       try {
         setIsLoading(true);
 
-        // Fetch initdata countries
-        const initData = await apiClient.get<any>(ENDPOINTS.initData.byName("start"));
-        if (initData.Countries) {
-          setCountries(initData.Countries);
+        // 1. Fetch initdata countries safely
+        try {
+          const initData = await apiClient.get<any>(ENDPOINTS.initData.byName("start"));
+          if (initData?.Countries && Array.isArray(initData.Countries) && initData.Countries.length > 0) {
+            setCountries(initData.Countries);
+            setHasRealCountries(true);
+          }
+        } catch {
+          // Keep default
         }
 
-        // Fetch current migrant details
-        const migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
-        if (migrant) {
-          setMigrantData(migrant);
-          const c = migrant.contacts;
-          if (c) {
-            setAddressLine1(c.address_line_1 || "");
-            setAddressLine2(c.address_line_2 || "");
-            setPostCode(c.zip_code || "");
-            
-            // If city is an object with a name, display it
-            if (c.city?.name) {
-              setCity(c.city.name);
-            } else if (typeof c.city === "string") {
-              setCity(c.city);
-            }
+        // If initialData is already available, avoid overriding with mismatched ID lookup
+        if (initialData && (initialData.personalInfo?.address || initialData.contacts?.address_line_1 || initialData.contact?.homeAddress)) {
+          return;
+        }
 
-            // Set country
-            if (c.country?.name) {
-              setSelectedCountryName(c.country.name);
+        // 2. Fetch current migrant details safely by checking case first
+        let migrant: any = null;
+        try {
+          const caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(migrantId));
+          if (caseData && (caseData.id || caseData.caseNumber || caseData.migrant)) {
+            const realMigrantId = caseData.migrant?.id || caseData.migrant_id || caseData.migrantId;
+            if (realMigrantId) {
+              try {
+                migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(realMigrantId));
+              } catch {}
+            }
+            if (!migrant) {
+              migrant = caseData.migrant || caseData;
             }
           }
+        } catch {}
+
+        if (!migrant) {
+          try {
+            migrant = await apiClient.get<any>(ENDPOINTS.migrants.byId(migrantId));
+          } catch {}
+        }
+
+        if (migrant) {
+          populateFromObject(migrant);
         }
       } catch (err) {
         console.error("Failed to load address details:", err);
-        toast.error("Failed to load address details");
       } finally {
         setIsLoading(false);
       }
     }
 
     loadData();
-  }, [open, migrantId]);
+  }, [open, migrantId, initialData, populateFromObject]);
 
   // Find country ID from name
   const currentCountryId = React.useMemo(() => {
@@ -142,14 +207,21 @@ export function EditHomeAddressModal({
       }
 
       // Build payload preserving unchanged details
+      const contactsPatch: any = {
+        address_line_1: addressLine1,
+        address_line_2: addressLine2 || null,
+        zip_code: postCode,
+        city: resolvedCityId || null,
+      };
+
+      if (hasRealCountries && currentCountryId) {
+        contactsPatch.country = parseInt(currentCountryId, 10);
+      } else if (migrantData.contacts?.country?.id) {
+        contactsPatch.country = migrantData.contacts.country.id;
+      }
+
       const payload = buildMigrantPatchPayload(migrantData, {
-        contacts: {
-          address_line_1: addressLine1,
-          address_line_2: addressLine2 || null,
-          zip_code: postCode,
-          country: currentCountryId ? parseInt(currentCountryId, 10) : migrantData.contacts?.country?.id,
-          city: resolvedCityId || null,
-        },
+        contacts: contactsPatch,
       });
 
       await apiClient.patch(ENDPOINTS.migrants.byId(migrantId), payload);
@@ -175,13 +247,16 @@ export function EditHomeAddressModal({
           <h3 className="text-label-md font-medium text-[#171717] leading-[24px]">
             Home address
           </h3>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Close"
             onClick={() => onOpenChange(false)}
-            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer"
+            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
           >
             <XIcon className="size-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Form Body */}

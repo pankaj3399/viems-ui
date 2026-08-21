@@ -56,9 +56,12 @@ export const ENDPOINTS = {
     cases: `${API_BASE}/migrants/cases`,
     credibility: `${API_BASE}/migrants/credibility`,
     credibilityInsights: `${API_BASE}/migrants/credibility/insights`,
-    /** GET /migrants/:id/travel-history */
+    /** GET/POST /migrants/:id/travel-history */
     travelHistory: (id: number | string) =>
       `${API_BASE}/migrants/${id}/travel-history`,
+    /** PATCH/DELETE /migrants/:id/travel-history/:recordId */
+    travelHistoryRecord: (id: number | string, recordId: number | string) =>
+      `${API_BASE}/migrants/${id}/travel-history/${recordId}`,
     archive: `${API_BASE}/migrants/archive`,
     restore: `${API_BASE}/migrants/restore`,
   },

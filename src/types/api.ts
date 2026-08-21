@@ -393,6 +393,7 @@ export interface RawCaseRecord {
   caseIdDisplay?: string;
   caseNumber?: string;
   caseIdNumber?: number | string;
+  relatedYear?: number | string;
   first_name?: string;
   last_name?: string;
   created_at?: string;
@@ -441,28 +442,43 @@ export interface RawTravelHistoryRecord {
   direction?: string;
   type?: string;
   port?: string;
+  airport?: string;
   location?: string;
   routeFlight?: string;
   flightNumber?: string;
   method?: string;
   transport?: string;
+  airline?: string;
+  status?: string;
+  notes?: string;
+  country?: string;
 }
 
 export interface UserProfileResponse {
   id?: number | string;
   first_name?: string;
+  firstName?: string;
   last_name?: string;
+  lastName?: string;
   name?: string;
   email?: string;
   phone?: string;
   dob?: string;
   gender?: string;
+  avatar?: string;
   timezone?: string;
   dateFormat?: string;
   language?: string;
   role?: {
     value?: string;
     title?: string;
+  };
+  personalInfo?: {
+    firstName?: string;
+    lastName?: string;
+    workPhone?: string;
+    dateOfBirth?: string;
+    sex?: string;
   };
 }
 

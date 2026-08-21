@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export default function AuthLayout({
   children,
@@ -17,14 +18,8 @@ export default function AuthLayout({
     <div className="min-h-screen w-full flex flex-col bg-[#171717] overflow-x-hidden antialiased">
       {/* ─── Figma Header Bar (Height 80px) ─────────────────────────────────── */}
       <header className="h-20 w-full flex items-center px-8 bg-[#171717] shrink-0 select-none">
-        {/* Left Side: Synergy Logo & Brand Name */}
-        <div className="flex items-center gap-md">
-          {/* Synergy Logo Icon (simple dark neutral circle matching the screenshot) */}
-          <div className="size-8 rounded-full bg-neutral-700 shrink-0" />
-          <span className="text-h5-title font-bold text-white tracking-tight font-sans">
-            Viems
-          </span>
-        </div>
+        {/* Left Side: Viems Logo & Brand Name */}
+        <Logo size="lg" textClassName="text-white font-sans" href="/login" />
       </header>
 
       {/* ─── Figma Inner Canvas (Frame-within-a-frame) ───────────────────────── */}

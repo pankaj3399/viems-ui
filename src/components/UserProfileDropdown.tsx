@@ -14,7 +14,7 @@ import {
   RiSettings2Line,
   RiEqualizerLine,
   RiHeadphoneLine,
-  RiStarLine,
+  RiNotification3Line,
   RiLogoutBoxRLine,
   RiArrowRightSLine,
 } from "@remixicon/react";
@@ -116,7 +116,7 @@ export function UserProfileDropdown({
 
         {/* Item: Settings */}
         <DropdownMenuItem
-          onClick={() => router.push("/settings")}
+          onClick={() => router.push("/settings?tab=profile")}
           className="w-[284px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[12px] font-medium text-[#5C5C5C] hover:bg-neutral-50 hover:text-neutral-900"
         >
           <RiSettings2Line className="size-5 text-[#A4A4A4]" />
@@ -125,7 +125,7 @@ export function UserProfileDropdown({
 
         {/* Item: Preferences */}
         <DropdownMenuItem
-          onClick={() => {}}
+          onClick={() => router.push("/settings?tab=preferences")}
           className="w-[284px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center justify-between cursor-pointer transition-colors border-0 bg-[#F7F7F7] rounded-[12px] font-medium text-[#171717] hover:bg-neutral-100"
         >
           <div className="flex items-center gap-[8px] min-w-0">
@@ -147,13 +147,13 @@ export function UserProfileDropdown({
           <span className="flex-1">Help & support</span>
         </DropdownMenuItem>
 
-        {/* Item: What's new */}
+        {/* Item: Notifications */}
         <DropdownMenuItem
-          onClick={() => {}}
+          onClick={() => router.push("/notifications")}
           className="w-[284px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[12px] font-medium text-[#5C5C5C] hover:bg-neutral-50 hover:text-neutral-900"
         >
-          <RiStarLine className="size-5 text-[#A4A4A4]" />
-          <span className="flex-1">What&apos;s new</span>
+          <RiNotification3Line className="size-5 text-[#A4A4A4]" />
+          <span className="flex-1">Notifications</span>
         </DropdownMenuItem>
 
         {/* Divider */}

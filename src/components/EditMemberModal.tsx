@@ -42,6 +42,8 @@ interface EditMemberModalProps {
 
 const STANDARD_ROLES = [
   "Admin",
+  "Case Manager",
+  "Viewer",
   "Authorising Officer",
   "Compliance Officer",
   "HR Manager",
@@ -53,6 +55,8 @@ export function normalizeRoleDisplay(role: string): string {
   if (!role) return "Compliance Officer";
   const r = role.trim().toUpperCase();
   if (r === "ADMIN") return "Admin";
+  if (r === "CASE MANAGER" || r === "CASE_MANAGER") return "Case Manager";
+  if (r === "VIEWER") return "Viewer";
   if (r === "AUTHORISING OFFICER" || r === "AUTHORISING_OFFICER") return "Authorising Officer";
   if (r === "COMPLIANCE OFFICER" || r === "COMPLIANCE_OFFICER") return "Compliance Officer";
   if (r === "HR MANAGER" || r === "HR_MANAGER" || r === "MANAGER") return "HR Manager";
