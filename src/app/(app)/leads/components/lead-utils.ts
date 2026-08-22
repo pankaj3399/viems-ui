@@ -13,7 +13,7 @@ export const LEAD_PRIORITIES_FALLBACK: LeadPriorityMeta[] = [
   { id: 3, name: "High", color: "#ED383A" },
 ];
 
-/** Allowed lead status transitions (from → to), per server enum */
+/** Selectable lead statuses shown in the status picker, per server enum */
 export const LEAD_STATUS_OPTIONS = [
   { value: LEAD_STATUSES.ACTIVE, dotColor: "#1FC16B" },
   { value: LEAD_STATUSES.COMPLETED, dotColor: "#335CFF" },

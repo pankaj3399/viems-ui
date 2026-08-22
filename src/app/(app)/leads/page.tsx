@@ -42,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   LEAD_PRIORITIES_FALLBACK,
+  getLeadStatusDot,
   getLeadStatusPillClasses,
   getLeadPriorityMeta,
   formatLeadDate,
@@ -162,6 +163,7 @@ export default function LeadsPage() {
   const [itemsPerPage, setItemsPerPage] = React.useState(10);
 
   const [loading, setLoading] = React.useState(true);
+  const [archiveLoading, setArchiveLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   // Modals
@@ -224,20 +226,27 @@ export default function LeadsPage() {
   }, []);
 
   const fetchArchivedLeads = React.useCallback(async () => {
+    setArchiveLoading(true);
     try {
       const res = await apiClient.get<unknown>(ENDPOINTS.leads.archive);
       setArchivedLeads(normalizeLeadsResponse(res).rows.map((l) => mapLeadRow(l, true)));
     } catch (err) {
       console.error("Failed to fetch archived leads:", err);
       setArchivedLeads([]);
+      toast.error(err instanceof Error ? err.message : "Failed to load archived leads");
+    } finally {
+      setArchiveLoading(false);
     }
   }, []);
 
   React.useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([fetchUserInfo(), fetchInitData(), fetchLeads()]);
-      setLoading(false);
+      try {
+        await Promise.all([fetchUserInfo(), fetchInitData(), fetchLeads()]);
+      } finally {
+        setLoading(false);
+      }
     };
     init();
   }, [fetchUserInfo, fetchInitData, fetchLeads]);
@@ -298,12 +307,18 @@ export default function LeadsPage() {
     } else if (sortField === "priorityId") {
       rows.sort((a, b) => ((a.priorityId ?? 0) - (b.priorityId ?? 0)) * dir);
     } else if (sortField === "creationDate") {
-      rows.sort(
-        (a, b) => (new Date(a.creationDate || 0).getTime() - new Date(b.creationDate || 0).getTime()) * dir
-      );
+      if (activeTab === "archive") {
+        rows.sort(
+          (a, b) => (new Date(a.archivationDate || 0).getTime() - new Date(b.archivationDate || 0).getTime()) * dir
+        );
+      } else {
+        rows.sort(
+          (a, b) => (new Date(a.creationDate || 0).getTime() - new Date(b.creationDate || 0).getTime()) * dir
+        );
+      }
     }
     return rows;
-  }, [sourceRows, searchQuery, statusFilter, priorityFilter, sortField, sortDirection]);
+  }, [sourceRows, searchQuery, statusFilter, priorityFilter, sortField, sortDirection, activeTab]);
 
   // Filter/pagination handlers reset the page explicitly (no reset effect needed)
   const applySearchQuery = (value: string) => {
@@ -427,7 +442,7 @@ export default function LeadsPage() {
     setDetailsLead(lead);
     setDetailsModalOpen(true);
     const full = await loadFullLead(lead);
-    if (full) setDetailsLead(full);
+    if (full && full.id === lead.id) setDetailsLead(full);
   };
 
   const openConvertWizard = async (lead: LeadRow) => {
@@ -443,6 +458,8 @@ export default function LeadsPage() {
   }
 
   const handleConvertSubmit = async (payload: {
+    firstName: string;
+    lastName: string;
     email: string;
     contacts: { contact_email?: string; phone_1?: string };
     passportNumber?: string;
@@ -504,19 +521,15 @@ export default function LeadsPage() {
     const { action, lead } = confirmAction;
     setConfirmBusy(true);
     try {
+      const formData = new FormData();
+      formData.append("data", JSON.stringify(buildBulkData([lead])));
       if (action === "archive") {
-        const formData = new FormData();
-        formData.append("data", JSON.stringify(buildBulkData([lead])));
         await apiClient.delete(ENDPOINTS.leads.toArchive, { body: formData });
         toast.success(`${getLeadName(lead)} moved to archive`);
       } else if (action === "restore") {
-        const formData = new FormData();
-        formData.append("data", JSON.stringify(buildBulkData([lead])));
         await apiClient.patch(ENDPOINTS.leads.restore, formData);
         toast.success(`${getLeadName(lead)} restored to active leads`);
       } else {
-        const formData = new FormData();
-        formData.append("data", JSON.stringify(buildBulkData([lead])));
         await apiClient.delete(ENDPOINTS.leads.archive, { body: formData });
         toast.success(`${getLeadName(lead)} permanently deleted`);
       }
@@ -532,9 +545,9 @@ export default function LeadsPage() {
 
   const statusColorsMap = React.useMemo(
     () => ({
-      Active: "#1FC16B",
-      Completed: "#335CFF",
-      Refused: "#FB3748",
+      Active: getLeadStatusDot("active"),
+      Completed: getLeadStatusDot("completed"),
+      Refused: getLeadStatusDot("refused"),
     }),
     []
   );
@@ -544,15 +557,12 @@ export default function LeadsPage() {
   const isArchivedTab = activeTab === "archive";
 
   const getPillDotClass = (status: string): string => {
-    switch ((status || "").toLowerCase().trim()) {
-      case "active":
-        return "bg-[#1FC16B]";
-      case "completed":
-        return "bg-[#335CFF]";
-      case "refused":
-        return "bg-[#FB3748]";
-      default:
-        return "bg-[#7B7B7B]";
+    const color = getLeadStatusDot(status);
+    switch (color) {
+      case "#1FC16B": return "bg-[#1FC16B]";
+      case "#335CFF": return "bg-[#335CFF]";
+      case "#FB3748": return "bg-[#FB3748]";
+      default:        return "bg-[#7B7B7B]";
     }
   };
 
@@ -564,7 +574,7 @@ export default function LeadsPage() {
         </div>
       );
     }
-    if (loading && activeTab === "archive") {
+    if (archiveLoading && activeTab === "archive") {
       return (
         <div className="w-full bg-white border border-[#EBEBEB] rounded-[16px] p-12 text-center flex flex-col items-center justify-center gap-2 shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
           <span className="text-[14px] font-medium text-[#5C5C5C] animate-pulse">Loading archived leads…</span>
@@ -648,39 +658,33 @@ export default function LeadsPage() {
       return (
         <div
           key={`lead-${lead.id}`}
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("[role='menu']")) return;
-            openDetailsModal(lead);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              if ((e.target as HTMLElement).closest("button") || (e.target as HTMLElement).closest("[role='menu']")) return;
-              e.preventDefault();
-              openDetailsModal(lead);
-            }
-          }}
-          className="w-full bg-white rounded-[16px] h-[72px] p-1 flex items-center border-2 border-transparent hover:border-white hover:bg-[#F5F5F5] transition-all cursor-pointer shadow-x-small group"
+          className="w-full bg-white rounded-[16px] h-[72px] p-1 flex items-center border-2 border-transparent hover:border-white hover:bg-[#F5F5F5] transition-all shadow-x-small group"
         >
           {/* Lead ID # */}
           <div className="w-[94px] h-16 p-3 flex items-center font-mono text-[14px] text-[#5C5C5C] shrink-0 truncate">
             {lead.id}
           </div>
 
-          {/* Name */}
+          {/* Name — dedicated button opens details */}
           <div className="flex-1 min-w-0 h-16 p-3 flex items-center gap-3 shrink-0">
-            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0">
-              {getInitials(name) || "L"}
-            </div>
-            <div className="flex flex-col justify-center min-w-0 gap-0.5 flex-1">
-              <span className="font-medium text-[#171717] truncate leading-5 text-[14px] tracking-[-0.006em]">
-                {name}
-              </span>
-              <span className="text-[12px] leading-4 text-[#5C5C5C] truncate font-normal">
-                {lead.email || "No email"}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={() => openDetailsModal(lead)}
+              className="flex items-center gap-3 min-w-0 flex-1 text-left bg-transparent border-0 p-0 cursor-pointer"
+              aria-label={`View details for ${name}`}
+            >
+              <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0">
+                {getInitials(name) || "L"}
+              </div>
+              <div className="flex flex-col justify-center min-w-0 gap-0.5 flex-1">
+                <span className="font-medium text-[#171717] truncate leading-5 text-[14px] tracking-[-0.006em]">
+                  {name}
+                </span>
+                <span className="text-[12px] leading-4 text-[#5C5C5C] truncate font-normal">
+                  {lead.email || "No email"}
+                </span>
+              </div>
+            </button>
           </div>
 
           {/* Contact */}
@@ -737,7 +741,7 @@ export default function LeadsPage() {
           </div>
 
           {/* Actions */}
-          <div className="w-[48px] h-16 p-3 flex items-center justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
+          <div className="w-[48px] h-16 p-3 flex items-center justify-center shrink-0">
             <LeadRowMenu
               isArchived={activeTab === "archive"}
               onViewDetails={() => openDetailsModal(lead)}
@@ -842,6 +846,7 @@ export default function LeadsPage() {
               value={searchQuery}
               onChange={(e) => applySearchQuery(e.target.value)}
               placeholder="Search..."
+              aria-label="Search leads"
               className="w-full h-full pl-9 pr-8 bg-transparent text-[14px] font-normal leading-5 text-[#171717] placeholder-[#A4A4A4] border-0 shadow-none focus-visible:ring-0 focus-visible:shadow-none font-sans"
             />
             {searchQuery && (
@@ -1027,7 +1032,7 @@ export default function LeadsPage() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
                 disabled={safeCurrentPage === 1}
                 className="size-8 p-0 rounded-[8px] text-[#5C5C5C] hover:bg-neutral-200 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer border-0 shrink-0"
                 title="Previous page"

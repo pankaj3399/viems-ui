@@ -46,6 +46,8 @@ interface ConvertLeadWizardProps {
   lead: LeadForConversion | null;
   caseCategories: ConvertWizardCaseCategory[];
   onSubmit: (payload: {
+    firstName: string;
+    lastName: string;
     email: string;
     contacts: { contact_email?: string; phone_1?: string };
     categoryId?: number;
@@ -128,6 +130,8 @@ export function ConvertLeadWizard({
     setSubmitting(true);
     try {
       await onSubmit({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         email: email.trim(),
         contacts: {
           contact_email: email.trim(),
@@ -305,7 +309,11 @@ export function ConvertLeadWizard({
                     The case will be pre-filled with the case type you select below.
                   </span>
                 </div>
-                <Checkbox checked={openCase} onCheckedChange={(checked) => setOpenCase(Boolean(checked))} />
+                <Checkbox
+                  checked={openCase}
+                  onCheckedChange={(checked) => setOpenCase(Boolean(checked))}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </button>
 
               {openCase && (
