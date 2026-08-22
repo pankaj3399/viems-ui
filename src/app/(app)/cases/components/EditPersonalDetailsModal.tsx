@@ -151,8 +151,8 @@ export function EditPersonalDetailsModal({
     const pInfo = m.personalInfo || m.user?.personalInfo || {};
     const firstNameVal = m.first_name || pInfo.firstName || m.firstName || "";
     const lastNameVal = m.last_name || pInfo.lastName || m.lastName || "";
-    setFirstName(formatTitleCase(firstNameVal));
-    setLastName(formatTitleCase(lastNameVal));
+    setFirstName(firstNameVal);
+    setLastName(lastNameVal);
     setDob(formatDisplayDate(pInfo.dob || pInfo.dateOfBirth || m.date_of_birth || m.dateOfBirth || ""));
     setGender(pInfo.gender || pInfo.sex || m.gender || m.sex || "");
     setMaritalStatus(pInfo.maritalStatus || m.marital_status || m.maritalStatus || "");

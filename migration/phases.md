@@ -89,9 +89,9 @@ Extract every visual value from Figma. Do NOT start coding until this phase is c
 - [x] Extract **letter-spacing** if any headers use tracked-out text.
   | Style Class | Font Family | Size | Weight | Line Height | Tracking |
   | :--- | :--- | :---: | :---: | :---: | :---: |
-  | `.text-h3-title` | Aeonik | 40px | 600 (SemiBold) | 48px | -0.01em |
-  | `.text-h5-title` | Aeonik | 24px | 600 (SemiBold) | 32px | -0.005em |
-  | `.text-h6-title` | Inter | 20px | 550 (Medium) | 28px | -0.006em |
+  | `.text-h3-title` | Aeonik | 40px | 500 (Medium) | 48px | -0.01em |
+  | `.text-h5-title` | Aeonik | 24px | 500 (Medium) | 32px | -0.005em |
+  | `.text-h6-title` | Inter | 20px | 500 (Medium) | 28px | -0.006em |
   | `.text-label-xl` | Inter | 24px | 500 (Medium) | 32px | -0.015em |
   | `.text-label-lg` | Inter | 18px | 500 (Medium) | 24px | -0.015em |
   | `.text-label-md` | Inter | 16px | 500 (Medium) | 24px | -0.011em |

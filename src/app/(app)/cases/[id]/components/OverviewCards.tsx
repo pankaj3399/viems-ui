@@ -78,7 +78,7 @@ export function ProfileCard({ name, initials, avatar, employer, status, onAddNot
           className="size-[80px] rounded-full object-cover mb-md shrink-0"
         />
       ) : (
-        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] tracking-[-0.015em] mb-md font-sans overflow-hidden">
+        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[24px] tracking-[-0.015em] mb-md font-sans overflow-hidden">
           {initials || "—"}
         </div>
       )}

@@ -137,7 +137,7 @@ export function StatusFilterDropdown({
                 key={status.label}
                 type="button"
                 onClick={() => setTempValue(status.label)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-left text-paragraph-sm font-normal transition-colors border-0 bg-transparent cursor-pointer hover:bg-neutral-50 focus-visible:bg-neutral-50 outline-none group"
               >
                 <span className="flex items-center gap-sm min-w-0 pr-2">
                   <span className={`size-4 rounded-full border flex items-center justify-center shrink-0 ${
@@ -150,7 +150,7 @@ export function StatusFilterDropdown({
                     style={{ backgroundColor: dotColor }}
                   />
                   <span
-                    className={`truncate text-left text-neutral-900 text-[14px] ${
+                    className={`truncate text-left text-neutral-900 text-[14px] group-focus-visible:font-medium ${
                       isSelected ? "font-medium" : "font-normal"
                     }`}
                   >

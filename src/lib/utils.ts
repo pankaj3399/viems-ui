@@ -85,7 +85,7 @@ export function formatFullName(firstName?: string, lastName?: string): string {
   const firstRaw = (firstName || "").trim();
   const lastRaw = (lastName || "").trim();
 
-  if (!firstRaw && !lastRaw) return "Unknown Migrant";
+  if (!firstRaw && !lastRaw) return "";
 
   const first = formatTitleCase(firstRaw);
   const last = formatTitleCase(lastRaw);

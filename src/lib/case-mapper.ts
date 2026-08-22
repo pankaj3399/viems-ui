@@ -193,13 +193,15 @@ export function isCaseInProgress(c: CaseRow | RawCaseRecord): boolean {
 
   const s = String(c.status || c.case_status || "").toLowerCase().replace(/_/g, " ").trim();
 
-  // Exclude approved / granted / done
+  // Exclude approved / granted / done / completed
   if (
     s === "visa approved" ||
     s === "approved" ||
     s.includes("approved") ||
     s === "granted" ||
-    s === "done"
+    s === "done" ||
+    s === "completed" ||
+    s.includes("completed")
   ) {
     return false;
   }

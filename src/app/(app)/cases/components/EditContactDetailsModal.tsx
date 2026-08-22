@@ -66,7 +66,7 @@ export function EditContactDetailsModal({
 
     // Load emergency contacts from object
     const ec = m.emergencyContact || m.contacts?.emergency_contact || m.emergency_contact || m.contacts || {};
-    setEmergencyName(formatTitleCase(ec.name || ec.emergency_contact_name || ""));
+    setEmergencyName(ec.name || ec.emergency_contact_name || "");
     setEmergencyRelationship(ec.relationship || ec.emergency_contact_relationship || "Spouse");
     setEmergencyEmail(ec.email || ec.emergency_contact_email || "");
     setEmergencyPhone(ec.phone || ec.emergency_contact_phone || "");

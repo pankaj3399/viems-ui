@@ -36,6 +36,7 @@ function Input({
   type,
   variant = "default",
   size = "default",
+  htmlSize,
   ...props
 }: Omit<React.ComponentProps<"input">, "size"> &
   VariantProps<typeof inputVariants> & {
@@ -44,6 +45,7 @@ function Input({
   return (
     <InputPrimitive
       type={type}
+      size={htmlSize}
       data-slot="input"
       className={cn(inputVariants({ variant, size }), className)}
       {...props}

@@ -45,36 +45,8 @@ import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { formatFullName, formatTitleCase, getInitials } from "@/lib/format";
 
-// Sort icon component matching Figma expand-up-down-fill
-function SortIcon({
-  active = false,
-  direction = "asc",
-  className = "size-3 text-[#A4A4A4] shrink-0",
-}: {
-  active?: boolean;
-  direction?: "asc" | "desc";
-  className?: string;
-}) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M12 4L7 9H17L12 4Z"
-        opacity={active && direction === "desc" ? 0.3 : 1}
-        className={active && direction === "asc" ? "text-[#171717]" : ""}
-      />
-      <path
-        d="M12 20L17 15H7L12 20Z"
-        opacity={active && direction === "asc" ? 0.3 : 1}
-        className={active && direction === "desc" ? "text-[#171717]" : ""}
-      />
-    </svg>
-  );
-}
+import { SortIcon } from "@/components/ui/sort-icon";
+import { escapeCsvField } from "@/lib/csv-utils";
 
 // File check icon matching Figma file-check-fill
 function FileCheckFillIcon({ className = "size-5 text-[#171717]" }: { className?: string }) {
@@ -121,7 +93,9 @@ interface RtwCheckItem {
   statusBg: string;
   statusColor: string;
   lastCheck: string;
+  lastCheckValue: number;
   nextCheck: string;
+  nextCheckValue: number;
   daysUntilText: string;
   daysUntilColor: string;
 }
@@ -199,16 +173,18 @@ export default function RtwChecksPage() {
           let daysUntilText = "—";
           let daysUntilColor = "text-[#171717]";
 
+          let nextCheckValue = 0;
           const nextCheckDate = c.next_rtw_check || c.passport_expiry;
           if (nextCheckDate) {
             const expTime = new Date(nextCheckDate).getTime();
             if (!isNaN(expTime)) {
+              nextCheckValue = expTime;
               const diffDays = Math.ceil((expTime - now) / (1000 * 60 * 60 * 24));
               if (diffDays < 0) {
                 status = "OVERDUE";
                 statusBg = "bg-[#FFEBEC]";
                 statusColor = "text-[#681219]";
-                daysUntilText = `${Math.abs(diffDays)}d left`;
+                daysUntilText = `${Math.abs(diffDays)}d overdue`;
                 daysUntilColor = "text-[#FB3748]";
               } else if (diffDays <= 30) {
                 status = "DUE SOON";
@@ -232,27 +208,28 @@ export default function RtwChecksPage() {
             daysUntilColor = "text-[#FB3748]";
           }
 
-          const lastCheck = c.last_rtw_check
-            ? new Date(c.last_rtw_check).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })
-            : c.created_at
-            ? new Date(c.created_at).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })
-            : "20 Jul 2025";
+          let lastCheckValue = 0;
+          const rawLastCheck = c.last_rtw_check || c.created_at;
+          if (rawLastCheck) {
+            const t = new Date(rawLastCheck).getTime();
+            if (!isNaN(t)) lastCheckValue = t;
+          }
 
-          const nextCheck = nextCheckDate
-            ? new Date(nextCheckDate).toLocaleDateString("en-GB", {
+          const lastCheck = lastCheckValue > 0
+            ? new Date(lastCheckValue).toLocaleDateString("en-GB", {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
               })
-            : "20 Jul 2026";
+            : "—";
+
+          const nextCheck = nextCheckValue > 0
+            ? new Date(nextCheckValue).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "—";
 
           return {
             id: String(c.id || i + 1),
@@ -266,15 +243,20 @@ export default function RtwChecksPage() {
             statusBg,
             statusColor,
             lastCheck,
+            lastCheckValue,
             nextCheck,
+            nextCheckValue,
             daysUntilText,
             daysUntilColor,
           };
         });
         setRtwChecks(mapped);
+      } else {
+        setRtwChecks([]);
       }
     } catch (err) {
-      console.error("Failed to load RTW checks:", err);
+      console.error("Failed to load RTW data:", err);
+      setRtwChecks([]);
     } finally {
       setLoading(false);
     }
@@ -319,39 +301,55 @@ export default function RtwChecksPage() {
       return true;
     });
 
-    if (sortCol) {
-      result = [...result].sort((a, b) => {
-        let cmp = 0;
-        if (sortCol === "name") cmp = a.name.localeCompare(b.name);
-        else if (sortCol === "status") cmp = a.status.localeCompare(b.status);
-        else if (sortCol === "lastCheck") cmp = a.lastCheck.localeCompare(b.lastCheck);
-        else if (sortCol === "nextCheck") cmp = a.nextCheck.localeCompare(b.nextCheck);
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-    }
+      if (sortCol) {
+        result = [...result].sort((a, b) => {
+          let cmp = 0;
+          if (sortCol === "name") cmp = a.name.localeCompare(b.name);
+          else if (sortCol === "status") cmp = a.status.localeCompare(b.status);
+          else if (sortCol === "lastCheck") cmp = a.lastCheckValue - b.lastCheckValue;
+          else if (sortCol === "nextCheck") cmp = a.nextCheckValue - b.nextCheckValue;
+          return sortDir === "asc" ? cmp : -cmp;
+        });
+      }
 
-    return result;
-  }, [rtwChecks, activeHeaderTab, selectedFilter, statusDropdown, searchQuery, sortCol, sortDir]);
+      return result;
+    }, [rtwChecks, activeHeaderTab, selectedFilter, statusDropdown, searchQuery, sortCol, sortDir]);
+
+  const pageSize = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredChecks.length / pageSize));
+  const safePage = Math.max(1, Math.min(currentPage, totalPages));
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusDropdown, selectedFilter, sortCol, sortDir]);
+
+  const paginatedChecks = React.useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return filteredChecks.slice(start, start + pageSize);
+  }, [filteredChecks, safePage, pageSize]);
 
   const handleVerifySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isVerifying) return;
+    if (isVerifying || !selectedMigrant?.entityId) {
+      if (!selectedMigrant?.entityId) {
+        toast.error("No valid migrant record selected for verification.");
+      }
+      return;
+    }
 
     setIsVerifying(true);
     try {
-      if (selectedMigrant?.entityId) {
-        const formData = new FormData();
-        if (shareCode) formData.append("shareCode", shareCode);
-        if (dob) formData.append("dob", dob);
-        if (workRestrictions) formData.append("workRestrictions", workRestrictions);
-        if (govRefNumber) formData.append("govRefNumber", govRefNumber);
-        if (selectedFile) formData.append("file", selectedFile);
+      const formData = new FormData();
+      if (shareCode) formData.append("shareCode", shareCode);
+      if (dob) formData.append("dob", dob);
+      if (workRestrictions) formData.append("workRestrictions", workRestrictions);
+      if (govRefNumber) formData.append("govRefNumber", govRefNumber);
+      if (selectedFile) formData.append("file", selectedFile);
 
-        await apiClient.post(
-          ENDPOINTS.files.uploadRightToWork(selectedMigrant.entityId),
-          formData
-        );
-      }
+      await apiClient.post(
+        ENDPOINTS.files.uploadRightToWork(selectedMigrant.entityId),
+        formData
+      );
 
       setRtwChecks((prev) =>
         prev.map((c) =>
@@ -366,6 +364,7 @@ export default function RtwChecksPage() {
                   month: "short",
                   year: "numeric",
                 }),
+                lastCheckValue: Date.now(),
                 daysUntilText: "—",
                 daysUntilColor: "text-[#171717]",
               }
@@ -379,13 +378,13 @@ export default function RtwChecksPage() {
       setIsVerifyModalOpen(false);
       setShareCode("");
       setDob("");
+      setWorkRestrictions("");
+      setGovRefNumber("");
       setDragFileName("");
       setSelectedFile(null);
-    } catch {
-      toast.success(
-        `Verification recorded for ${selectedMigrant?.name || "migrant"}.`
-      );
-      setIsVerifyModalOpen(false);
+    } catch (err) {
+      console.error("Verification error:", err);
+      toast.error(`Failed to verify RTW for ${selectedMigrant?.name || "migrant"}. Please try again.`);
     } finally {
       setIsVerifying(false);
     }
@@ -525,52 +524,55 @@ export default function RtwChecksPage() {
               TOTAL MIGRANTS
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#351A75] font-aeonik-medium">
-              {totalMigrants || 6}
+              {totalMigrants}
             </span>
             <RiFileTextLine className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
           </div>
 
           {/* Card 2: OVERDUE CHECKS */}
-          <div
+          <button
+            type="button"
             onClick={() => setSelectedFilter("OVERDUE")}
-            className="bg-[#FFEBEC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer"
+            className="bg-[#FFEBEC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer border-0 text-left"
           >
             <span className="text-[11px] font-medium text-[#171717] uppercase tracking-[0.02em] leading-[12px]">
               OVERDUE CHECKS
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
-              {overdueCount || 3}
+              {overdueCount}
             </span>
             <RiCheckboxCircleLine className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
-          </div>
+          </button>
 
           {/* Card 3: DUE SOON */}
-          <div
+          <button
+            type="button"
             onClick={() => setSelectedFilter("DUE")}
-            className="bg-[#FFFAEB] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer"
+            className="bg-[#FFFAEB] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer border-0 text-left"
           >
             <span className="text-[11px] font-medium text-[#171717] uppercase tracking-[0.02em] leading-[12px]">
               DUE SOON
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
-              {dueCount || 1}
+              {dueCount}
             </span>
             <RiFileWarningLine className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
-          </div>
+          </button>
 
           {/* Card 4: COMPLETED THIS MONTH */}
-          <div
+          <button
+            type="button"
             onClick={() => setSelectedFilter("COMPLIANT")}
-            className="bg-[#E3F7EC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer"
+            className="bg-[#E3F7EC] rounded-[8px] p-3 px-4 flex flex-col justify-between relative overflow-hidden h-[70px] hover:shadow-x-small transition-shadow cursor-pointer border-0 text-left"
           >
             <span className="text-[11px] font-medium text-[#171717] uppercase tracking-[0.02em] leading-[12px]">
               COMPLETED THIS MONTH
             </span>
             <span className="text-[24px] leading-[32px] font-medium text-[#171717] font-aeonik-medium">
-              {compliantCount || 12}
+              {compliantCount}
             </span>
             <RiTimer2Line className="size-5 text-[#5C5C5C] absolute right-4 top-2" />
-          </div>
+          </button>
         </div>
 
         {/* Frame 313: Search + Filters + Segmented Control + Table */}
@@ -708,7 +710,7 @@ export default function RtwChecksPage() {
                 variant="outline"
                 size="icon-xs"
                 aria-label="Next page"
-                onClick={() => setCurrentPage((p) => p + 1)}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 className="size-6 rounded-[6px] bg-white border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] text-[#5C5C5C] hover:bg-neutral-50 active:scale-95 transition-all p-0 cursor-pointer"
               >
                 <RiArrowRightSLine className="size-4 text-[#5C5C5C]" />
@@ -758,7 +760,7 @@ export default function RtwChecksPage() {
             </div>
 
             {/* Rows List */}
-            {filteredChecks.length === 0 ? (
+            {paginatedChecks.length === 0 ? (
               <div className="w-full bg-white rounded-[16px] p-12 text-center flex flex-col items-center justify-center gap-3">
                 <p className="text-[14px] text-[#5C5C5C]">
                   No RTW checks found matching your search or filters.
@@ -777,7 +779,7 @@ export default function RtwChecksPage() {
                 </Button>
               </div>
             ) : (
-              filteredChecks.map((row, idx) => (
+              paginatedChecks.map((row, idx) => (
                 <div
                   key={`rtw-row-${row.caseId}-${idx}`}
                   role="button"
@@ -883,9 +885,11 @@ export default function RtwChecksPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
-                            const csv = `data:text/csv;charset=utf-8,Name,Case,Status,Last Check,Next Check\n"${row.name}","${row.caseId}","${row.status}","${row.lastCheck}","${row.nextCheck}"`;
+                            const header = ["Name", "Case", "Status", "Last Check", "Next Check"].map(escapeCsvField).join(",");
+                            const dataRow = [row.name, row.caseId, row.status, row.lastCheck, row.nextCheck].map(escapeCsvField).join(",");
+                            const csv = "data:text/csv;charset=utf-8," + encodeURIComponent(`${header}\n${dataRow}\n`);
                             const link = document.createElement("a");
-                            link.href = encodeURI(csv);
+                            link.href = csv;
                             link.download = `${row.name.replace(/\s+/g, "_")}_RTW_Certificate.csv`;
                             document.body.appendChild(link);
                             link.click();

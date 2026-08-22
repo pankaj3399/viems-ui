@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { RiCloseLine, RiGroupLine } from "@remixicon/react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ interface EditGroupModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   groupName: string;
-  onSave?: (newName: string) => void;
+  onSave?: (newName: string, description?: string) => void;
 }
 
 export function EditGroupModal({
@@ -40,7 +40,7 @@ export function EditGroupModal({
     setIsSubmitting(true);
     try {
       if (onSave) {
-        onSave(name.trim());
+        onSave(name.trim(), description.trim());
       }
       toast.success("Group details updated successfully");
       onOpenChange(false);
@@ -80,9 +80,9 @@ export function EditGroupModal({
                 {name ? name.charAt(0).toUpperCase() : <RiGroupLine className="size-6 text-[#5C5C5C]" />}
               </div>
               <div className="flex flex-col">
-                <span className="font-aeonik-medium text-[16px] leading-[24px] tracking-[-0.011em] text-[#171717]">
+                <DialogTitle className="font-aeonik-medium text-[16px] leading-[24px] tracking-[-0.011em] text-[#171717]">
                   Edit group
-                </span>
+                </DialogTitle>
                 <span className="text-paragraph-xs text-[#5C5C5C]">
                   Update group name and settings
                 </span>

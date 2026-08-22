@@ -114,7 +114,7 @@ export function MigrantHeader({
             className="size-[56px] rounded-full object-cover shrink-0"
           />
         ) : (
-          <div className="size-[56px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0 font-sans">
+          <div className="size-[56px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[18px] shrink-0 font-sans">
             {initials}
           </div>
         )}

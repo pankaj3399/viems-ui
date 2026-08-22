@@ -52,6 +52,8 @@ import { CaseRow, mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefuse
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { getCountryInfo } from "@/lib/country";
 import { Flag } from "@/components/ui/flag";
+import { SortIcon } from "@/components/ui/sort-icon";
+import { ImportMigrantsModal } from "../dashboard/components/ImportMigrantsModal";
 import { toast } from "sonner";
 
 const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
@@ -88,38 +90,8 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
   )
 );
 
-const SortIcon = ({
-  active = false,
-  direction = "asc",
-  className = "size-5 text-[#A4A4A4] shrink-0",
-}: {
-  active?: boolean;
-  direction?: "asc" | "desc";
-  className?: string;
-}) => (
-  <svg
-    width="20"
-    height="20"
-    viewBox="0 0 20 20"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-    aria-hidden="true"
-  >
-    <path
-      d="M10 4.5L14 8.5H6L10 4.5Z"
-      fill="currentColor"
-      opacity={active && direction === "desc" ? 0.3 : 1}
-      className={active && direction === "asc" ? "text-[#171717]" : ""}
-    />
-    <path
-      d="M10 15.5L6 11.5H14L10 15.5Z"
-      fill="currentColor"
-      opacity={active && direction === "asc" ? 0.3 : 1}
-      className={active && direction === "desc" ? "text-[#171717]" : ""}
-    />
-  </svg>
-);
+const UNGROUPED_SENTINEL = "__UNGROUPED__";
+const UNGROUPED_DISPLAY_NAME = "AX Studios";
 
 
 export default function CasesPage() {
@@ -191,6 +163,7 @@ export default function CasesPage() {
     setCaseIdFilter(null);
     setQuickFilter(null);
     setNeedsActionOnly(false);
+    setSelectedGroup(null);
     setFilterPanelOpen(false);
   };
 
@@ -244,9 +217,12 @@ export default function CasesPage() {
   // Group metadata computation for selectedGroup
   const selectedGroupData = React.useMemo(() => {
     if (!selectedGroup) return null;
-    const groupItems = cases.filter(
-      (c) => (c.group || "").toLowerCase().trim() === selectedGroup.toLowerCase().trim()
-    );
+    const isUngrouped = selectedGroup === UNGROUPED_SENTINEL;
+    const groupItems = cases.filter((c) => {
+      const hasNoGroup = !c.group || c.group === "No Group" || c.group.trim() === "";
+      if (isUngrouped) return hasNoGroup;
+      return (c.group || "").toLowerCase().trim() === selectedGroup.toLowerCase().trim();
+    });
     const sortedIds = groupItems
       .map((i) => i.caseId)
       .filter(Boolean)
@@ -259,9 +235,12 @@ export default function CasesPage() {
           : `${sortedIds[0]} - ${sortedIds[sortedIds.length - 1]}`
         : "—";
 
+    const displayName = isUngrouped ? UNGROUPED_DISPLAY_NAME : selectedGroup;
+
     return {
       groupName: selectedGroup,
-      initial: selectedGroup.charAt(0).toUpperCase(),
+      displayName,
+      initial: displayName.charAt(0).toUpperCase(),
       caseIdRange: range,
       casesCount: groupItems.length,
       items: groupItems,
@@ -353,9 +332,10 @@ export default function CasesPage() {
       });
       toast.success(`Successfully imported ${files.length} file(s)`);
       loadCases();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Import error:", err);
-      toast.error(err?.message || "Failed to import files");
+      const msg = err instanceof Error ? err.message : "Failed to import files";
+      toast.error(msg);
     } finally {
       toast.dismiss(toastId);
     }
@@ -378,18 +358,35 @@ export default function CasesPage() {
     }
   };
 
-  // Filter cases by tab and selected group
-  const tabCases = React.useMemo(() => {
+  const tabScopedCases = React.useMemo(() => {
     return cases.filter((item) => {
       const isRefused = isCaseRefused(item);
-
       if (activeTab === "refusals") {
         return isRefused;
       } else if (activeTab === "cases" || selectedGroup) {
         if (selectedGroup) {
-          const matchesGrp = (item.group || "").toLowerCase().trim() === selectedGroup.toLowerCase().trim();
-          if (!matchesGrp) return false;
+          const isUngrouped = selectedGroup === UNGROUPED_SENTINEL;
+          const hasNoGroup = !item.group || item.group === "No Group" || item.group.trim() === "";
+          if (isUngrouped) {
+            if (!hasNoGroup) return false;
+          } else {
+            const matchesGrp = (item.group || "").toLowerCase().trim() === selectedGroup.toLowerCase().trim();
+            if (!matchesGrp) return false;
+          }
         }
+        return true;
+      }
+      return true;
+    });
+  }, [cases, activeTab, selectedGroup]);
+
+  // Tab cases with status filter narrowing
+  const tabCases = React.useMemo(() => {
+    return tabScopedCases.filter((item) => {
+      const isRefused = isCaseRefused(item);
+      if (activeTab === "refusals") {
+        return isRefused;
+      } else if (activeTab === "cases" || selectedGroup) {
         const normStage = stageFilter ? stageFilter.toUpperCase().replace(/_/g, " ").trim() : null;
         if (statusFilter === "Visa Refused" || statusFilter === "refused" || normStage === "VISA") {
           return true;
@@ -399,52 +396,40 @@ export default function CasesPage() {
         }
         return isCaseInProgress(item);
       }
-      return true; // groups shows all
+      return true;
     });
-  }, [cases, activeTab, selectedGroup, statusFilter, stageFilter]);
+  }, [tabScopedCases, activeTab, selectedGroup, statusFilter, stageFilter]);
 
-  // Derive unique countries and statuses for filter dropdowns
+  // Dynamically compute unique countries and statuses with their counts from tabScopedCases
   const uniqueCountries = React.useMemo(() => {
     const seen = new Map<string, { code: string; label: string; flag: string; count: number }>();
-    tabCases.forEach((c) => {
-      if (
-        !c.country ||
-        c.country.toUpperCase() === "ALL" ||
-        c.country === "All countries" ||
-        c.country.trim() === ""
-      ) {
-        return;
-      }
-      const existing = seen.get(c.country);
-      if (existing) {
-        existing.count += 1;
+    tabScopedCases.forEach((c) => {
+      const info = getCountryInfo(c.country);
+      const code = info?.code || c.countryCode || "UN";
+      const label = info?.name || c.country || "Unknown";
+      const flag = info?.flag || "🌐";
+      const key = code.toUpperCase();
+      if (!seen.has(key)) {
+        seen.set(key, { code, label, flag, count: 1 });
       } else {
-        seen.set(c.country, { code: c.countryCode || c.country, label: c.country, flag: c.flag, count: 1 });
+        seen.get(key)!.count += 1;
       }
     });
     return Array.from(seen.values());
-  }, [tabCases]);
+  }, [tabScopedCases]);
 
   const uniqueStatuses = React.useMemo(() => {
     const seen = new Map<string, { label: string; count: number }>();
-    tabCases.forEach((c) => {
-      if (
-        !c.status ||
-        c.status.toUpperCase() === "ALL" ||
-        c.status.toLowerCase() === "all status" ||
-        c.status.trim() === ""
-      ) {
-        return;
-      }
-      const existing = seen.get(c.status);
-      if (existing) {
-        existing.count += 1;
+    tabScopedCases.forEach((c) => {
+      const key = c.status.toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, { label: c.status, count: 1 });
       } else {
-        seen.set(c.status, { label: c.status, count: 1 });
+        seen.get(key)!.count += 1;
       }
     });
     return Array.from(seen.values());
-  }, [tabCases]);
+  }, [tabScopedCases]);
 
   const statusColorMap = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -542,20 +527,22 @@ export default function CasesPage() {
     return result;
   }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, stageFilter, severityFilter, caseIdFilter, quickFilter]);
 
+  // Compute Group Summary data for the "Groups" tab
   const groupedData = React.useMemo(() => {
     const groupsMap = new Map<string, CaseRow[]>();
 
     cases.forEach((c) => {
-      const gName = c.group && c.group !== "No Group" ? c.group : "AX Studios";
-      if (!groupsMap.has(gName)) {
-        groupsMap.set(gName, []);
+      const isUngrouped = !c.group || c.group === "No Group" || c.group.trim() === "";
+      const gKey = isUngrouped ? UNGROUPED_SENTINEL : c.group;
+      if (!groupsMap.has(gKey)) {
+        groupsMap.set(gKey, []);
       }
-      groupsMap.get(gName)!.push(c);
+      groupsMap.get(gKey)!.push(c);
     });
 
-    const result: Array<{ groupName: string; initial: string; caseIdRange: string; migrantsCount: number; items: CaseRow[] }> = [];
+    const result: Array<{ groupName: string; displayName: string; initial: string; caseIdRange: string; migrantsCount: number; items: CaseRow[] }> = [];
 
-    groupsMap.forEach((items, gName) => {
+    groupsMap.forEach((items, gKey) => {
       const sortedIds = items
         .map((i) => i.caseId)
         .filter(Boolean)
@@ -568,9 +555,12 @@ export default function CasesPage() {
             : `${sortedIds[0]} - ${sortedIds[sortedIds.length - 1]}`
           : "—";
 
+      const displayName = gKey === UNGROUPED_SENTINEL ? UNGROUPED_DISPLAY_NAME : gKey;
+
       result.push({
-        groupName: gName,
-        initial: gName.charAt(0).toUpperCase(),
+        groupName: gKey,
+        displayName,
+        initial: displayName.charAt(0).toUpperCase(),
         caseIdRange: range,
         migrantsCount: items.length,
         items,
@@ -579,9 +569,9 @@ export default function CasesPage() {
 
     if (!searchQuery || !searchQuery.trim()) return result;
     return result.filter((g) =>
-      matchesSearchQuery([g.groupName, g.caseIdRange], searchQuery)
+      matchesSearchQuery([g.displayName, g.caseIdRange], searchQuery)
     );
-  }, [filteredCases, searchQuery]);
+  }, [cases, searchQuery]);
 
 
   const sortedFilteredCases = React.useMemo(() => {
@@ -627,6 +617,11 @@ export default function CasesPage() {
   }, [groupedData, sortColumn, sortDirection]);
 
   const [pageSize, setPageSize] = React.useState(10);
+
+  // Reset current page when filters, sorting, tab, or grouping changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, countryFilter, statusFilter, migrationFilter, stageFilter, severityFilter, caseIdFilter, quickFilter, activeTab, selectedGroup, sortColumn, sortDirection, pageSize]);
 
   const isGroupSummaryView = activeTab === "groups" && !selectedGroup;
   const totalCount = isGroupSummaryView ? sortedGroupedData.length : sortedFilteredCases.length;
@@ -1029,14 +1024,8 @@ export default function CasesPage() {
               <GroupRowMenu
                 onViewGroup={() => {}}
                 onEditGroup={() => setEditGroupModalOpen(true)}
-                onArchiveGroup={() => {
-                  toast.success(`Group ${selectedGroup} archived`);
-                  setSelectedGroup(null);
-                }}
-                onDeleteGroup={() => {
-                  toast.success(`Group ${selectedGroup} deleted`);
-                  setSelectedGroup(null);
-                }}
+                onArchiveGroup={() => handleArchiveGroup(selectedGroup)}
+                onDeleteGroup={() => handleDeleteGroup(selectedGroup)}
               />
             </div>
           </div>
@@ -1055,6 +1044,7 @@ export default function CasesPage() {
                 type="button"
                 variant="outline"
                 size="sm"
+                onClick={() => setImportModalOpen(true)}
                 className="h-9 px-3 bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#171717] text-[14px] leading-5 font-medium border-0 rounded-[8px] flex items-center gap-1.5 shadow-x-small cursor-pointer transition-colors"
               >
                 <RiShareForwardBoxLine className="size-5 text-[#171717] shrink-0" data-icon="inline-start" />
@@ -1669,87 +1659,117 @@ export default function CasesPage() {
                 {activeTab === "refusals" ? (
                   <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex items-center text-[12px] tracking-[-0.006em] text-[#A4A4A4] font-medium">
                     <div className="w-[94px] px-3 py-2 shrink-0">Case ID #</div>
-                    <div
-                      className="w-[112px] px-3 py-2 shrink-0 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("country")}
+                      className="w-[112px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Country
                       <SortIcon active={sortColumn === "country"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="flex-[1.5] min-w-0 px-3 py-2 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("name")}
+                      className="flex-[1.5] min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Name
                       <SortIcon active={sortColumn === "name"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="flex-1 min-w-0 px-3 py-2 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("passport")}
+                      className="flex-1 min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Passport #
                       <SortIcon active={sortColumn === "passport"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="flex-1 min-w-0 px-3 py-2 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("refusalDate")}
+                      className="flex-1 min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Date of refusal
                       <SortIcon active={sortColumn === "refusalDate"} direction={sortDirection} />
-                    </div>
+                    </Button>
                     <div className="flex-[1.5] min-w-0 px-3 py-2">Reason</div>
                     <div className="w-[48px] px-3 py-2 shrink-0"></div>
                   </div>
                 ) : isGroupSummaryView ? (
                   <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex items-center text-[12px] tracking-[-0.006em] text-[#A4A4A4] font-medium">
                     <div className="w-[198px] px-3 py-2 shrink-0">Case ID range #</div>
-                    <div
-                      className="flex-[1.5] min-w-0 px-3 py-2 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("groupName")}
+                      className="flex-[1.5] min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Group name
                       <SortIcon active={sortColumn === "groupName"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="flex-1 min-w-0 px-3 py-2 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("migrants")}
+                      className="flex-1 min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Migrants
                       <SortIcon active={sortColumn === "migrants"} direction={sortDirection} />
-                    </div>
+                    </Button>
                     <div className="w-[48px] px-3 py-2 shrink-0"></div>
                   </div>
                 ) : (
                   <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex items-center text-[12px] tracking-[-0.006em] text-[#A4A4A4] font-medium">
                     <div className="w-[94px] px-3 py-2 shrink-0">Case ID #</div>
-                    <div
-                      className="w-[112px] px-3 py-2 shrink-0 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("country")}
+                      className="w-[112px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Country
                       <SortIcon active={sortColumn === "country"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="w-[269.5px] flex-1 min-w-[269px] px-3 py-2 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("name")}
+                      className="w-[269.5px] flex-1 min-w-[269px] h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Name
                       <SortIcon active={sortColumn === "name"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="w-[197.5px] px-3 py-2 shrink-0 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("status")}
+                      className="w-[197.5px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Case Status
                       <SortIcon active={sortColumn === "status"} direction={sortDirection} />
-                    </div>
-                    <div
-                      className="w-[193.5px] px-3 py-2 shrink-0 flex items-center gap-1 cursor-pointer hover:text-[#171717]"
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
                       onClick={() => handleSort("migration")}
+                      className="w-[193.5px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
                     >
                       Migration Status
                       <SortIcon active={sortColumn === "migration"} direction={sortDirection} />
-                    </div>
+                    </Button>
                     <div className="w-[182px] px-3 py-2 shrink-0 flex items-center">
                       Compliance Action
                     </div>
@@ -1842,10 +1862,10 @@ export default function CasesPage() {
                   </div>
                 ) : isGroupSummaryView ? (
                   viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg w-full">
-                      {paginatedGroups.map((group, idx) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+                      {paginatedGroups.map((group) => (
                         <div
-                          key={group.groupName + "-" + idx}
+                          key={group.groupName}
                           role="button"
                           tabIndex={0}
                           onClick={() => {
@@ -1876,12 +1896,8 @@ export default function CasesPage() {
                                   setSelectedGroup(group.groupName);
                                   setEditGroupModalOpen(true);
                                 }}
-                                onArchiveGroup={() => {
-                                  toast.success(`Group ${group.groupName} archived`);
-                                }}
-                                onDeleteGroup={() => {
-                                  toast.success(`Group ${group.groupName} deleted`);
-                                }}
+                                onArchiveGroup={() => handleArchiveGroup(group.groupName)}
+                                onDeleteGroup={() => handleDeleteGroup(group.groupName)}
                               />
                             </div>
                           </div>
@@ -1896,7 +1912,7 @@ export default function CasesPage() {
                           {/* Bottom Row: Group Name + Migrants Badge */}
                           <div className="flex items-center justify-between gap-sm min-w-0">
                             <span className="font-medium text-[#171717] truncate text-paragraph-sm">
-                              {group.groupName}
+                              {group.displayName || group.groupName}
                             </span>
                             <div className="w-5 h-[18px] bg-[#EBEBEB] rounded-[4px] text-[11px] font-medium text-[#5C5C5C] flex items-center justify-center shrink-0">
                               {group.migrantsCount}
@@ -1907,9 +1923,9 @@ export default function CasesPage() {
                     </div>
                   ) : (
                     <div className="flex flex-col gap-[4px]">
-                      {paginatedGroups.map((group, idx) => (
+                      {paginatedGroups.map((group) => (
                         <div
-                          key={`${group.groupName}-${idx}`}
+                          key={group.groupName}
                           role="button"
                           tabIndex={0}
                           onClick={() => {
@@ -1934,7 +1950,7 @@ export default function CasesPage() {
                               {group.initial}
                             </div>
                             <span className="font-medium text-[#171717] truncate text-[14px]">
-                              {group.groupName}
+                              {group.displayName || group.groupName}
                             </span>
                           </div>
 
@@ -1952,12 +1968,8 @@ export default function CasesPage() {
                                 setSelectedGroup(group.groupName);
                                 setEditGroupModalOpen(true);
                               }}
-                              onArchiveGroup={() => {
-                                toast.success(`Group ${group.groupName} archived`);
-                              }}
-                              onDeleteGroup={() => {
-                                toast.success(`Group ${group.groupName} deleted`);
-                              }}
+                              onArchiveGroup={() => handleArchiveGroup(group.groupName)}
+                              onDeleteGroup={() => handleDeleteGroup(group.groupName)}
                             />
                           </div>
                         </div>
@@ -2292,6 +2304,12 @@ export default function CasesPage() {
         onOpenChange={setEditGroupModalOpen}
         groupName={selectedGroup || ""}
         onSave={handleUpdateGroupName}
+      />
+
+      <ImportMigrantsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={loadCases}
       />
     </div>
   );

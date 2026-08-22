@@ -91,7 +91,7 @@ function mapBackendMigrantToDetail(c: any) {
   const lastName = formatTitleCase(cleanLast);
   const name =
     formatFullName(firstName, lastName) ||
-    formatTitleCase(c.name || m.name || m.stage_name || m.stageName || c.stage_name || c.stageName) ||
+    (c.name || m.name || m.stage_name || m.stageName || c.stage_name || c.stageName) ||
     "Unknown Migrant";
 
   const rawGender =

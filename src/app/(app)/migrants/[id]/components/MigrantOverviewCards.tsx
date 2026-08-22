@@ -39,7 +39,7 @@ export function MigrantProfileCard({
           className="size-[80px] rounded-full object-cover shrink-0"
         />
       ) : (
-        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] tracking-[-0.015em] shrink-0 overflow-hidden">
+        <div className="size-[80px] rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[24px] tracking-[-0.015em] shrink-0 overflow-hidden">
           {displayInitials}
         </div>
       )}

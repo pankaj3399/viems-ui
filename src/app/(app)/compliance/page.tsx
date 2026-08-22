@@ -39,35 +39,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 // Sort icon component matching Figma expand-up-down-fill
-function SortIcon({
-  active = false,
-  direction = "asc",
-  className = "size-3 text-[#A4A4A4] shrink-0",
-}: {
-  active?: boolean;
-  direction?: "asc" | "desc";
-  className?: string;
-}) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        d="M12 4L7 9H17L12 4Z"
-        opacity={active && direction === "desc" ? 0.3 : 1}
-        className={active && direction === "asc" ? "text-[#171717]" : ""}
-      />
-      <path
-        d="M12 20L17 15H7L12 20Z"
-        opacity={active && direction === "asc" ? 0.3 : 1}
-        className={active && direction === "desc" ? "text-[#171717]" : ""}
-      />
-    </svg>
-  );
-}
+import { SortIcon } from "@/components/ui/sort-icon";
+import { escapeCsvField } from "@/lib/csv-utils";
 
 interface TaskItem {
   id: string;
@@ -149,12 +122,14 @@ export default function ComplianceCentrePage() {
   };
 
   // Load live data from Backend API
+  const hasSetInitialExpand = React.useRef(false);
+
   const loadComplianceCentreData = React.useCallback(async () => {
     try {
       setLoading(true);
       const [casesRes, tasksRes] = await Promise.allSettled([
-        apiClient.get<any[] | { data: any[] }>(ENDPOINTS.cases.base),
-        apiClient.get<any[] | { data: any[] }>(ENDPOINTS.tasks.base),
+        apiClient.get<any>(ENDPOINTS.cases.base),
+        apiClient.get<any>(ENDPOINTS.tasks.base),
       ]);
 
       if (casesRes.status === "fulfilled" && casesRes.value) {
@@ -162,70 +137,50 @@ export default function ComplianceCentrePage() {
           ? casesRes.value
           : (casesRes.value as any)?.data ?? [];
 
-        const mappedMigrants: MigrantComplianceRow[] = rawCases.map((c: any) => {
-          const name =
+        const mappedMigrants: MigrantComplianceRow[] = rawCases.map((c: any, i: number) => {
+          const migrantName =
             formatFullName(
-              c.first_name || c.migrant?.user?.personalInfo?.firstName,
-              c.last_name || c.migrant?.user?.personalInfo?.lastName
+              c.migrant?.user?.firstName || c.firstName,
+              c.migrant?.user?.lastName || c.lastName
             ) ||
-            formatTitleCase(c.name) ||
-            `Migrant #${c.id}`;
-          const initials = getInitials(name);
-          const caseId =
-            c.caseIdDisplay ||
-            (c.caseIdNumber && c.relatedYear
-              ? `#${c.caseIdNumber}/${c.relatedYear}`
-              : c.caseNumber || `#${c.id}`);
-          const company = c.group_name || c.company || c.employer || "AX Studios";
+            c.migrant?.fullName ||
+            c.migrant?.name ||
+            c.name ||
+            "Migrant";
+          const initials = getInitials(migrantName);
+          const caseId = c.caseNumber ? `#${c.caseNumber}` : `#${431 - i}/2026`;
 
+          const rawStatus = (c.status || "").toUpperCase();
           let status: "COMPLIANT" | "UNDER REVIEW" | "ACTION NEEDED" = "COMPLIANT";
           let statusBg = "bg-[#E3F7EC]";
           let statusColor = "text-[#0B4627]";
 
-          const rawStatus = String(c.case_status || c.compliance_status || "").toUpperCase();
-          if (
-            rawStatus.includes("REFUSED") ||
-            rawStatus.includes("ACTION") ||
-            rawStatus.includes("MISSING") ||
-            rawStatus === "VISA REFUSED"
-          ) {
+          if (rawStatus.includes("REFUSED") || rawStatus.includes("OVERDUE") || rawStatus.includes("EXPIRED")) {
             status = "ACTION NEEDED";
             statusBg = "bg-[#FFEBEC]";
-            statusColor = "text-[#681219]";
-          } else if (
-            rawStatus.includes("AWAITING") ||
-            rawStatus.includes("PENDING") ||
-            rawStatus.includes("REVIEW") ||
-            rawStatus.includes("DRAFT")
-          ) {
+            statusColor = "text-[#FB3748]";
+          } else if (rawStatus.includes("PENDING") || rawStatus.includes("REVIEW") || rawStatus.includes("DRAFT")) {
             status = "UNDER REVIEW";
             statusBg = "bg-[#FFFAEB]";
-            statusColor = "text-[#624C18]";
+            statusColor = "text-[#F6B51E]";
           }
 
-          const nextRtw = c.next_rtw_check
-            ? new Date(c.next_rtw_check).toLocaleDateString("en-GB", {
-                day: "2-digit",
+          const expiry = c.visaExpiryDate || c.expiryDate || c.cosExpiryDate;
+          const nextRtw = expiry
+            ? new Date(expiry).toLocaleDateString("en-GB", {
+                day: "numeric",
                 month: "short",
                 year: "numeric",
               })
-            : c.passport_expiry
-            ? new Date(c.passport_expiry).toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })
-            : "06 Mar 2027";
+            : "Mar 25, 2026";
 
-          const docCount = Array.isArray(c.documents)
-            ? c.documents.length
-            : c.doc_count || (status === "COMPLIANT" ? 12 : 5);
+          const docCount = c.filesCount || (c.files ? c.files.length : (i % 3 === 0 ? 12 : 11));
 
           return {
-            id: String(c.id),
+            id: String(c.id || `migrant-${i + 1}`),
             caseId,
-            name,
-            company,
+            name: migrantName,
+            company: c.company || c.sponsor || "TechCorp UK Ltd",
             avatarUrl: c.migrant?.user?.avatarUrl || c.avatarUrl || undefined,
             avatarText: initials,
             status,
@@ -246,13 +201,9 @@ export default function ComplianceCentrePage() {
         const mappedTasks: TaskItem[] = rawTasks.map((t: any, i: number) => {
           const prio = String(t.priority || "").toUpperCase();
           const riskLevel: "HIGH" | "MEDIUM" | "LOW" =
-            prio === "HIGH" || prio === "URGENT"
+            prio === "HIGH" || prio === "URGENT" || t.status === "crucial"
               ? "HIGH"
-              : prio === "LOW"
-              ? "LOW"
-              : i === 0
-              ? "HIGH"
-              : i === 1
+              : prio === "MEDIUM" || t.status === "under_review"
               ? "MEDIUM"
               : "LOW";
 
@@ -289,7 +240,7 @@ export default function ComplianceCentrePage() {
               t.subtitle ||
               "Complete right to work check before employment starts",
             migrantName,
-            caseId: t.caseNumber || (t.caseId ? `#${t.caseId}` : `#${431 - i}/2026`),
+            caseId: t.caseNumber ? `#${t.caseNumber}` : (t.caseId ? `#${t.caseId}` : "—"),
             avatarUrl: t.avatarUrl || undefined,
             avatarText: initials,
             status: isCompleted
@@ -320,15 +271,14 @@ export default function ComplianceCentrePage() {
             riskLevel,
             potentialImpact:
               t.impact ||
-              (riskLevel === "HIGH"
-                ? "Civil penalty up to GBP £20,000 per illegal worker. Criminal prosecution possible."
-                : "Mandatory worker rights disclosure and documentation record for UKVI sponsor trail."),
+              "Mandatory worker rights disclosure and documentation record for UKVI sponsor trail.",
             isResolved: isCompleted,
           };
         });
         setTasks(mappedTasks);
-        if (mappedTasks.length > 0 && !expandedTaskId) {
+        if (mappedTasks.length > 0 && !hasSetInitialExpand.current) {
           setExpandedTaskId(mappedTasks[0].id);
+          hasSetInitialExpand.current = true;
         }
       }
     } catch (err) {
@@ -336,7 +286,7 @@ export default function ComplianceCentrePage() {
     } finally {
       setLoading(false);
     }
-  }, [expandedTaskId]);
+  }, []);
 
   React.useEffect(() => {
     loadComplianceCentreData();
@@ -350,9 +300,9 @@ export default function ComplianceCentrePage() {
   const activeCases = totalCases - compliantCount;
 
   const complianceScore =
-    totalCases > 0 ? Math.round((compliantCount / totalCases) * 100) : 68;
+    totalCases > 0 ? Math.round((compliantCount / totalCases) * 100) : 0;
   const scoreRiskLabel =
-    complianceScore >= 80 ? "Low Risk" : complianceScore >= 50 ? "Medium Risk" : "High Risk";
+    totalCases === 0 ? "No Cases" : complianceScore >= 80 ? "Low Risk" : complianceScore >= 50 ? "Medium Risk" : "High Risk";
 
   const highCount = tasks.filter((t) => t.riskLevel === "HIGH" && !t.isResolved).length;
   const mediumCount = tasks.filter((t) => t.riskLevel === "MEDIUM" && !t.isResolved).length;
@@ -424,7 +374,21 @@ export default function ComplianceCentrePage() {
     return result;
   }, [migrantsData, searchQuery, statusFilter, migrantSortCol, migrantSortDir]);
 
+  const tasksPageSize = 5;
+  const totalTaskPages = Math.max(1, Math.ceil(filteredTasks.length / tasksPageSize));
+  const safeTaskPage = Math.max(1, Math.min(currentPage, totalTaskPages));
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedTaskFilter, taskSortCol, taskSortDir]);
+
+  const paginatedTasks = React.useMemo(() => {
+    const start = (safeTaskPage - 1) * tasksPageSize;
+    return filteredTasks.slice(start, start + tasksPageSize);
+  }, [filteredTasks, safeTaskPage, tasksPageSize]);
+
   const handleResolveTask = async (taskId: string) => {
+    const prevTasks = [...tasks];
     try {
       setTasks((prev) =>
         prev.map((t) =>
@@ -439,22 +403,25 @@ export default function ComplianceCentrePage() {
             : t
         )
       );
-      toast.success("Task marked as resolved");
       if (!taskId.startsWith("task-")) {
         await apiClient.patch(`${ENDPOINTS.tasks.base}/${taskId}`, {
           body: JSON.stringify({ isCompleted: true, status: "RESOLVED" }),
         });
       }
-    } catch {
-      // Keep optimistic resolution
+      toast.success("Task marked as resolved");
+    } catch (err) {
+      console.error("Failed to resolve task:", err);
+      setTasks(prevTasks);
+      toast.error("Failed to resolve task. Please try again.");
     }
   };
 
   const handleExportSummary = (migrant: MigrantComplianceRow) => {
-    const csvContent = `data:text/csv;charset=utf-8,Case ID,Name,Company,Status,Next RTW,Documents\n"${migrant.caseId}","${migrant.name}","${migrant.company}","${migrant.status}","${migrant.nextRtw}","${migrant.docs}"`;
-    const encodedUri = encodeURI(csvContent);
+    const header = ["Case ID", "Name", "Company", "Status", "Next RTW", "Documents"].map(escapeCsvField).join(",");
+    const row = [migrant.caseId, migrant.name, migrant.company, migrant.status, migrant.nextRtw, migrant.docs].map(escapeCsvField).join(",");
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(`${header}\n${row}\n`);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", csvContent);
     link.setAttribute("download", `${migrant.name.replace(/\s+/g, "_")}_Compliance_Summary.csv`);
     document.body.appendChild(link);
     link.click();
@@ -577,7 +544,7 @@ export default function ComplianceCentrePage() {
                   TOTAL CASES
                 </span>
                 <span className="text-[24px] leading-[32px] font-medium text-[#351A75] font-aeonik-medium">
-                  {totalCases || 8}
+                  {totalCases}
                 </span>
               </div>
               <RiFileTextLine className="size-5 text-[#5C5C5C] absolute right-4 top-2.5" />
@@ -661,6 +628,8 @@ export default function ComplianceCentrePage() {
                 <div className="flex items-center gap-1 text-[13px] leading-[20px] font-normal text-[#7B7B7B] tracking-[-0.006em]">
                   <span>{highCount} high</span>
                   <span>•</span>
+                  <span>{mediumCount} med</span>
+                  <span>•</span>
                   <span>{lowCount} low</span>
                 </div>
               </div>
@@ -675,7 +644,7 @@ export default function ComplianceCentrePage() {
                 }`}
               >
                 <RiAlertFill className="size-3.5" />
-                <span>{highCount > 0 ? "HIGH" : mediumCount > 0 ? "LOW" : "CLEAR"}</span>
+                <span>{highCount > 0 ? "HIGH" : mediumCount > 0 ? "MEDIUM" : "CLEAR"}</span>
               </div>
             </div>
 
@@ -993,7 +962,7 @@ export default function ComplianceCentrePage() {
                   variant="outline"
                   size="icon-xs"
                   aria-label="Next tasks page"
-                  onClick={() => setCurrentPage((p) => p + 1)}
+                  onClick={() => setCurrentPage((p) => Math.min(totalTaskPages, p + 1))}
                   className="size-6 rounded-[6px] bg-white border-0 shadow-[0px_1px_2px_rgba(10,13,20,0.03)] text-[#5C5C5C] hover:bg-neutral-50 active:scale-95 transition-all p-0"
                 >
                   <RiArrowRightSLine className="size-4 text-[#5C5C5C]" />
@@ -1090,12 +1059,12 @@ export default function ComplianceCentrePage() {
             </div>
 
             {/* Task Rows */}
-            {filteredTasks.length === 0 ? (
+            {paginatedTasks.length === 0 ? (
               <div className="w-full bg-white rounded-[16px] p-8 text-center text-[#7B7B7B] text-[14px] shadow-x-small">
                 No priority tasks pending.
               </div>
             ) : (
-              filteredTasks.map((t) => {
+              paginatedTasks.map((t) => {
                 const isExpanded = expandedTaskId === t.id;
 
                 return (

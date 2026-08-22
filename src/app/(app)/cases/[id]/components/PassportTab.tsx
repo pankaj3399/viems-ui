@@ -111,36 +111,71 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
   const hasMrzData = passportNumber !== "—" && surname !== "—" && givenNames !== "—";
   const hasValidDates = issueDate !== "—" && expiryDate !== "—";
 
-  // Dynamic Machine Readable Zone (MRZ) formatted exactly as international ICAO Document 9303 passport standard
-  const rawCountryCode = (nationalityCode || nationality || "GBR").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
-  const padCountry = (rawCountryCode || "GBR").padEnd(3, "X");
-
+  // ─── Standard ICAO Document 9303 MRZ Generation ─────────────────────────────
   const cleanSurname = surname !== "—" ? surname.toUpperCase().replace(/[^A-Z]/g, "") : "";
   const cleanGiven = givenNames !== "—" ? givenNames.toUpperCase().replace(/[^A-Z]/g, "") : "";
-
-  const mrzLine1 = hasMrzData
-    ? `P<${padCountry}${cleanSurname}<<${cleanGiven}`.padEnd(44, "<").slice(0, 44)
-    : "";
-
   const cleanPass = passportNumber !== "—" ? passportNumber.toUpperCase().replace(/[^A-Z0-9]/g, "") : "";
-  
-  const formatMrzDate = (dateStr: string) => {
-    if (!dateStr || dateStr === "—") return "900101";
+  const rawCountryCode = (nationalityCode || nationality || "").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  const padCountry = rawCountryCode ? rawCountryCode.padEnd(3, "X") : "";
+
+  const parseMrzDate = (dateStr?: string): string | null => {
+    if (!dateStr || dateStr === "—") return null;
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "900101";
-    const yy = String(d.getFullYear()).slice(-2);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
+    if (isNaN(d.getTime())) return null;
+    const yy = String(d.getUTCFullYear()).slice(-2);
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
     return `${yy}${mm}${dd}`;
   };
 
-  const dobMrz = formatMrzDate(dob);
-  const expMrz = formatMrzDate(expiryDate);
-  const genChar = genderShort !== "—" ? genderShort : "M";
+  const icaoCheckDigit = (str: string): string => {
+    const weights = [7, 3, 1];
+    let sum = 0;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charAt(i).toUpperCase();
+      let val = 0;
+      if (ch >= "0" && ch <= "9") {
+        val = ch.charCodeAt(0) - 48;
+      } else if (ch >= "A" && ch <= "Z") {
+        val = ch.charCodeAt(0) - 65 + 10;
+      } else {
+        val = 0;
+      }
+      sum += val * weights[i % 3];
+    }
+    return String(sum % 10);
+  };
 
-  const mrzLine2 = hasMrzData
-    ? `${cleanPass.padEnd(9, "<")}<${padCountry}${dobMrz}5${genChar}${expMrz}5<<<<<<<<<<<<<<04`.padEnd(44, "<").slice(0, 44)
-    : "";
+  const dobMrz = parseMrzDate(dob);
+  const expMrz = parseMrzDate(expiryDate);
+  const genChar = genderShort !== "—" && (genderShort === "M" || genderShort === "F") ? genderShort : (genderShort !== "—" ? "<" : "<");
+
+  const hasCompleteMrz = Boolean(
+    cleanPass &&
+    padCountry &&
+    dobMrz &&
+    expMrz &&
+    (cleanSurname || cleanGiven)
+  );
+
+  let mrzLine1 = "";
+  let mrzLine2 = "";
+
+  if (hasCompleteMrz) {
+    mrzLine1 = `P<${padCountry}${cleanSurname}<<${cleanGiven}`.padEnd(44, "<").slice(0, 44);
+
+    const passField = cleanPass.slice(0, 9).padEnd(9, "<");
+    const passCheck = icaoCheckDigit(passField);
+    const dobCheck = icaoCheckDigit(dobMrz!);
+    const sexChar = genChar;
+    const expCheck = icaoCheckDigit(expMrz!);
+    const optionalData = "<<<<<<<<<<<<<<";
+    const optCheck = "<";
+    const compositeData = `${passField}${passCheck}${dobMrz}${dobCheck}${expMrz}${expCheck}${optionalData}${optCheck}`;
+    const compositeCheck = icaoCheckDigit(compositeData);
+
+    mrzLine2 = `${passField}${passCheck}${padCountry}${dobMrz}${dobCheck}${sexChar}${expMrz}${expCheck}${optionalData}${optCheck}${compositeCheck}`.slice(0, 44);
+  }
 
   const daysLeft = React.useMemo(() => {
     if (!expiryDate || expiryDate === "—") return 608;

@@ -47,18 +47,7 @@ import { FilePreviewModal } from "@/app/(app)/cases/components/FilePreviewModal"
 import { DocumentItem } from "@/app/(app)/cases/components/types";
 
 // Sort icon component matching Figma expand-up-down-fill
-function SortIcon({ className = "size-3.5 text-[#A4A4A4]" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12 4L7 9H17L12 4ZM12 20L17 15H7L12 20Z" />
-    </svg>
-  );
-}
+import { SortIcon } from "@/components/ui/sort-icon";
 
 interface MigrantDocItem {
   id: string;
@@ -72,7 +61,9 @@ interface MigrantDocItem {
   documentType: string;
   status: "MISSING" | "REVIEW" | "VERIFIED";
   expiryDate: string;
+  expiryTimestamp: number;
   uploadedDate: string;
+  uploadedTimestamp: number;
 }
 
 const DOCUMENT_TYPE_TEMPLATES = [
@@ -123,64 +114,56 @@ export default function ComplianceDocumentsPage() {
 
       if (rawArr.length > 0) {
         const mapped: MigrantDocItem[] = rawArr.map((c, i) => {
-          const name =
+          const migrantName =
             formatFullName(
-              c.first_name || c.migrant?.user?.personalInfo?.firstName,
-              c.last_name || c.migrant?.user?.personalInfo?.lastName
+              c.migrant?.user?.firstName || c.firstName,
+              c.migrant?.user?.lastName || c.lastName
             ) ||
-            formatTitleCase(c.name) ||
-            `Migrant #${c.id}`;
-          const initials = getInitials(name);
-          const caseId = c.caseIdDisplay || c.caseNumber || `${c.id}/2026`;
-          const company = c.group_name || c.company || "No Group";
+            c.migrant?.fullName ||
+            c.migrant?.name ||
+            c.name ||
+            "Migrant";
+          const initials = getInitials(migrantName);
+          const caseId = c.caseNumber ? `#${c.caseNumber}` : `#${431 - i}/2026`;
+          const company = c.group || c.company || c.employer || "AX Studios";
 
-          // Use real document type if present or distribute among template types
-          const docType =
-            c.doc_type ||
-            c.document_type ||
-            DOCUMENT_TYPE_TEMPLATES[i % DOCUMENT_TYPE_TEMPLATES.length].title;
-
-          let st: "MISSING" | "REVIEW" | "VERIFIED" = "VERIFIED";
-          if (c.doc_status) {
-            const upper = String(c.doc_status).toUpperCase();
-            if (upper === "MISSING") st = "MISSING";
-            else if (upper === "REVIEW" || upper === "PENDING") st = "REVIEW";
-            else st = "VERIFIED";
-          } else if (c.case_status) {
-            const norm = String(c.case_status).toLowerCase();
-            if (norm.includes("awaiting") || norm.includes("pending") || norm.includes("drafting")) {
-              st = "REVIEW";
-            } else if (norm.includes("refused") || norm.includes("missing")) {
-              st = "MISSING";
-            } else {
-              st = "VERIFIED";
-            }
+          const rawStatus = (c.status || "").toUpperCase();
+          let st: "MISSING" | "REVIEW" | "VERIFIED" = "REVIEW";
+          if (rawStatus.includes("APPROVED") || rawStatus.includes("VERIFIED") || rawStatus.includes("COMPLIANT")) {
+            st = "VERIFIED";
+          } else if (rawStatus.includes("REFUSED") || rawStatus.includes("EXPIRED") || rawStatus.includes("MISSING")) {
+            st = "MISSING";
+          } else {
+            st = "REVIEW";
           }
 
-          const expiry = c.passport_expiry
-            ? new Date(c.passport_expiry).toLocaleDateString("en-GB", {
+          const docType = c.visaType || c.stageName || (i % 4 === 0 ? "Passport" : i % 4 === 1 ? "eVisa" : i % 4 === 2 ? "Proof of Address" : "Right to Work");
+
+          const expDate = c.visaExpiryDate || c.expiryDate || c.cosExpiryDate;
+          const expTime = expDate ? new Date(expDate).getTime() : 0;
+          const expiry = expTime > 0
+            ? new Date(expTime).toLocaleDateString("en-GB", {
                 day: "2-digit",
                 month: "short",
                 year: "numeric",
               })
-            : "06 Mar 2027";
+            : "—";
 
-          const uploaded =
-            st === "MISSING"
-              ? "—"
-              : c.updated_at
-              ? new Date(c.updated_at).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "18 Nov 2026";
+          const uploadDate = c.updatedAt || c.createdAt;
+          const uploadTime = uploadDate ? new Date(uploadDate).getTime() : 0;
+          const uploaded = uploadTime > 0
+            ? new Date(uploadTime).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })
+            : "—";
 
           return {
             id: String(c.id || i + 1),
             entityId: c.id,
             caseId,
-            name,
+            name: migrantName,
             company,
             avatarUrl: c.migrant?.user?.avatarUrl || c.avatarUrl || undefined,
             avatarInitials: initials,
@@ -188,14 +171,14 @@ export default function ComplianceDocumentsPage() {
             documentType: docType,
             status: st,
             expiryDate: expiry,
+            expiryTimestamp: expTime,
             uploadedDate: uploaded,
+            uploadedTimestamp: uploadTime,
           };
         });
 
         setMigrantDocs(mapped);
-        if (mapped.length > 0 && !selectedMigrant) {
-          setSelectedMigrant(mapped[0].name);
-        }
+        setSelectedMigrant((prev) => prev || (mapped.length > 0 ? mapped[0].name : ""));
       } else {
         setMigrantDocs([]);
       }
@@ -205,7 +188,7 @@ export default function ComplianceDocumentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedMigrant]);
+  }, []);
 
   React.useEffect(() => {
     fetchDocumentsData();
@@ -214,14 +197,14 @@ export default function ComplianceDocumentsPage() {
   // Derived KPI and Summary Counts from real dataset
   const kpiStats = React.useMemo(() => {
     const total = migrantDocs.length;
+    const now = Date.now();
     const review = migrantDocs.filter((d) => d.status === "REVIEW").length;
     const missing = migrantDocs.filter((d) => d.status === "MISSING").length;
     const verified = migrantDocs.filter((d) => d.status === "VERIFIED").length;
+    const expired = migrantDocs.filter((d) => d.expiryTimestamp > 0 && d.expiryTimestamp < now).length;
     const expiringSoon = migrantDocs.filter((d) => {
-      if (d.status === "MISSING" || !d.expiryDate || d.expiryDate === "—") return false;
-      const exp = new Date(d.expiryDate);
-      if (isNaN(exp.getTime())) return false;
-      const diff = (exp.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+      if (d.status === "MISSING" || d.expiryTimestamp <= 0) return false;
+      const diff = (d.expiryTimestamp - now) / (1000 * 60 * 60 * 24);
       return diff >= 0 && diff <= 90;
     }).length;
 
@@ -229,10 +212,10 @@ export default function ComplianceDocumentsPage() {
       total,
       pendingReview: review,
       expiringSoon,
-      expired: missing,
+      expired,
       verified,
       overdue: missing,
-      dueSoon: review,
+      dueSoon: expiringSoon,
       needReview: review,
     };
   }, [migrantDocs]);
@@ -244,23 +227,20 @@ export default function ComplianceDocumentsPage() {
         (d) => d.documentType.toLowerCase() === tpl.title.toLowerCase()
       );
 
-      // If specific docs exist, compute specific counts; otherwise compute from global dataset
-      const total = docsOfThisType.length || migrantDocs.length || 1;
-      const verified = docsOfThisType.length
-        ? docsOfThisType.filter((d) => d.status === "VERIFIED").length
-        : migrantDocs.filter((d) => d.status === "VERIFIED").length;
-      const review = docsOfThisType.length
-        ? docsOfThisType.filter((d) => d.status === "REVIEW").length
-        : migrantDocs.filter((d) => d.status === "REVIEW").length;
-      const missing = docsOfThisType.length
-        ? docsOfThisType.filter((d) => d.status === "MISSING").length
-        : migrantDocs.filter((d) => d.status === "MISSING").length;
+      const hasData = docsOfThisType.length > 0;
+      const total = docsOfThisType.length;
+      const verified = docsOfThisType.filter((d) => d.status === "VERIFIED").length;
+      const review = docsOfThisType.filter((d) => d.status === "REVIEW").length;
+      const missing = docsOfThisType.filter((d) => d.status === "MISSING").length;
 
-      const percent = total > 0 ? Math.round((verified / total) * 100) : 100;
+      const percent = total > 0 ? Math.round((verified / total) * 100) : 0;
 
       let badgeBg = "bg-[#E3F7EC]";
       let badgeColor = "text-[#0B4627]";
-      if (percent < 50) {
+      if (!hasData) {
+        badgeBg = "bg-[#F5F5F5]";
+        badgeColor = "text-[#7B7B7B]";
+      } else if (percent < 50) {
         badgeBg = "bg-[#FFEBEC]";
         badgeColor = "text-[#681219]";
       } else if (percent < 90) {
@@ -272,13 +252,14 @@ export default function ComplianceDocumentsPage() {
         id: tpl.id,
         title: tpl.title,
         subtitle: tpl.subtitle,
-        percentage: `${percent}%`,
+        hasData,
+        percentage: hasData ? `${percent}%` : "No records",
         badgeBg,
         badgeColor,
         segments: {
-          red: (missing / total) * 100,
-          amber: (review / total) * 100,
-          green: (verified / total) * 100,
+          red: total > 0 ? (missing / total) * 100 : 0,
+          amber: total > 0 ? (review / total) * 100 : 0,
+          green: total > 0 ? (verified / total) * 100 : 0,
         },
       };
     });
@@ -326,6 +307,14 @@ export default function ComplianceDocumentsPage() {
 
     if (sortField) {
       result = [...result].sort((a, b) => {
+        if (sortField === "expiryDate") {
+          const diff = a.expiryTimestamp - b.expiryTimestamp;
+          return sortOrder === "asc" ? diff : -diff;
+        }
+        if (sortField === "uploadedDate") {
+          const diff = a.uploadedTimestamp - b.uploadedTimestamp;
+          return sortOrder === "asc" ? diff : -diff;
+        }
         const valA = String(a[sortField] || "").toLowerCase();
         const valB = String(b[sortField] || "").toLowerCase();
         if (valA < valB) return sortOrder === "asc" ? -1 : 1;
@@ -349,19 +338,31 @@ export default function ComplianceDocumentsPage() {
     setIsPreviewOpen(true);
   };
 
-  const handleMarkAsVerified = (row: MigrantDocItem) => {
+  const handleMarkAsVerified = async (row: MigrantDocItem) => {
+    const prevDocs = [...migrantDocs];
     setMigrantDocs((prev) =>
       prev.map((d) =>
         d.id === row.id
           ? {
               ...d,
               status: "VERIFIED",
-              uploadedDate: d.uploadedDate === "—" ? "21 Aug 2026" : d.uploadedDate,
+              uploadedDate: d.uploadedDate === "—" ? new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : d.uploadedDate,
             }
           : d
       )
     );
-    toast.success(`Document marked as Verified for ${row.name}`);
+    try {
+      if (row.entityId) {
+        await apiClient.patch(`${ENDPOINTS.files.base}/${row.id}`, {
+          body: JSON.stringify({ status: "verified" }),
+        });
+      }
+      toast.success(`Document marked as Verified for ${row.name}`);
+    } catch (err) {
+      console.error("Failed to verify document on server:", err);
+      setMigrantDocs(prevDocs);
+      toast.error(`Failed to verify document for ${row.name}.`);
+    }
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -383,28 +384,11 @@ export default function ComplianceDocumentsPage() {
       setUploadSuccess(true);
       toast.success(`Document uploaded for ${selectedMigrant}`);
       fetchDocumentsData();
-    } catch (err: any) {
-      console.error("Backend API document upload error:", err?.message || err);
-      // Update local state when backend route is mocked or pending
-      setMigrantDocs((prev) =>
-        prev.map((d) =>
-          d.name.toLowerCase() === selectedMigrant.toLowerCase() &&
-          d.documentType.toLowerCase() === selectedDocType.toLowerCase()
-            ? {
-                ...d,
-                status: "VERIFIED",
-                uploadedDate: "21 Aug 2026",
-                expiryDate: new Date(expiryDate).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                }),
-              }
-            : d
-        )
-      );
-      setUploadSuccess(true);
-      toast.success(`Document attached to ${selectedMigrant}'s profile`);
+    } catch (err: unknown) {
+      console.error("Backend API document upload error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to upload document";
+      setUploadError(msg);
+      toast.error(msg);
     } finally {
       setIsUploading(false);
     }

@@ -110,8 +110,11 @@ function mapBackendCaseToDetail(c: any) {
   const firstName = formatTitleCase(cleanFirst);
   const lastName = formatTitleCase(cleanLast);
   const name =
-    formatFullName(firstName, lastName) ||
-    formatTitleCase(m.stage_name || m.stageName || m.name || c.name || "") ||
+    (cleanFirst || cleanLast ? formatFullName(firstName, lastName) : "") ||
+    m.stage_name ||
+    m.stageName ||
+    m.name ||
+    c.name ||
     "Unknown Migrant";
 
   const rawGender = m.gender || pInfo.sex || m.sex || "";
@@ -994,7 +997,7 @@ export default function MigrantOverviewPage() {
             open={isArchiveOpen}
             onOpenChange={setIsArchiveOpen}
             caseInfo={{
-              caseId: migrant.caseId,
+              caseId: migrant.caseId ? migrant.caseId.replace(/^#/, "") : migrant.caseId,
               name: migrant.name,
               avatarUrl: migrant.avatar,
             }}
@@ -1004,7 +1007,7 @@ export default function MigrantOverviewPage() {
             open={isDeleteOpen}
             onOpenChange={setIsDeleteOpen}
             caseInfo={{
-              caseId: migrant.caseId,
+              caseId: migrant.caseId ? migrant.caseId.replace(/^#/, "") : migrant.caseId,
               name: migrant.name,
               avatarUrl: migrant.avatar,
             }}

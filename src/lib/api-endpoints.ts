@@ -132,6 +132,9 @@ export const ENDPOINTS = {
   // ─── Files & Documents ─────────────────────────────────────────────────────
   files: {
     base: `${API_BASE}/files`,
+    /** GET /files/list/cases/:caseId */
+    listByCase: (caseId: number | string) =>
+      `${API_BASE}/files/list/cases/${caseId}`,
     /** GET /files/view/:id — download/view (supports ?Authorization= query param) */
     view: (id: number | string) => `${API_BASE}/files/view/${id}`,
     create: `${API_BASE}/files/create`,

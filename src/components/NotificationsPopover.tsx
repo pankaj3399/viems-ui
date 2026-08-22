@@ -165,7 +165,7 @@ export function NotificationsPopover() {
         align="end"
         side="bottom"
         sideOffset={8}
-        className="w-[420px] p-0 bg-white border border-[#EBEBEB] rounded-[24px] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] overflow-hidden font-sans select-none"
+        className="w-[420px] p-0 bg-white border border-[#EBEBEB] rounded-[24px] shadow-[0px_16px_32px_-12px_rgba(14,18,27,0.1)] overflow-hidden font-sans"
       >
         {/* Header */}
         <div className="h-[56px] px-[20px] py-[16px] flex items-center justify-between bg-white border-b border-dashed border-[#EBEBEB]">

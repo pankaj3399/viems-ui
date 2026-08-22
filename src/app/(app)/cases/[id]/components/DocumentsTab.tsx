@@ -117,7 +117,7 @@ interface BackendFileResponse {
     try {
       const [foldersRes, filesRes] = await Promise.allSettled([
         apiClient.get<BackendFolderResponse[]>(ENDPOINTS.folders.system),
-        apiClient.get<BackendFileResponse[]>(`${ENDPOINTS.files.base}/list/cases/${caseId}`),
+        apiClient.get<BackendFileResponse[]>(ENDPOINTS.files.listByCase(caseId)),
       ]);
 
       const rawFolders: BackendFolderResponse[] =

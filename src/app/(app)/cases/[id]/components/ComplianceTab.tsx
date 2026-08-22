@@ -74,6 +74,7 @@ export function ComplianceTab({
   const [tasks, setTasks] = React.useState<any[]>([]);
   const [files, setFiles] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!id) return;
@@ -83,27 +84,39 @@ export function ComplianceTab({
     async function loadComplianceData() {
       try {
         setLoading(true);
+        setError(null);
         const [caseRes, tasksRes, filesRes] = await Promise.allSettled([
           apiClient.get<any>(ENDPOINTS.cases.byId(caseId)),
           apiClient.get<any>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`),
-          apiClient.get<any>(`${ENDPOINTS.files.base}/list/cases/${caseId}`),
+          apiClient.get<any>(ENDPOINTS.files.listByCase(caseId)),
         ]);
 
         if (!isCancelled) {
+          let hasAnySuccess = false;
           if (caseRes.status === "fulfilled" && caseRes.value) {
             setCaseData(caseRes.value);
+            hasAnySuccess = true;
           }
           if (tasksRes.status === "fulfilled") {
             const raw = tasksRes.value;
             const taskArr = Array.isArray(raw) ? raw : raw?.data || raw?.tasks || [];
             setTasks(taskArr);
+            hasAnySuccess = true;
           }
           if (filesRes.status === "fulfilled" && Array.isArray(filesRes.value)) {
             setFiles(filesRes.value);
+            hasAnySuccess = true;
+          }
+
+          if (!hasAnySuccess && (caseRes.status === "rejected" || tasksRes.status === "rejected" || filesRes.status === "rejected")) {
+            setError("Unable to load compliance data for this case.");
           }
         }
       } catch (err) {
         console.error("Failed to load compliance data:", err);
+        if (!isCancelled) {
+          setError("Failed to load compliance records.");
+        }
       } finally {
         if (!isCancelled) setLoading(false);
       }
@@ -117,12 +130,16 @@ export function ComplianceTab({
 
   // Calculations
   const completedTasks = tasks.filter((t) => t.isCompleted || t.completed || t.status === "completed").length;
-  const totalTasks = Math.max(tasks.length, 1);
-  const totalDocs = Math.max(files.length, 1);
+  const totalTasks = tasks.length;
+  const totalDocs = files.length;
   const uploadedDocs = files.filter((f) => f.status === "uploaded" || !f.status).length;
   const missingDocs = Math.max(0, totalDocs - uploadedDocs);
+  const totalRequirements = totalTasks + totalDocs;
 
-  const healthScore = Math.round(((completedTasks + uploadedDocs) / (totalTasks + totalDocs)) * 100);
+  const healthScore = totalRequirements > 0
+    ? Math.round(((completedTasks + uploadedDocs) / totalRequirements) * 100)
+    : 100;
+  const isNotAssessed = totalRequirements === 0;
 
   // Remaining eVisa days calculation
   const expiryDateString =
@@ -130,9 +147,27 @@ export function ComplianceTab({
     caseData?.expiryDate ||
     caseData?.migrant?.visaExpiryDate ||
     caseData?.cosExpiryDate;
-  const daysLeft = expiryDateString
-    ? Math.max(0, Math.ceil((new Date(expiryDateString).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-    : 325;
+  
+  const parsedExpiry = React.useMemo(() => {
+    if (!expiryDateString) return null;
+    const d = new Date(expiryDateString);
+    return isNaN(d.getTime()) ? null : d;
+  }, [expiryDateString]);
+
+  const daysLeft = React.useMemo(() => {
+    if (!parsedExpiry) return 325;
+    return Math.max(0, Math.ceil((parsedExpiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  }, [parsedExpiry]);
+
+  const formattedExpiryDate = React.useMemo(() => {
+    if (!parsedExpiry) return "—";
+    return parsedExpiry.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }, [parsedExpiry]);
 
   // Derive priority tasks dynamically
   const dynamicPriorityTasks: PriorityTaskItem[] = React.useMemo(() => {
@@ -140,9 +175,21 @@ export function ComplianceTab({
       return tasks
         .filter((t) => !t.isCompleted && !t.completed && t.status !== "completed")
         .map((t, idx) => {
-          const isHigh = t.status === "crucial" || idx === 0;
-          const isMed = t.status === "under_review" || idx === 1;
+          const prioUpper = String(t.priority || "").toUpperCase();
+          const isHigh = t.status === "crucial" || prioUpper === "HIGH" || prioUpper === "URGENT";
+          const isMed = t.status === "under_review" || prioUpper === "MEDIUM";
           const priority: "HIGH" | "MEDIUM" | "LOW" = isHigh ? "HIGH" : isMed ? "MEDIUM" : "LOW";
+          
+          let taskDueDate = "Due soon";
+          if (t.dueDate) {
+            const d = new Date(t.dueDate);
+            if (!isNaN(d.getTime())) {
+              taskDueDate = `Due ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+            }
+          } else if (parsedExpiry) {
+            taskDueDate = `Due ${formattedExpiryDate}`;
+          }
+
           return {
             id: String(t.id || `pt-${idx}`),
             title: t.title || t.name || "Pending Compliance Action",
@@ -151,35 +198,13 @@ export function ComplianceTab({
             badgeText: isHigh ? "text-[#681219]" : isMed ? "text-[#624C18]" : "text-[#5C5C5C]",
             statusText: isHigh ? "Needs attention" : "Pending action",
             statusColor: isHigh ? "text-[#FB3748]" : isMed ? "text-[#E6A819]" : "text-[#5C5C5C]",
-            dueDate: expiryDateString ? `Due ${new Date(expiryDateString).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : "Due soon",
+            dueDate: taskDueDate,
           };
         });
     }
 
-    // Default dynamic tasks based on case status if no specific task records
-    return [
-      {
-        id: "pt1",
-        title: "Complete right-to-work check",
-        priority: "HIGH",
-        badgeBg: "bg-[#FFEBEC]",
-        badgeText: "text-[#681219]",
-        statusText: "Immediate action",
-        statusColor: "text-[#FB3748]",
-        dueDate: "Due in 28 days",
-      },
-      {
-        id: "pt2",
-        title: "Verify contact & address details",
-        priority: "MEDIUM",
-        badgeBg: "bg-[#FFFAEB]",
-        badgeText: "text-[#624C18]",
-        statusText: "Review required",
-        statusColor: "text-[#E6A819]",
-        dueDate: "Due next week",
-      },
-    ];
-  }, [tasks, expiryDateString]);
+    return [];
+  }, [tasks, parsedExpiry, formattedExpiryDate]);
 
   const filteredTasks = React.useMemo(() => {
     if (priorityFilter === "ALL") return dynamicPriorityTasks;
@@ -192,6 +217,12 @@ export function ComplianceTab({
 
   return (
     <div className="w-full flex flex-col gap-8 font-sans animate-fade-in text-left max-w-[1104px] mx-auto">
+      {error && (
+        <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-4 text-[14px] text-[#FB3748] flex items-center justify-between">
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* ─── Top Banner: Attention Needed ──────────────────────────────────── */}
       <div className="w-full bg-[#FFF5EB] border border-[#FDE8D3] rounded-[12px] px-4 py-3 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-2 text-[13px] text-[#171717] font-medium">
@@ -221,10 +252,10 @@ export function ComplianceTab({
           <div className="flex flex-col items-center gap-1 my-auto">
             <ComplianceDonutChart percentage={healthScore} />
             <span className="font-aeonik-medium text-[24px] font-medium text-[#171717] leading-[32px] mt-1">
-              {healthScore}%
+              {isNotAssessed ? "N/A" : `${healthScore}%`}
             </span>
             <span className="text-[13px] text-[#7B7B7B] font-normal leading-[20px]">
-              {tasks.length - completedTasks} tasks • {missingDocs} docs
+              {isNotAssessed ? "Not assessed" : `${tasks.length - completedTasks} tasks • ${missingDocs} docs`}
             </span>
           </div>
         </div>
@@ -308,7 +339,7 @@ export function ComplianceTab({
 
             <div className="flex items-center justify-between text-[13px] text-[#5C5C5C] mt-1">
               <span>Today</span>
-              <span>{expiryDateString ? new Date(expiryDateString).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "31 Mar 2027"}</span>
+              <span>{formattedExpiryDate}</span>
             </div>
           </div>
 

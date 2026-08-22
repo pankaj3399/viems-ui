@@ -99,28 +99,46 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     {
       name: "Dashboard",
       href: "/dashboard",
+      iconActive: RiLayoutGridFill,
+      iconInactive: RiLayoutGridLine,
     },
     {
       name: "Compliance",
       href: "/compliance",
+      iconActive: RiShieldFill,
+      iconInactive: RiShieldLine,
     },
     {
       name: "Migrants",
       href: "/migrants",
+      iconActive: RiUserFill,
+      iconInactive: RiUserLine,
     },
     {
       name: "Cases",
       href: "/cases",
+      renderIcon: (active: boolean) => (
+        <CasesIcon
+          active={active}
+          className={`size-5 shrink-0 transition-colors ${
+            active ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
+          }`}
+        />
+      ),
     },
     {
       name: "Insights",
       href: "/insights",
+      iconActive: RiPieChartFill,
+      iconInactive: RiPieChartLine,
     },
     ...(!userInfo || isAdmin(userInfo)
       ? [
           {
             name: "Team",
             href: "/team",
+            iconActive: RiTeamFill,
+            iconInactive: RiTeamLine,
           },
         ]
       : []),
@@ -130,10 +148,14 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
     {
       name: "Settings",
       href: "/settings",
+      iconActive: RiSettings2Line,
+      iconInactive: RiSettings2Line,
     },
     {
       name: "Support",
       href: "/support",
+      iconActive: RiCustomerService2Fill,
+      iconInactive: RiCustomerService2Line,
     },
   ];
 
@@ -350,36 +372,13 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                 }`}
                 title={item.name}
               >
-                {item.name === "Dashboard" ? (
+                {item.renderIcon ? (
+                  item.renderIcon(isActive)
+                ) : item.iconActive && item.iconInactive ? (
                   isActive ? (
-                    <RiLayoutGridFill size={20} className="size-5 shrink-0 text-white transition-colors" />
+                    <item.iconActive size={20} className="size-5 shrink-0 text-white transition-colors" />
                   ) : (
-                    <RiLayoutGridLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
-                  )
-                ) : item.name === "Migrants" ? (
-                  isActive ? (
-                    <RiUserFill size={20} className="size-5 shrink-0 text-white transition-colors" />
-                  ) : (
-                    <RiUserLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
-                  )
-                ) : item.name === "Cases" ? (
-                  <CasesIcon
-                    active={isActive}
-                    className={`size-5 shrink-0 transition-colors ${
-                      isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
-                    }`}
-                  />
-                ) : item.name === "Insights" ? (
-                  isActive ? (
-                    <RiPieChartFill size={20} className="size-5 shrink-0 text-white transition-colors" />
-                  ) : (
-                    <RiPieChartLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
-                  )
-                ) : item.name === "Team" || item.name === "Admin" ? (
-                  isActive ? (
-                    <RiTeamFill size={20} className="size-5 shrink-0 text-white transition-colors" />
-                  ) : (
-                    <RiTeamLine size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                    <item.iconInactive size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                   )
                 ) : null}
                 {isOpen && (
@@ -424,18 +423,11 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
                   }`}
                   title={item.name}
                 >
-                  {item.name === "Settings" ? (
-                    <RiSettings2Line
-                      size={20}
-                      className={`size-5 shrink-0 transition-colors ${
-                        isActive ? "text-white" : "text-[#5C5C5C] group-hover:text-white"
-                      }`}
-                    />
-                  ) : item.name === "Support" ? (
+                  {item.iconActive && item.iconInactive ? (
                     isActive ? (
-                      <RiCustomerService2Fill size={20} className="size-5 shrink-0 text-white transition-colors" />
+                      <item.iconActive size={20} className="size-5 shrink-0 text-white transition-colors" />
                     ) : (
-                      <RiCustomerService2Line size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
+                      <item.iconInactive size={20} className="size-5 shrink-0 text-[#5C5C5C] group-hover:text-white transition-colors" />
                     )
                   ) : null}
                   {isOpen && (

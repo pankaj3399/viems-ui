@@ -44,6 +44,28 @@ interface TimelineGroup {
   events: TimelineEvent[];
 }
 
+interface CaseTimelineResponse {
+  caseNumber?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  decision?: { id?: string };
+  migrant?: {
+    name?: string;
+    fullName?: string;
+  };
+}
+
+interface BackendFileResponse {
+  id?: string | number;
+  createdAt?: string;
+  originalName?: string;
+  name?: string;
+  filename?: string;
+  folderName?: string;
+  size?: number | string;
+}
+
 export function TimelineTab({ id }: { id?: string }) {
   const [timelineGroups, setTimelineGroups] = React.useState<TimelineGroup[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -60,7 +82,7 @@ export function TimelineTab({ id }: { id?: string }) {
 
       // 1. Fetch case details
       try {
-        const caseData = await apiClient.get<any>(ENDPOINTS.cases.byId(id));
+        const caseData = await apiClient.get<CaseTimelineResponse>(ENDPOINTS.cases.byId(id));
         if (caseData) {
           const createdAt = caseData.createdAt ? new Date(caseData.createdAt) : new Date();
           events.push({
@@ -98,7 +120,7 @@ export function TimelineTab({ id }: { id?: string }) {
 
       // 2. Fetch case files
       try {
-        const files = await apiClient.get<any[]>(`${ENDPOINTS.files.base}/list/cases/${id}`);
+        const files = await apiClient.get<BackendFileResponse[]>(ENDPOINTS.files.listByCase(id));
         if (Array.isArray(files)) {
           files.forEach((file, idx) => {
             const fileDate = file.createdAt ? new Date(file.createdAt) : new Date();
@@ -129,13 +151,18 @@ export function TimelineTab({ id }: { id?: string }) {
           const parsed = JSON.parse(savedNotes);
           if (Array.isArray(parsed)) {
             parsed.forEach((note) => {
+              const noteDate = note.date ? new Date(note.date) : new Date();
+              const noteTime = !isNaN(noteDate.getTime()) ? noteDate.getTime() : Date.now();
+              const formattedTime = !isNaN(noteDate.getTime()) && String(note.date).includes("T")
+                ? noteDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+                : "";
               events.push({
                 id: `note_${note.id}`,
                 badge: "NOTE",
                 title: `Note from ${note.authorName || "Advisor"}`,
                 description: note.content || "",
-                time: "12:00 PM",
-                timestamp: Date.now() - 3600000,
+                time: formattedTime,
+                timestamp: noteTime,
                 actorName: note.authorName || "Advisor",
                 actorType: "initials",
                 actorInitials: note.avatarText || "AD",

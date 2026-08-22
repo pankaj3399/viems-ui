@@ -18,6 +18,7 @@ import { ENDPOINTS } from "@/lib/api-endpoints";
 
 interface TaskItem {
   id: string;
+  hasBackendId?: boolean;
   category: "General" | "Compliance" | "Reporting" | "Documents" | "Visa & Immigration";
   title: string;
   description: string;
@@ -95,8 +96,10 @@ export function TasksTab({ caseId }: { caseId?: string }) {
               const cat: TaskItem["category"] = t.category && isTaskCategory(t.category) ? t.category : "General";
               const rawStatus = t.status || (t.isCompleted || t.completed ? "completed" : "general");
               const st: TaskItem["status"] = isTaskStatus(rawStatus) ? rawStatus : (t.isCompleted || t.completed ? "completed" : "general");
+              const hasBackendId = t.id !== undefined && t.id !== null;
               return {
                 id: String(t.id ?? `t-${i}`),
+                hasBackendId,
                 category: cat,
                 title: t.title || t.name || "Task",
                 description: t.description || "",
@@ -142,7 +145,9 @@ export function TasksTab({ caseId }: { caseId?: string }) {
   const handleToggleComplete = async (taskId: string) => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
+    const prevTask = { ...targetTask };
     const nextState = !targetTask.isCompleted;
+
     setTasks((prev) =>
       prev.map((t) =>
         t.id === taskId
@@ -150,20 +155,31 @@ export function TasksTab({ caseId }: { caseId?: string }) {
           : t
       )
     );
-    toast.success(
-      nextState
-        ? `"${targetTask.title}" marked as complete`
-        : `"${targetTask.title}" marked as pending`
-    );
-    if (!isNaN(Number(taskId))) {
+
+    if (targetTask.hasBackendId) {
       try {
         const formData = new FormData();
         formData.append("completed", String(nextState));
         formData.append("status", nextState ? "completed" : "pending");
         await apiClient.patch(`${ENDPOINTS.tasks.base}/${taskId}`, { body: formData });
+        toast.success(
+          nextState
+            ? `"${targetTask.title}" marked as complete`
+            : `"${targetTask.title}" marked as pending`
+        );
       } catch (err) {
         console.error("Failed to update task on backend:", err);
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? prevTask : t))
+        );
+        toast.error(`Failed to update task "${targetTask.title}". Please try again.`);
       }
+    } else {
+      toast.success(
+        nextState
+          ? `"${targetTask.title}" marked as complete`
+          : `"${targetTask.title}" marked as pending`
+      );
     }
   };
 
