@@ -23,6 +23,8 @@ import {
   RiLayoutGridFill,
   RiUserLine,
   RiUserFill,
+  RiLightbulbLine,
+  RiLightbulbFill,
   RiTeamLine,
   RiTeamFill,
   RiArrowRightSLine,
@@ -113,6 +115,12 @@ export default function Sidebar({ userInfo, isOpen = true, onToggle }: SidebarPr
       href: "/migrants",
       iconActive: RiUserFill,
       iconInactive: RiUserLine,
+    },
+    {
+      name: "Leads",
+      href: "/leads",
+      iconActive: RiLightbulbFill,
+      iconInactive: RiLightbulbLine,
     },
     {
       name: "Cases",
