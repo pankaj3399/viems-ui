@@ -92,9 +92,15 @@ export const ENDPOINTS = {
   // ─── Leads ─────────────────────────────────────────────────────────────────
   leads: {
     base: `${API_BASE}/leads`,
-    /** PUT /leads/:id */
+    /** GET/PATCH/DELETE /leads/:id */
     byId: (id: number | string) => `${API_BASE}/leads/${id}`,
+    /** POST /leads/:id/convert — convert lead into a migrant profile (+ optional pre-filled case) */
+    convert: (id: number | string) => `${API_BASE}/leads/${id}/convert`,
+    /** GET /leads/archive (list) · DELETE /leads/archive (permanent delete) */
     archive: `${API_BASE}/leads/archive`,
+    /** DELETE /leads/to-archive — soft archive */
+    toArchive: `${API_BASE}/leads/to-archive`,
+    /** PATCH /leads/restore */
     restore: `${API_BASE}/leads/restore`,
   },
 
