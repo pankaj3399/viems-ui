@@ -111,13 +111,71 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
   const hasMrzData = passportNumber !== "—" && surname !== "—" && givenNames !== "—";
   const hasValidDates = issueDate !== "—" && expiryDate !== "—";
 
-  // Machine Readable Zone (MRZ) formatted exactly as international ICAO passport standard
-  const mrzLine1 = hasMrzData
-    ? `P<USA${surname.toUpperCase()}<<${givenNames.toUpperCase()}<<<<<<<<<<<<<<<<<<`.slice(0, 44)
-    : "";
-  const mrzLine2 = hasMrzData
-    ? `${passportNumber}USA9006145M2711225<<<<<<<<<<<<<<04`.slice(0, 44)
-    : "";
+  // ─── Standard ICAO Document 9303 MRZ Generation ─────────────────────────────
+  const cleanSurname = surname !== "—" ? surname.toUpperCase().replace(/[^A-Z]/g, "") : "";
+  const cleanGiven = givenNames !== "—" ? givenNames.toUpperCase().replace(/[^A-Z]/g, "") : "";
+  const cleanPass = passportNumber !== "—" ? passportNumber.toUpperCase().replace(/[^A-Z0-9]/g, "") : "";
+  const rawCountryCode = (nationalityCode || nationality || "").replace(/[^a-zA-Z]/g, "").slice(0, 3).toUpperCase();
+  const padCountry = rawCountryCode ? rawCountryCode.padEnd(3, "X") : "";
+
+  const parseMrzDate = (dateStr?: string): string | null => {
+    if (!dateStr || dateStr === "—") return null;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    const yy = String(d.getUTCFullYear()).slice(-2);
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    return `${yy}${mm}${dd}`;
+  };
+
+  const icaoCheckDigit = (str: string): string => {
+    const weights = [7, 3, 1];
+    let sum = 0;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str.charAt(i).toUpperCase();
+      let val = 0;
+      if (ch >= "0" && ch <= "9") {
+        val = ch.charCodeAt(0) - 48;
+      } else if (ch >= "A" && ch <= "Z") {
+        val = ch.charCodeAt(0) - 65 + 10;
+      } else {
+        val = 0;
+      }
+      sum += val * weights[i % 3];
+    }
+    return String(sum % 10);
+  };
+
+  const dobMrz = parseMrzDate(dob);
+  const expMrz = parseMrzDate(expiryDate);
+  const genChar = genderShort !== "—" && (genderShort === "M" || genderShort === "F") ? genderShort : (genderShort !== "—" ? "<" : "<");
+
+  const hasCompleteMrz = Boolean(
+    cleanPass &&
+    padCountry &&
+    dobMrz &&
+    expMrz &&
+    (cleanSurname || cleanGiven)
+  );
+
+  let mrzLine1 = "";
+  let mrzLine2 = "";
+
+  if (hasCompleteMrz) {
+    mrzLine1 = `P<${padCountry}${cleanSurname}<<${cleanGiven}`.padEnd(44, "<").slice(0, 44);
+
+    const passField = cleanPass.slice(0, 9).padEnd(9, "<");
+    const passCheck = icaoCheckDigit(passField);
+    const dobCheck = icaoCheckDigit(dobMrz!);
+    const sexChar = genChar;
+    const expCheck = icaoCheckDigit(expMrz!);
+    const optionalData = "<<<<<<<<<<<<<<";
+    const optCheck = "<";
+    const compositeData = `${passField}${passCheck}${dobMrz}${dobCheck}${expMrz}${expCheck}${optionalData}${optCheck}`;
+    const compositeCheck = icaoCheckDigit(compositeData);
+
+    mrzLine2 = `${passField}${passCheck}${padCountry}${dobMrz}${dobCheck}${sexChar}${expMrz}${expCheck}${optionalData}${optCheck}${compositeCheck}`.slice(0, 44);
+  }
 
   const daysLeft = React.useMemo(() => {
     if (!expiryDate || expiryDate === "—") return 608;
@@ -287,7 +345,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
     : "3.4 MB · Uploaded 8 Mar 2026";
 
   return (
-    <div className="flex gap-[24px] items-start w-full font-sans select-none max-w-full">
+    <div className="flex gap-[24px] items-start w-full font-sans max-w-full">
       {/* LEFT COLUMN: Passport Visual Card & File Action Card (634px) */}
       <div className="w-[634px] shrink-0 flex flex-col gap-[16px]">
 
@@ -315,7 +373,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
                   onError={() => setImgError(true)}
                 />
               ) : (
-                <span className="text-[24px] font-medium text-white/70">
+                <span className="text-[12px] font-medium text-white/70">
                   {getInitials(fullName)}
                 </span>
               )}
@@ -464,7 +522,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
           </div>
 
           <div className="bg-white border border-white rounded-[16px] shadow-x-small p-[4px] w-full">
-            <div className="bg-[#F7F7F7] rounded-[16px] px-[20px] py-[8px] w-full flex flex-col gap-[2px]">
+            <div className="bg-[#F5F5F5] rounded-[16px] px-[20px] py-[8px] w-full flex flex-col gap-[2px]">
               {detailRows.map((row) => (
                 <div
                   key={row.label}
@@ -500,7 +558,7 @@ export function PassportTab({ migrant, onEditPassport, onPassportUploaded }: Pas
             </div>
 
             <div className="bg-white border border-white rounded-[16px] shadow-x-small p-[4px] w-full">
-              <div className="bg-[#F7F7F7] rounded-[16px] px-[20px] py-[16px] w-full flex flex-col gap-[8px]">
+              <div className="bg-[#F5F5F5] rounded-[16px] px-[20px] py-[16px] w-full flex flex-col gap-[8px]">
                 <span className="text-label-sm text-[#171717]">
                   {daysLeft > 0 ? `${daysLeft}d left` : "Expired"}
                 </span>

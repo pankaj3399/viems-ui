@@ -17,7 +17,7 @@ import {
   RiUserLine,
 } from "@remixicon/react";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName, getInitials } from "@/lib/utils";
+import { formatFullName, formatTitleCase, getInitials } from "@/lib/utils";
 import { getCountryInfo } from "@/lib/country";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { useTableSort } from "@/hooks/useTableSort";
@@ -102,7 +102,10 @@ export default function MigrantsPage() {
       const rawArr: any[] = Array.isArray(res) ? res : res?.data ?? [];
       if (rawArr.length > 0) {
         const mapped: MigrantRow[] = rawArr.map((c, i) => {
-          const name = formatFullName(c.first_name, c.last_name) || c.name || "Unknown Migrant";
+          const name =
+            formatFullName(c.first_name, c.last_name) ||
+            formatTitleCase(c.name || c.stage_name || c.stageName) ||
+            "Unknown Migrant";
           const initials = getInitials(name) || "—";
           const year = c.created_at || c.createdAt ? new Date(c.created_at || c.createdAt).getFullYear() : new Date().getFullYear();
           const caseId = c.caseIdDisplay || c.caseNumber || (c.id ? `${c.id}/${year}` : `CASE-${i + 1}`);
@@ -382,7 +385,7 @@ export default function MigrantsPage() {
   };
 
   return (
-    <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-[32px] font-sans bg-[#F7F7F7] min-h-screen select-none">
+    <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-[32px] font-sans bg-[#F5F5F5] min-h-screen">
       {/* Top Header Row */}
       <div className="flex items-center justify-between border-b border-[#EBEBEB] pb-xl shrink-0">
         <div>
@@ -424,6 +427,8 @@ export default function MigrantsPage() {
           <div className="w-[348px] h-[32px] bg-white border border-[#EBEBEB] rounded-[8px] px-[8px] py-[6px] flex items-center gap-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] focus-within:border-brand-medium focus-within:ring-2 focus-within:ring-brand-medium/20 transition-all shrink-0">
             <RiSearchLine className="size-5 text-[#A4A4A4] shrink-0" />
             <Input
+              variant="unstyled"
+              size="none"
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -440,7 +445,7 @@ export default function MigrantsPage() {
               size="icon-sm"
               aria-label="Reset filters"
               onClick={resetFilters}
-              className="size-8 bg-white border border-[#EBEBEB] rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300 transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] shrink-0"
+              className="size-8 bg-white border-0 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 transition-all cursor-pointer shadow-x-small shrink-0"
               title="Reset filters"
             >
               <RiFilter3Line className="size-5 text-[#5C5C5C]" />
@@ -475,10 +480,10 @@ export default function MigrantsPage() {
             variant={needsActionOnly ? "primary-neutral" : "outline"}
             size="sm"
             onClick={() => setNeedsActionOnly((prev) => !prev)}
-            className={`h-8 px-[12px] py-[6px] border rounded-[8px] text-[14px] font-medium leading-[20px] flex items-center justify-center transition-all cursor-pointer shadow-[0px_1px_2px_rgba(10,13,20,0.03)] shrink-0 ${
+            className={`h-8 px-[12px] py-[6px] border-0 rounded-[8px] text-[14px] font-medium leading-[20px] flex items-center justify-center transition-all cursor-pointer shadow-x-small shrink-0 ${
               needsActionOnly
-                ? "bg-[#171717] border-[#171717] text-white hover:bg-[#171717]/90"
-                : "bg-white border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 hover:border-neutral-300"
+                ? "bg-[#FEF3C7] text-[#D97706] hover:bg-[#FEF3C7]"
+                : "bg-white text-[#171717] hover:bg-neutral-50"
             }`}
           >
             <span>Needs action</span>
@@ -487,11 +492,11 @@ export default function MigrantsPage() {
 
         {/* Frame 67: Table Header & Rows */}
         <div className="flex flex-col items-start gap-[8px] w-full">
-          {/* Header Row (36px, #F7F7F7) */}
-          <div className="w-full h-[36px] bg-[#F7F7F7] rounded-[8px] px-[4px] flex flex-row items-center">
+          {/* Header Row (36px, #F5F5F5) */}
+          <div className="w-full h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex flex-row items-center">
             {/* Case ID column */}
             <div className="w-[94px] h-[32px] px-[12px] py-[8px] flex items-center">
-              <span className="text-[12px] font-medium text-[#A4A4A4] uppercase tracking-[0.04em] leading-[16px] select-none font-sans">
+              <span className="text-[12px] font-medium text-[#A4A4A4] uppercase tracking-[0.04em] leading-[16px] font-sans">
                 CASE ID #
               </span>
             </div>
@@ -625,7 +630,7 @@ export default function MigrantsPage() {
                         handleRowClick(migrant);
                       }
                     }}
-                    className="w-full h-[72px] bg-white border border-transparent hover:border-[#F5F5F5] rounded-[16px] p-[4px] flex flex-row items-center transition-all cursor-pointer hover:shadow-[0px_2px_8px_rgba(10,13,20,0.04)] select-none"
+                    className="w-full h-[72px] bg-white border border-transparent hover:border-[#F5F5F5] rounded-[16px] p-[4px] flex flex-row items-center transition-all cursor-pointer hover:shadow-[0px_2px_8px_rgba(10,13,20,0.04)]"
                   >
                     {/* Case ID (94px) */}
                     <div className="w-[94px] h-[64px] px-[12px] flex items-center shrink-0">
@@ -652,7 +657,7 @@ export default function MigrantsPage() {
                             className="size-full rounded-full object-cover"
                           />
                         )}
-                        <AvatarFallback className="size-full rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[16px] leading-[24px] flex items-center justify-center font-sans">
+                        <AvatarFallback className="size-full rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] leading-none flex items-center justify-center font-sans">
                           {migrant.avatarText}
                         </AvatarFallback>
                       </Avatar>
@@ -757,7 +762,7 @@ export default function MigrantsPage() {
                     return (
                       <span
                         key={`ellipsis-${pIdx}`}
-                        className="size-8 flex items-center justify-center text-[14px] font-medium text-[#5C5C5C] select-none"
+                        className="size-8 flex items-center justify-center text-[14px] font-medium text-[#5C5C5C]"
                       >
                         ...
                       </span>

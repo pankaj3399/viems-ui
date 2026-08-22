@@ -239,7 +239,7 @@ export default function LoginPage() {
         <div className="flex-1 flex flex-col justify-center pb-30">
           <Card className="bg-transparent text-card-foreground p-xl rounded-card border-none shadow-none ring-0">
             <CardHeader className="text-center pb-md">
-              <CardTitle className="text-h5-title font-bold tracking-tight text-neutral-900">
+              <CardTitle className="text-h5-title font-medium tracking-tight text-neutral-900">
                 Log in to Viems
               </CardTitle>
               <CardDescription className="text-paragraph-sm text-neutral-400">
@@ -276,7 +276,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* OR Separator */}
-                <div className="flex items-center gap-sm text-neutral-400 text-label-xs font-semibold select-none">
+                <div className="flex items-center gap-sm text-neutral-400 text-label-xs font-semibold">
                   <div className="h-[1px] bg-neutral-200 flex-1" />
                   OR
                   <div className="h-[1px] bg-neutral-200 flex-1" />
@@ -340,7 +340,7 @@ export default function LoginPage() {
                     <Checkbox id="keep-logged-in" className="size-4 rounded-compact border-neutral-300 data-[state=checked]:bg-brand-medium data-[state=checked]:border-brand-medium" />
                     <label
                       htmlFor="keep-logged-in"
-                      className="text-label-sm font-medium text-neutral-600 cursor-pointer select-none"
+                      className="text-label-sm font-medium text-neutral-600 cursor-pointer"
                     >
                       Keep me logged in
                     </label>
@@ -396,7 +396,7 @@ export default function LoginPage() {
 
           <div className="flex flex-col gap-2xl w-full">
             <div className="flex flex-col gap-sm text-center pb-lg border-b border-neutral-200">
-              <h1 className="text-h5-title font-bold tracking-tight text-neutral-900">
+              <h1 className="text-h5-title font-medium tracking-tight text-neutral-900">
                 Enter verification code
               </h1>
               <p className="text-paragraph-md text-neutral-500">
@@ -489,7 +489,7 @@ export default function LoginPage() {
 
           <div className="flex flex-col gap-2xl w-full">
             <div className="flex flex-col gap-sm text-center pb-lg border-b border-neutral-200">
-              <h1 className="text-h5-title font-bold tracking-tight text-neutral-900">
+              <h1 className="text-h5-title font-medium tracking-tight text-neutral-900">
                 Reset Password
               </h1>
               <p className="text-paragraph-md text-neutral-500">
@@ -521,7 +521,7 @@ export default function LoginPage() {
                     </FieldError>
                   )}
                   {/* Info Tip below input */}
-                  <div className="flex items-start gap-xs text-neutral-500 mt-sm select-none">
+                  <div className="flex items-start gap-xs text-neutral-500 mt-sm">
                     <Info className="size-4 text-neutral-400 shrink-0 mt-[2px]" />
                     <span className="text-paragraph-xs leading-normal">
                       Enter the email that you used to register with.

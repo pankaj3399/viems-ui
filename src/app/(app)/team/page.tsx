@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { EmployeeResponse } from "@/types/api";
@@ -230,7 +231,7 @@ export default function TeamPage() {
   };
 
   return (
-    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F7F7F7] min-h-full pb-[80px]">
+    <div className="w-full flex flex-col font-sans text-[#171717] bg-[#F5F5F5] min-h-full pb-[80px]">
       {/* ─── Top Page Header ─── */}
       <div className="bg-white rounded-t-[16px] border-b border-[#EBEBEB] flex flex-col shrink-0">
         <div className="px-6 md:px-[64px] py-[32px] flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -330,7 +331,9 @@ export default function TeamPage() {
               {/* Search Bar */}
               <div className="w-[240px] md:w-[280px] h-9 bg-white border border-[#EBEBEB] rounded-[8px] px-3 flex items-center gap-2 shadow-x-small focus-within:border-[#171717] transition-all">
                 <RiSearchLine className="size-4 text-[#A4A4A4] shrink-0" />
-                <input
+                <Input
+                  variant="unstyled"
+                  size="none"
                   type="text"
                   aria-label="Search members"
                   value={searchQuery}
@@ -364,7 +367,7 @@ export default function TeamPage() {
           {/* Table Container */}
           <div className="flex flex-col gap-[8px] w-full">
             {/* Table Header Row */}
-            <div className="h-9 px-4 rounded-[8px] bg-[#F7F7F7] flex items-center text-[12px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
+            <div className="h-9 px-4 rounded-[8px] bg-[#F5F5F5] flex items-center text-[12px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
               {/* Member Column */}
               <div className="flex-1 min-w-[200px] px-3">
                 <button
@@ -478,12 +481,12 @@ export default function TeamPage() {
                         {member.avatarImage ? (
                           <Avatar className="size-10 rounded-full shrink-0">
                             <AvatarImage src={member.avatarImage} alt={member.name} />
-                            <AvatarFallback className="bg-[#CAC0FF] text-[#351A75] font-medium text-[16px]">
+                            <AvatarFallback className="bg-[#EBEBEB] text-[#171717] font-medium text-[12px]">
                               {member.avatarText || getInitials(member.name || "Team Member")}
                             </AvatarFallback>
                           </Avatar>
                         ) : (
-                          <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-medium text-[16px] flex items-center justify-center shrink-0">
+                          <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center shrink-0">
                             {member.avatarText || getInitials(member.name || "Team Member")}
                           </div>
                         )}

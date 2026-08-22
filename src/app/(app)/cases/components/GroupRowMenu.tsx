@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   RiEyeLine,
+  RiPencilLine,
   RiArchiveLine,
   RiDeleteBinLine,
   RiMore2Line,
@@ -18,12 +19,14 @@ import {
 
 interface GroupRowMenuProps {
   onViewGroup?: () => void;
+  onEditGroup?: () => void;
   onArchiveGroup?: () => void;
   onDeleteGroup?: () => void;
 }
 
 export function GroupRowMenu({
   onViewGroup,
+  onEditGroup,
   onArchiveGroup,
   onDeleteGroup,
 }: GroupRowMenuProps) {
@@ -58,6 +61,19 @@ export function GroupRowMenu({
           <RiEyeLine className="size-5 text-[#171717]" />
           <span className="flex-1">View group</span>
         </DropdownMenuItem>
+
+        {onEditGroup && (
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditGroup?.();
+            }}
+            className="w-full h-9 px-3 py-2 text-left text-paragraph-sm flex items-center gap-[10px] cursor-pointer transition-colors border-0 bg-transparent rounded-[8px] font-medium text-[#171717] hover:bg-[#F5F5F5]"
+          >
+            <RiPencilLine className="size-5 text-[#171717]" />
+            <span className="flex-1">Edit group</span>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuSeparator className="w-full h-[1px] bg-[#EBEBEB] my-1" />
 

@@ -82,18 +82,12 @@ export function GroupFilterDropdown({
           type="button"
           variant="outline"
           size="sm"
-          className={`w-auto min-w-[130px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-neutral-200 py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 cursor-pointer ${
-            open
-              ? "border-[#7D52F4] ring-2 ring-[#7D52F4]/20 text-foreground"
-              : value && value !== "all"
-              ? "border-[#7D52F4] text-[#7D52F4] hover:text-[#7D52F4] hover:border-[#7D52F4]"
-              : "border-border text-[#5C5C5C] hover:text-neutral-900"
-          }`}
+          className="w-auto min-w-[130px] px-3 justify-between font-medium h-8 rounded-[8px] bg-white border-0 shadow-x-small py-[6px] gap-2 text-[14px] leading-5 tracking-[-0.006em] shrink-0 cursor-pointer text-[#171717] hover:bg-neutral-50 transition-all"
         >
           <span className="truncate">{selectedLabel}</span>
           <ChevronDown
             className={`size-4 shrink-0 transition-transform duration-200 ${
-              open ? "rotate-180 text-[#7D52F4]" : "text-[#5C5C5C]"
+              open ? "rotate-180 text-[#171717]" : "text-[#5C5C5C]"
             }`}
           />
         </Button>
@@ -108,7 +102,7 @@ export function GroupFilterDropdown({
         {/* Search */}
         <div className="p-sm border-b border-neutral-100">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#A4A4A4]" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#A4A4A4] pointer-events-none z-10" />
             <Input
               type="text"
               value={search}

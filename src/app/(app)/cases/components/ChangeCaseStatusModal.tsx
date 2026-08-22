@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -45,14 +46,24 @@ export function ChangeCaseStatusModal({
         }}
       >
         {/* Header — Fixed 52px Height */}
-        <div className="w-full h-[52px] min-h-[52px] px-[20px] py-[16px] flex items-center border-b border-[#EBEBEB] bg-white shrink-0">
+        <div className="w-full h-[52px] min-h-[52px] px-[20px] py-[16px] flex items-center justify-between border-b border-[#EBEBEB] bg-white shrink-0">
           <h3 className="text-[14px] font-medium leading-[20px] tracking-[-0.006em] text-[#171717]">
             Change case status
           </h3>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Close"
+            onClick={() => onOpenChange(false)}
+            className="size-6 rounded-[6px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 flex items-center justify-center p-0"
+          >
+            <X size={16} strokeWidth={2} />
+          </Button>
         </div>
 
         {/* Scrollable Middle Content — flex-1 min-h-0 */}
-        <div className="w-full flex-1 min-h-0 overflow-y-auto px-[20px] py-[12px] flex flex-col bg-white">
+        <div className="w-full flex-1 min-h-0 overflow-y-auto px-[12px] py-[12px] flex flex-col bg-white">
           {CASE_STATUSES.map((status, index) => {
             const isSelected = isMatchingStatus(selected, status);
             return (
@@ -60,7 +71,7 @@ export function ChangeCaseStatusModal({
                 <button
                   type="button"
                   onClick={() => setSelected(status.value)}
-                  className={`w-full h-[36px] min-h-[36px] flex items-center justify-between px-xs transition-colors rounded-[8px] cursor-pointer text-left border-0 bg-transparent shrink-0 ${
+                  className={`group w-full h-[36px] min-h-[36px] flex items-center justify-between px-[8px] transition-colors rounded-[8px] cursor-pointer text-left border-0 bg-transparent shrink-0 focus-visible:outline-none focus-visible:bg-neutral-50 ${
                     isSelected ? "bg-[#F5F3FF]" : "hover:bg-neutral-50"
                   }`}
                 >
@@ -70,7 +81,11 @@ export function ChangeCaseStatusModal({
                       className="size-2 rounded-full shrink-0"
                       style={{ backgroundColor: status.dotColor || "#7B7B7B" }}
                     />
-                    <span className="text-[14px] font-normal leading-[20px] tracking-[-0.006em] text-[#171717] truncate">
+                    <span
+                      className={`text-[14px] leading-[20px] tracking-[-0.006em] text-[#171717] truncate group-hover:font-medium group-focus-visible:font-medium ${
+                        isSelected ? "font-medium" : "font-normal"
+                      }`}
+                    >
                       {status.label}
                     </span>
                   </div>
@@ -90,7 +105,7 @@ export function ChangeCaseStatusModal({
                 </button>
 
                 {index < CASE_STATUSES.length - 1 && (
-                  <div className="w-full h-px bg-[#EBEBEB] shrink-0 my-xs" />
+                  <div className="mx-[8px] h-px bg-[#EBEBEB] shrink-0 my-xs" />
                 )}
               </React.Fragment>
             );

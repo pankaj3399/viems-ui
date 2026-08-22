@@ -10,7 +10,7 @@ export function PageHeader({ title, label, className, ...props }: PageHeaderProp
   return (
     <div 
       className={cn(
-        "flex flex-row items-center justify-between w-full bg-brand-medium rounded-separator py-7 px-10 text-white shadow-md select-none", 
+        "flex flex-row items-center justify-between w-full bg-brand-medium rounded-separator py-7 px-10 text-white shadow-md ", 
         className
       )}
       {...props}

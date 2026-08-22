@@ -119,7 +119,7 @@ export function InviteMemberModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-5 right-5 size-7 rounded-[8px] bg-white border border-[#EBEBEB] shadow-x-small flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 transition-colors cursor-pointer border-0 z-20"
+          className="absolute top-5 right-5 size-6 rounded-[6px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 z-20 flex items-center justify-center"
           aria-label="Close modal"
         >
           <RiCloseLine className="size-4 text-[#5C5C5C]" />
@@ -250,7 +250,7 @@ export function InviteMemberModal({
           </div>
 
           {/* Footer Buttons */}
-          <div className="px-[24px] py-[16px] bg-[#F7F7F7] border-t border-[#EBEBEB] rounded-b-[20px] flex items-center justify-end gap-2">
+          <div className="px-[24px] py-[16px] bg-[#F5F5F5] border-t border-[#EBEBEB] rounded-b-[20px] flex items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"

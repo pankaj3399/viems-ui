@@ -119,7 +119,7 @@ export function EditEmploymentDetailsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="sm:max-w-[680px] w-[680px] h-[764px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-[20px] bg-white border border-[#EBEBEB] shadow-regular-medium flex flex-col font-sans select-none"
+        className="sm:max-w-[680px] w-[680px] h-[764px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-[20px] bg-white border border-[#EBEBEB] shadow-regular-medium flex flex-col font-sans"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-[20px] py-[16px] border-b border-[#EBEBEB] shrink-0 h-[56px]">
@@ -130,7 +130,7 @@ export function EditEmploymentDetailsModal({
             type="button"
             aria-label="Close"
             onClick={() => onOpenChange(false)}
-            className="size-6 rounded-[6px] bg-[#F7F7F7] text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors cursor-pointer"
+            className="size-6 rounded-[6px] bg-[#F5F5F5] text-[#5C5C5C] hover:text-[#171717] hover:bg-[#EBEBEB] flex items-center justify-center transition-colors cursor-pointer"
           >
             <XIcon className="size-4" />
           </button>
@@ -139,7 +139,7 @@ export function EditEmploymentDetailsModal({
         {/* Scrollable Content (No horizontal scroll) */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-[20px] flex flex-col gap-[16px] bg-white w-full">
           {/* AI Banner */}
-          <div className="flex items-center justify-between p-[12px_16px] gap-[12px] bg-[#F7F7F7] rounded-[8px] min-h-[56px] shrink-0 w-full">
+          <div className="flex items-center justify-between p-[12px_16px] gap-[12px] bg-[#F5F5F5] rounded-[8px] min-h-[56px] shrink-0 w-full">
             <div className="flex items-center gap-[12px] flex-1 min-w-0">
               <div className="size-[24px] rounded-[6.4px] bg-[#7D52F4] flex items-center justify-center shrink-0">
                 <FileText className="size-3.5 text-[#EFEBFF]" />
@@ -150,7 +150,7 @@ export function EditEmploymentDetailsModal({
             </div>
             <button
               type="button"
-              className="flex items-center justify-center gap-[4px] px-[12px] h-[32px] bg-[#171717] hover:bg-neutral-800 text-white rounded-[8px] text-[14px] font-medium leading-[20px] tracking-[-0.006em] transition-all cursor-pointer select-none shrink-0"
+              className="flex items-center justify-center gap-[4px] px-[12px] h-[32px] bg-[#171717] hover:bg-neutral-800 text-white rounded-[8px] text-[14px] font-medium leading-[20px] tracking-[-0.006em] transition-all cursor-pointer shrink-0"
             >
               <Upload className="size-4 text-white" />
               Upload

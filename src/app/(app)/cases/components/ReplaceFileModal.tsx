@@ -12,6 +12,9 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { DocumentItem } from "./types";
 
@@ -113,7 +116,7 @@ export function ReplaceFileModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
       
       {/* ─── STEP 1: FORM MODAL (Left Card in Screenshot) ───────────────────── */}
       {step === "form" && (
@@ -121,7 +124,7 @@ export function ReplaceFileModal({
           
           {/* Header */}
           <div className="flex items-center justify-between w-full">
-            <h2 className="text-[18px] font-semibold text-[#171717] tracking-tight">
+            <h2 className="text-[18px] font-medium font-aeonik-medium text-[#171717] tracking-tight">
               Replace file
             </h2>
             <button
@@ -156,10 +159,11 @@ export function ReplaceFileModal({
 
           {/* Document Type Selector */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="replace-doc-type" className="text-[13px] font-medium text-[#171717]">
+            <Label htmlFor="replace-doc-type" className="text-[13px] font-medium text-[#171717]">
               Document Type
-            </label>
+            </Label>
             <div className="relative">
+              {/* ui-native-fallback */}
               <select
                 id="replace-doc-type"
                 value={documentType}
@@ -197,6 +201,7 @@ export function ReplaceFileModal({
                 : "border-[#E5E7EB] hover:border-[#7D52F4] bg-white"
             }`}
           >
+            {/* ui-native-fallback */}
             <input
               type="file"
               ref={fileInputRef}
@@ -228,12 +233,12 @@ export function ReplaceFileModal({
           {/* Form Fields: Passport Number */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-1">
-              <label htmlFor="replace-passport-number" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="replace-passport-number" className="text-[13px] font-medium text-[#171717]">
                 Passport Number
-              </label>
+              </Label>
               <Info className="size-3.5 text-[#A4A4A4]" />
             </div>
-            <input
+            <Input
               id="replace-passport-number"
               type="text"
               value={passportNumber}
@@ -245,11 +250,11 @@ export function ReplaceFileModal({
           {/* Form Fields: Start Date & End Date Row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="replace-start-date" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="replace-start-date" className="text-[13px] font-medium text-[#171717]">
                 Start Date
-              </label>
+              </Label>
               <div className="relative">
-                <input
+                <Input
                   id="replace-start-date"
                   type="text"
                   value={startDate}
@@ -260,11 +265,11 @@ export function ReplaceFileModal({
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="replace-end-date" className="text-[13px] font-medium text-[#171717]">
+              <Label htmlFor="replace-end-date" className="text-[13px] font-medium text-[#171717]">
                 End Date
-              </label>
+              </Label>
               <div className="relative">
-                <input
+                <Input
                   id="replace-end-date"
                   type="text"
                   value={endDate}
@@ -278,10 +283,10 @@ export function ReplaceFileModal({
 
           {/* Form Fields: Notes */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="replace-notes" className="text-[13px] font-medium text-[#171717]">
+            <Label htmlFor="replace-notes" className="text-[13px] font-medium text-[#171717]">
               Notes
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               id="replace-notes"
               rows={2}
               value={notes}

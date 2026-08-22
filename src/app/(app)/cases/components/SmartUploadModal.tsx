@@ -114,7 +114,7 @@ export function SmartUploadModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
       {/* Modal Card */}
       <div className="bg-white rounded-[20px] max-w-[480px] w-full p-6 shadow-2xl flex flex-col gap-5 border border-neutral-100 animate-in fade-in zoom-in-95 duration-150 relative">
         

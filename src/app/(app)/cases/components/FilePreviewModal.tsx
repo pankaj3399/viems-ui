@@ -72,7 +72,7 @@ export function FilePreviewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-fade-in select-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs animate-fade-in">
       {/* Modal Container */}
       <div className="bg-white rounded-[20px] max-w-[1240px] w-full h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-neutral-200 animate-in fade-in zoom-in-95 duration-150">
         
@@ -84,7 +84,7 @@ export function FilePreviewModal({
               <FileText className="size-5" />
             </div>
             <div className="flex flex-col min-w-0">
-              <h2 className="text-[16px] font-semibold text-[#171717] truncate leading-tight">
+              <h2 className="text-[16px] font-medium font-aeonik-medium text-[#171717] truncate leading-tight">
                 {document.name}
               </h2>
               <p className="text-[13px] text-[#6B7280] font-normal truncate mt-0.5">
@@ -113,14 +113,16 @@ export function FilePreviewModal({
               <Download className="size-3.5 text-[#5C5C5C]" />
               <span>Download</span>
             </Button>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={onClose}
               aria-label="Close preview"
-              className="size-9 rounded-full flex items-center justify-center text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer border-0 ml-1"
+              className="size-7 rounded-[6px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 flex items-center justify-center p-0 ml-1"
             >
-              <X className="size-5" />
-            </button>
+              <X className="size-4" />
+            </Button>
           </div>
         </div>
 
@@ -264,7 +266,7 @@ export function FilePreviewModal({
                           <p className="text-[12px] text-[#5C5C5C]">Document Reference: DOC-{document.id || "2026-430"} · {fileName}</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3 bg-[#F7F7F7] p-3 rounded-[8px] text-[12px]">
+                        <div className="grid grid-cols-2 gap-3 bg-[#F5F5F5] p-3 rounded-[8px] text-[12px]">
                           <div>
                             <span className="text-[#7B7B7B] block text-[11px]">Category</span>
                             <span className="font-medium text-[#171717]">{document.category || "Compliance & Identity"}</span>
@@ -413,7 +415,7 @@ export function FilePreviewModal({
                       CASE
                     </h3>
                     <div className="bg-[#F9FAFB] rounded-[12px] p-3.5 flex items-center gap-3 border border-[#F3F4F6]">
-                      <div className="size-10 rounded-full bg-neutral-800 text-white font-medium flex items-center justify-center shrink-0">
+                      <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center shrink-0">
                         {document.migrantName ? getInitials(document.migrantName) : "VI"}
                       </div>
                       <div className="flex flex-col min-w-0">

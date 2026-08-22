@@ -41,10 +41,12 @@ export function CaseStatusDropdown({
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          className={`inline-flex items-center gap-xs px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-[0.02em] cursor-pointer hover:opacity-80 hover:scale-[1.02] transition-all border-0 ${getStatusBgAndText(statusColor)}`}
+          className={`h-5 rounded-full px-2 py-0.5 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.02em] whitespace-nowrap shrink-0 cursor-pointer transition-colors duration-150 border-0 hover:brightness-95 ${getStatusBgAndText(statusColor)}`}
         >
-          <span className={`size-1.5 rounded-full ${getStatusDotColor(statusColor)}`} />
-          {currentStatus}
+          <div className="size-4 flex items-center justify-center shrink-0">
+            <span className={`size-1.5 rounded-full ${getStatusDotColor(statusColor)}`} />
+          </div>
+          <span className="whitespace-nowrap">{currentStatus}</span>
         </button>
       } />
 
@@ -67,7 +69,7 @@ export function CaseStatusDropdown({
         </div>
 
         {/* Scrollable status list — Displays 7-10 options at a time */}
-        <div className="w-full flex-1 min-h-0 overflow-y-auto px-[20px] py-[12px] flex flex-col bg-white">
+        <div className="w-full flex-1 min-h-0 overflow-y-auto px-[12px] py-[12px] flex flex-col bg-white">
           {CASE_STATUSES.map((status, index) => {
             const isSelected = isMatchingStatus(selected, status);
             return (
@@ -75,7 +77,7 @@ export function CaseStatusDropdown({
                 <button
                   type="button"
                   onClick={() => setSelected(status.value)}
-                  className={`w-full h-[36px] min-h-[36px] flex items-center justify-between px-xs transition-colors rounded-[8px] cursor-pointer text-left border-0 bg-transparent shrink-0 ${
+                  className={`group w-full h-[36px] min-h-[36px] flex items-center justify-between px-[8px] transition-colors rounded-[8px] cursor-pointer text-left border-0 bg-transparent shrink-0 focus-visible:outline-none focus-visible:bg-neutral-50 ${
                     isSelected ? "bg-[#F5F3FF]" : "hover:bg-neutral-50"
                   }`}
                 >
@@ -85,7 +87,11 @@ export function CaseStatusDropdown({
                       className="size-2 rounded-full shrink-0"
                       style={{ backgroundColor: status.dotColor || "#7B7B7B" }}
                     />
-                    <span className="text-[14px] font-normal leading-[20px] tracking-[-0.006em] text-[#171717] truncate">
+                    <span
+                      className={`text-[14px] leading-[20px] tracking-[-0.006em] text-[#171717] truncate group-hover:font-medium group-focus-visible:font-medium ${
+                        isSelected ? "font-medium" : "font-normal"
+                      }`}
+                    >
                       {status.label}
                     </span>
                   </div>
@@ -105,7 +111,7 @@ export function CaseStatusDropdown({
                 </button>
 
                 {index < CASE_STATUSES.length - 1 && (
-                  <div className="w-full h-px bg-[#EBEBEB] shrink-0 my-xs" />
+                  <div className="mx-[8px] h-px bg-[#EBEBEB] shrink-0 my-xs" />
                 )}
               </React.Fragment>
             );

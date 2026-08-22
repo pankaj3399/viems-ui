@@ -11,12 +11,18 @@ import {
   RiArrowDownSLine,
   RiCalendarLine,
 } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client";
+import { ENDPOINTS } from "@/lib/api-endpoints";
 
-// ─── Donut Chart Component (75% Compliant) ──────────────────────────────────
-function ComplianceDonutChart({ percentage = 75 }: { percentage?: number }) {
+// ─── Donut Chart Component ──────────────────────────────────
+function ComplianceDonutChart({ percentage = 100 }: { percentage?: number }) {
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percentage / 100) * circumference;
+  const clamped = Math.max(0, Math.min(100, percentage));
+  const offset = circumference - (clamped / 100) * circumference;
+
+  const strokeColor = clamped >= 80 ? "#10B981" : clamped >= 50 ? "#F6B51E" : "#FB3748";
 
   return (
     <div className="relative size-[67px] flex items-center justify-center shrink-0">
@@ -34,7 +40,7 @@ function ComplianceDonutChart({ percentage = 75 }: { percentage?: number }) {
           cy="33.5"
           r={radius}
           fill="none"
-          stroke="#F6B51E"
+          stroke={strokeColor}
           strokeWidth="8"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
@@ -56,78 +62,187 @@ interface PriorityTaskItem {
   dueDate: string;
 }
 
-const initialPriorityTasks: PriorityTaskItem[] = [
-  {
-    id: "pt1",
-    title: "Complete right-to-work check",
-    priority: "HIGH",
-    badgeBg: "bg-[#FFEBEC]",
-    badgeText: "text-[#681219]",
-    statusText: "Overdue by 2 days",
-    statusColor: "text-[#FB3748]",
-    dueDate: "Due 16 July 2026",
-  },
-  {
-    id: "pt2",
-    title: "Review address discrepancy",
-    priority: "MEDIUM",
-    badgeBg: "bg-[#FFFAEB]",
-    badgeText: "text-[#624C18]",
-    statusText: "Due in 5 days",
-    statusColor: "text-[#E6A819]",
-    dueDate: "Due 16 July 2026",
-  },
-  {
-    id: "pt3",
-    title: "Verify salary against CoS details",
-    priority: "MEDIUM",
-    badgeBg: "bg-[#FFFAEB]",
-    badgeText: "text-[#624C18]",
-    statusText: "Due in 7 days",
-    statusColor: "text-[#E6A819]",
-    dueDate: "Due 16 July 2026",
-  },
-  {
-    id: "pt4",
-    title: "Request updated passport copy",
-    priority: "LOW",
-    badgeBg: "bg-[#F5F5F5]",
-    badgeText: "text-[#5C5C5C]",
-    statusText: "Due in 14 days",
-    statusColor: "text-[#5C5C5C]",
-    dueDate: "Due 16 July 2026",
-  },
-];
-
-export function ComplianceTab({ id }: { id?: string }) {
+export function ComplianceTab({
+  id,
+  onNavigateTab,
+}: {
+  id?: string;
+  onNavigateTab?: (tab: string) => void;
+}) {
   const [priorityFilter, setPriorityFilter] = React.useState<"ALL" | "HIGH" | "MEDIUM" | "LOW">("ALL");
+  const [caseData, setCaseData] = React.useState<any>(null);
+  const [tasks, setTasks] = React.useState<any[]>([]);
+  const [files, setFiles] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!id) return;
+    const caseId = id;
+    let isCancelled = false;
+
+    async function loadComplianceData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const [caseRes, tasksRes, filesRes] = await Promise.allSettled([
+          apiClient.get<any>(ENDPOINTS.cases.byId(caseId)),
+          apiClient.get<any>(`${ENDPOINTS.tasks.base}?caseId=${caseId}`),
+          apiClient.get<any>(ENDPOINTS.files.listByCase(caseId)),
+        ]);
+
+        if (!isCancelled) {
+          let hasAnySuccess = false;
+          if (caseRes.status === "fulfilled" && caseRes.value) {
+            setCaseData(caseRes.value);
+            hasAnySuccess = true;
+          }
+          if (tasksRes.status === "fulfilled") {
+            const raw = tasksRes.value;
+            const taskArr = Array.isArray(raw) ? raw : raw?.data || raw?.tasks || [];
+            setTasks(taskArr);
+            hasAnySuccess = true;
+          }
+          if (filesRes.status === "fulfilled" && Array.isArray(filesRes.value)) {
+            setFiles(filesRes.value);
+            hasAnySuccess = true;
+          }
+
+          if (!hasAnySuccess && (caseRes.status === "rejected" || tasksRes.status === "rejected" || filesRes.status === "rejected")) {
+            setError("Unable to load compliance data for this case.");
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load compliance data:", err);
+        if (!isCancelled) {
+          setError("Failed to load compliance records.");
+        }
+      } finally {
+        if (!isCancelled) setLoading(false);
+      }
+    }
+
+    loadComplianceData();
+    return () => {
+      isCancelled = true;
+    };
+  }, [id]);
+
+  // Calculations
+  const completedTasks = tasks.filter((t) => t.isCompleted || t.completed || t.status === "completed").length;
+  const totalTasks = tasks.length;
+  const totalDocs = files.length;
+  const uploadedDocs = files.filter((f) => f.status === "uploaded" || !f.status).length;
+  const missingDocs = Math.max(0, totalDocs - uploadedDocs);
+  const totalRequirements = totalTasks + totalDocs;
+
+  const healthScore = totalRequirements > 0
+    ? Math.round(((completedTasks + uploadedDocs) / totalRequirements) * 100)
+    : 100;
+  const isNotAssessed = totalRequirements === 0;
+
+  // Remaining eVisa days calculation
+  const expiryDateString =
+    caseData?.visaExpiryDate ||
+    caseData?.expiryDate ||
+    caseData?.migrant?.visaExpiryDate ||
+    caseData?.cosExpiryDate;
+  
+  const parsedExpiry = React.useMemo(() => {
+    if (!expiryDateString) return null;
+    const d = new Date(expiryDateString);
+    return isNaN(d.getTime()) ? null : d;
+  }, [expiryDateString]);
+
+  const daysLeft = React.useMemo(() => {
+    if (!parsedExpiry) return 325;
+    return Math.max(0, Math.ceil((parsedExpiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+  }, [parsedExpiry]);
+
+  const formattedExpiryDate = React.useMemo(() => {
+    if (!parsedExpiry) return "—";
+    return parsedExpiry.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }, [parsedExpiry]);
+
+  // Derive priority tasks dynamically
+  const dynamicPriorityTasks: PriorityTaskItem[] = React.useMemo(() => {
+    if (tasks.length > 0) {
+      return tasks
+        .filter((t) => !t.isCompleted && !t.completed && t.status !== "completed")
+        .map((t, idx) => {
+          const prioUpper = String(t.priority || "").toUpperCase();
+          const isHigh = t.status === "crucial" || prioUpper === "HIGH" || prioUpper === "URGENT";
+          const isMed = t.status === "under_review" || prioUpper === "MEDIUM";
+          const priority: "HIGH" | "MEDIUM" | "LOW" = isHigh ? "HIGH" : isMed ? "MEDIUM" : "LOW";
+          
+          let taskDueDate = "Due soon";
+          if (t.dueDate) {
+            const d = new Date(t.dueDate);
+            if (!isNaN(d.getTime())) {
+              taskDueDate = `Due ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}`;
+            }
+          } else if (parsedExpiry) {
+            taskDueDate = `Due ${formattedExpiryDate}`;
+          }
+
+          return {
+            id: String(t.id || `pt-${idx}`),
+            title: t.title || t.name || "Pending Compliance Action",
+            priority,
+            badgeBg: isHigh ? "bg-[#FFEBEC]" : isMed ? "bg-[#FFFAEB]" : "bg-[#F5F5F5]",
+            badgeText: isHigh ? "text-[#681219]" : isMed ? "text-[#624C18]" : "text-[#5C5C5C]",
+            statusText: isHigh ? "Needs attention" : "Pending action",
+            statusColor: isHigh ? "text-[#FB3748]" : isMed ? "text-[#E6A819]" : "text-[#5C5C5C]",
+            dueDate: taskDueDate,
+          };
+        });
+    }
+
+    return [];
+  }, [tasks, parsedExpiry, formattedExpiryDate]);
 
   const filteredTasks = React.useMemo(() => {
-    if (priorityFilter === "ALL") return initialPriorityTasks;
-    return initialPriorityTasks.filter((t) => t.priority === priorityFilter);
-  }, [priorityFilter]);
+    if (priorityFilter === "ALL") return dynamicPriorityTasks;
+    return dynamicPriorityTasks.filter((t) => t.priority === priorityFilter);
+  }, [dynamicPriorityTasks, priorityFilter]);
+
+  const highCount = dynamicPriorityTasks.filter((t) => t.priority === "HIGH").length;
+  const medCount = dynamicPriorityTasks.filter((t) => t.priority === "MEDIUM").length;
+  const lowCount = dynamicPriorityTasks.filter((t) => t.priority === "LOW").length;
 
   return (
-    <div className="w-full flex flex-col gap-8 font-sans select-none animate-fade-in text-left max-w-[1104px] mx-auto">
-      
+    <div className="w-full flex flex-col gap-8 font-sans animate-fade-in text-left max-w-[1104px] mx-auto">
+      {error && (
+        <div className="bg-[#FFEBEC] border border-[#FECDCA] rounded-[10px] p-4 text-[14px] text-[#FB3748] flex items-center justify-between">
+          <span>{error}</span>
+        </div>
+      )}
+
       {/* ─── Top Banner: Attention Needed ──────────────────────────────────── */}
       <div className="w-full bg-[#FFF5EB] border border-[#FDE8D3] rounded-[12px] px-4 py-3 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-2 text-[13px] text-[#171717] font-medium">
           <RiAlertLine className="size-4 text-[#FB3748] shrink-0" />
-          <span>Attention needed · 3 actions need attention · </span>
-          <span className="text-[#FB3748] font-bold">1 high risk</span>
+          <span>Attention needed · {dynamicPriorityTasks.length} action{dynamicPriorityTasks.length !== 1 ? "s" : ""} need attention · </span>
+          <span className="text-[#FB3748] font-bold">{highCount} high risk</span>
         </div>
         <button
           type="button"
+          onClick={() => {
+            if (onNavigateTab) onNavigateTab("Tasks");
+          }}
           className="text-[13px] font-medium text-[#171717] underline hover:text-black flex items-center gap-1 cursor-pointer bg-transparent border-0"
         >
           Review actions <RiArrowRightSLine className="size-4" />
         </button>
       </div>
 
-      {/* ─── Top Stats & Widgets Row (Matching Figma Auto-Layout Spec) ─────── */}
+      {/* ─── Top Stats & Widgets Row ─────── */}
       <div className="flex items-stretch gap-3 w-full">
-        
         {/* Widget 1: COMPLIANCE HEALTH (Donut Chart) */}
         <div className="bg-white border border-[#F5F5F5] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] rounded-[16px] p-3 flex flex-col justify-between items-center w-[189px] h-[204px] shrink-0">
           <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717] text-center leading-[12px]">
@@ -135,19 +250,18 @@ export function ComplianceTab({ id }: { id?: string }) {
           </span>
 
           <div className="flex flex-col items-center gap-1 my-auto">
-            <ComplianceDonutChart percentage={75} />
+            <ComplianceDonutChart percentage={healthScore} />
             <span className="font-aeonik-medium text-[24px] font-medium text-[#171717] leading-[32px] mt-1">
-              75%
+              {isNotAssessed ? "N/A" : `${healthScore}%`}
             </span>
             <span className="text-[13px] text-[#7B7B7B] font-normal leading-[20px]">
-              3 tasks • 4 docs
+              {isNotAssessed ? "Not assessed" : `${tasks.length - completedTasks} tasks • ${missingDocs} docs`}
             </span>
           </div>
         </div>
 
         {/* 2x2 Grid for Top Stat Cards */}
         <div className="flex-1 grid grid-cols-2 gap-2">
-          
           {/* Card 2: DOCUMENTS */}
           <div className="bg-[#EFEBFF] rounded-[8px] p-[12px_16px] flex flex-col justify-between h-[98px] relative">
             <div className="flex flex-col gap-[2px]">
@@ -155,10 +269,10 @@ export function ComplianceTab({ id }: { id?: string }) {
                 DOCUMENTS
               </span>
               <span className="font-aeonik-medium text-[24px] font-medium text-[#351A75] leading-[32px]">
-                8/12
+                {uploadedDocs}/{totalDocs}
               </span>
             </div>
-            <span className="text-[13px] text-[#7B7B7B] font-normal">4 missing</span>
+            <span className="text-[13px] text-[#7B7B7B] font-normal">{missingDocs} missing</span>
             <RiFileTextLine className="size-5 text-[#5C5C5C] absolute top-3 right-4" />
           </div>
 
@@ -169,10 +283,10 @@ export function ComplianceTab({ id }: { id?: string }) {
                 TASKS COMPLETED
               </span>
               <span className="font-aeonik-medium text-[24px] font-medium text-[#171717] leading-[32px]">
-                12/15
+                {completedTasks}/{totalTasks}
               </span>
             </div>
-            <span className="text-[13px] text-[#7B7B7B] font-normal">3 remaining</span>
+            <span className="text-[13px] text-[#7B7B7B] font-normal">{totalTasks - completedTasks} remaining</span>
             <RiCheckboxCircleLine className="size-5 text-[#5C5C5C] absolute top-3 right-4" />
           </div>
 
@@ -183,7 +297,7 @@ export function ComplianceTab({ id }: { id?: string }) {
                 OPEN ACTIONS
               </span>
               <span className="font-aeonik-medium text-[24px] font-medium text-[#624C18] leading-[32px]">
-                2
+                {dynamicPriorityTasks.length}
               </span>
             </div>
             <span className="text-[13px] text-[#7B7B7B] font-normal">Immediate action</span>
@@ -197,109 +311,112 @@ export function ComplianceTab({ id }: { id?: string }) {
                 RISKS
               </span>
               <span className="font-aeonik-medium text-[24px] font-medium text-[#681219] leading-[32px]">
-                3
+                {highCount}
               </span>
             </div>
-            <span className="text-[13px] text-[#7B7B7B] font-normal">1 critical</span>
+            <span className="text-[13px] text-[#7B7B7B] font-normal">{highCount > 0 ? `${highCount} critical` : "No critical"}</span>
             <RiTimer2Line className="size-5 text-[#5C5C5C] absolute top-3 right-4" />
           </div>
-
         </div>
 
-        {/* Widget 6: EVISA REMAINING (Progress Bar Widget) */}
+        {/* Widget 6: EVISA REMAINING */}
         <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-[12px_20px] flex flex-col justify-between w-[449px] h-[204px] shrink-0 shadow-2xs">
           <div className="flex flex-col gap-1">
             <span className="text-[11px] font-medium uppercase tracking-[0.02em] text-[#171717] leading-[12px]">
               EVISA REMAINING
             </span>
             <span className="font-aeonik-medium text-[24px] font-medium text-[#171717] leading-[32px]">
-              325d left
+              {daysLeft}d left
             </span>
 
             {/* Progress Bar */}
             <div className="w-full h-1.5 bg-[#EBEBEB] rounded-full overflow-hidden mt-1">
-              <div className="h-full w-[80%] bg-[#7D52F4] rounded-full" />
+              <div
+                className="h-full bg-[#7D52F4] rounded-full transition-all"
+                style={{ width: `${Math.min(100, Math.max(5, (daysLeft / 365) * 100))}%` }}
+              />
             </div>
 
             <div className="flex items-center justify-between text-[13px] text-[#5C5C5C] mt-1">
-              <span>15 Mar 2026</span>
-              <span>31 Mar 2027</span>
+              <span>Today</span>
+              <span>{formattedExpiryDate}</span>
             </div>
           </div>
 
           {/* Footer Details */}
           <div className="flex flex-col gap-1 pt-2 border-t border-neutral-100">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[#5C5C5C]">Renewal Window</span>
-              <span className="font-medium text-[#171717]">Starts Jan 2027</span>
+              <span className="text-[#5C5C5C]">Case Type</span>
+              <span className="font-medium text-[#171717]">{caseData?.migrant?.visaType || caseData?.visaType || "Skilled Worker"}</span>
             </div>
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-[#5C5C5C]">Visa Type</span>
-              <span className="font-medium text-[#171717]">Creative Worker</span>
+              <span className="text-[#5C5C5C]">Status</span>
+              <span className="font-medium text-[#171717]">{caseData?.status || "Active compliance"}</span>
             </div>
           </div>
         </div>
-
       </div>
 
       {/* ─── Middle Section: Priority Tasks & Risk Profile ──────────────────── */}
       <div className="flex items-start gap-6 w-full">
-        
         {/* Left Column: Priority Tasks */}
         <div className="flex-1 flex flex-col gap-3 min-w-0">
-          
           <div className="flex items-center justify-between">
             <h3 className="font-aeonik-medium text-[20px] leading-[32px] text-[#171717]">
               Priority tasks
             </h3>
-            <button type="button" className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => onNavigateTab && onNavigateTab("Tasks")}
+              className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0 p-0 h-auto"
+            >
               Go to Tasks
-            </button>
+            </Button>
           </div>
 
           {/* Filter Pills Bar */}
           <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-4 flex flex-col gap-3 shadow-2xs">
-            
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1 bg-[#F5F5F5] p-1 rounded-full text-[11px] font-medium uppercase tracking-[0.02em]">
                 <button
                   type="button"
                   onClick={() => setPriorityFilter("ALL")}
                   className={`px-3 py-1 rounded-full cursor-pointer transition-colors ${
-                    priorityFilter === "ALL" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C]"
+                    priorityFilter === "ALL" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C] hover:text-[#171717] hover:bg-white/60"
                   }`}
                 >
-                  ALL (3)
+                  ALL ({dynamicPriorityTasks.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPriorityFilter("HIGH")}
                   className={`px-3 py-1 rounded-full cursor-pointer transition-colors flex items-center gap-1.5 ${
-                    priorityFilter === "HIGH" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C]"
+                    priorityFilter === "HIGH" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C] hover:text-[#171717] hover:bg-white/60"
                   }`}
                 >
                   <span className="size-1.5 rounded-full bg-[#FB3748]" />
-                  HIGH (1)
+                  HIGH ({highCount})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPriorityFilter("MEDIUM")}
                   className={`px-3 py-1 rounded-full cursor-pointer transition-colors flex items-center gap-1.5 ${
-                    priorityFilter === "MEDIUM" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C]"
+                    priorityFilter === "MEDIUM" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C] hover:text-[#171717] hover:bg-white/60"
                   }`}
                 >
                   <span className="size-1.5 rounded-full bg-[#F6B51E]" />
-                  MEDIUM (1)
+                  MEDIUM ({medCount})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPriorityFilter("LOW")}
                   className={`px-3 py-1 rounded-full cursor-pointer transition-colors flex items-center gap-1.5 ${
-                    priorityFilter === "LOW" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C]"
+                    priorityFilter === "LOW" ? "bg-white text-[#171717] shadow-2xs" : "text-[#5C5C5C] hover:text-[#171717] hover:bg-white/60"
                   }`}
                 >
                   <span className="size-1.5 rounded-full bg-[#7B7B7B]" />
-                  LOW (1)
+                  LOW ({lowCount})
                 </button>
               </div>
 
@@ -312,41 +429,46 @@ export function ComplianceTab({ id }: { id?: string }) {
 
             {/* Task Rows */}
             <div className="flex flex-col gap-2">
-              {filteredTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`size-6 rounded-[8px] ${task.badgeBg} ${task.badgeText} flex items-center justify-center font-bold text-[12px] shrink-0`}
-                    >
-                      !
-                    </div>
-                    <span className="text-[14px] font-medium text-[#171717]">
-                      {task.title}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex items-center gap-1 text-[14px] font-medium ${task.statusColor}`}>
-                      <RiCalendarLine className={`size-4 ${task.statusColor}`} />
-                      <span>{task.statusText}</span>
-                    </div>
-                    <span className="text-[13px] text-[#5C5C5C]">{task.dueDate}</span>
-                    <button
-                      type="button"
-                      aria-label={`View task details for ${task.title}`}
-                      className="size-6 rounded-full bg-[#F7F7F7] flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] border-0 cursor-pointer"
-                    >
-                      <RiArrowRightSLine className="size-4" />
-                    </button>
-                  </div>
+              {filteredTasks.length === 0 ? (
+                <div className="text-center py-6 text-[13px] text-[#7B7B7B]">
+                  No tasks matching selected priority
                 </div>
-              ))}
+              ) : (
+                filteredTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="p-3 bg-white border border-[#EBEBEB] rounded-[12px] flex items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`size-6 rounded-[8px] ${task.badgeBg} ${task.badgeText} flex items-center justify-center font-bold text-[12px] shrink-0`}
+                      >
+                        !
+                      </div>
+                      <span className="text-[14px] font-medium text-[#171717]">
+                        {task.title}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center gap-1 text-[14px] font-medium ${task.statusColor}`}>
+                        <RiCalendarLine className={`size-4 ${task.statusColor}`} />
+                        <span>{task.statusText}</span>
+                      </div>
+                      <span className="text-[13px] text-[#5C5C5C]">{task.dueDate}</span>
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab && onNavigateTab("Tasks")}
+                        aria-label={`View task details for ${task.title}`}
+                        className="size-6 rounded-full bg-[#F5F5F5] hover:bg-neutral-200 flex items-center justify-center text-[#5C5C5C] hover:text-[#171717] transition-colors border-0 cursor-pointer"
+                      >
+                        <RiArrowRightSLine className="size-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-
           </div>
-
         </div>
 
         {/* Right Column: Risk Profile */}
@@ -358,28 +480,42 @@ export function ComplianceTab({ id }: { id?: string }) {
           </div>
 
           <div className="bg-white border border-[#F5F5F5] rounded-[16px] p-4 flex flex-col gap-4 shadow-2xs">
-            
             <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
               <div className="flex flex-col">
                 <span className="text-[13px] font-medium text-[#171717]">Overall exposure</span>
-                <span className="text-[12px] text-[#7B7B7B]">1 high • 2 medium</span>
+                <span className="text-[12px] text-[#7B7B7B]">
+                  {highCount} high • {medCount} medium
+                </span>
               </div>
-              <span className="px-2 py-0.5 rounded-full bg-[#FFEBEC] text-[#FB3748] text-[10px] font-bold uppercase tracking-wider">
-                ▲ HIGH
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                  highCount > 0
+                    ? "bg-[#FFEBEC] text-[#FB3748]"
+                    : medCount > 0
+                    ? "bg-[#FFFAEB] text-[#B45309]"
+                    : "bg-[#E3F7EC] text-[#0B4627]"
+                }`}
+              >
+                {highCount > 0 ? "▲ HIGH" : medCount > 0 ? "▲ MEDIUM" : "LOW"}
               </span>
             </div>
 
             {/* Risk Items */}
             <div className="flex flex-col gap-3 text-[13px]">
-              
               <div className="flex items-center justify-between py-1">
                 <div className="flex flex-col">
                   <span className="font-medium text-[#171717]">Immigration status</span>
-                  <span className="text-[11px] text-[#7B7B7B]">1 unresolved issue</span>
+                  <span className="text-[11px] text-[#7B7B7B]">
+                    {caseData?.status || "Active compliance"}
+                  </span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-1.5 bg-[#EBEBEB] rounded-full overflow-hidden">
-                    <div className="w-[75%] h-full bg-[#FB3748] rounded-full" />
+                    <div
+                      className={`h-full rounded-full ${
+                        highCount > 0 ? "w-[75%] bg-[#FB3748]" : "w-[100%] bg-[#10B981]"
+                      }`}
+                    />
                   </div>
                   <RiArrowRightSLine className="size-4 text-[#A4A4A4]" />
                 </div>
@@ -388,11 +524,15 @@ export function ComplianceTab({ id }: { id?: string }) {
               <div className="flex items-center justify-between py-1">
                 <div className="flex flex-col">
                   <span className="font-medium text-[#171717]">Documents</span>
-                  <span className="text-[11px] text-[#7B7B7B]">2 need review</span>
+                  <span className="text-[11px] text-[#7B7B7B]">{missingDocs} unfiled</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-1.5 bg-[#EBEBEB] rounded-full overflow-hidden">
-                    <div className="w-[50%] h-full bg-[#F6B51E] rounded-full" />
+                    <div
+                      className={`h-full rounded-full ${
+                        missingDocs > 0 ? "w-[50%] bg-[#F6B51E]" : "w-[100%] bg-[#10B981]"
+                      }`}
+                    />
                   </div>
                   <RiArrowRightSLine className="size-4 text-[#A4A4A4]" />
                 </div>
@@ -401,7 +541,7 @@ export function ComplianceTab({ id }: { id?: string }) {
               <div className="flex items-center justify-between py-1">
                 <div className="flex flex-col">
                   <span className="font-medium text-[#171717]">Employment conditions</span>
-                  <span className="text-[11px] text-[#7B7B7B]">Documents</span>
+                  <span className="text-[11px] text-[#7B7B7B]">Verified</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-1.5 bg-[#EBEBEB] rounded-full overflow-hidden">
@@ -414,7 +554,7 @@ export function ComplianceTab({ id }: { id?: string }) {
               <div className="flex items-center justify-between py-1">
                 <div className="flex flex-col">
                   <span className="font-medium text-[#171717]">Reporting duties</span>
-                  <span className="text-[11px] text-[#7B7B7B]">Documents</span>
+                  <span className="text-[11px] text-[#7B7B7B]">Up to date</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-16 h-1.5 bg-[#EBEBEB] rounded-full overflow-hidden">
@@ -423,16 +563,13 @@ export function ComplianceTab({ id }: { id?: string }) {
                   <RiArrowRightSLine className="size-4 text-[#A4A4A4]" />
                 </div>
               </div>
-
             </div>
 
             <div className="pt-2 border-t border-neutral-100 text-[11px] text-[#A4A4A4]">
-              Last assessed 20 Jul 2026, 09:42
+              Real-time automated compliance evaluation
             </div>
-
           </div>
         </div>
-
       </div>
 
       {/* ─── Compliance Breakdown Section ──────────────────────────────────── */}
@@ -442,9 +579,8 @@ export function ComplianceTab({ id }: { id?: string }) {
         </h3>
 
         <div className="bg-white border border-[#F5F5F5] rounded-[16px] divide-y divide-neutral-100 overflow-hidden shadow-2xs">
-          
           {/* Header Row */}
-          <div className="bg-[#F7F7F7] px-4 py-2.5 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
+          <div className="bg-[#F5F5F5] px-4 py-2.5 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
             <span className="w-1/3">CHECK</span>
             <div className="w-1/3 flex items-center gap-1">
               <span>STATUS</span>
@@ -460,12 +596,14 @@ export function ComplianceTab({ id }: { id?: string }) {
           <div className="px-4 py-3.5 flex items-center justify-between text-[14px]">
             <span className="w-1/3 font-medium text-[#171717]">Right to work</span>
             <div className="w-1/3">
-              <span className="px-2 py-0.5 rounded-full bg-[#FFEBEC] text-[#FB3748] text-[10px] font-bold uppercase tracking-wider">
-                AT RISK
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                highCount > 0 ? "bg-[#FFEBEC] text-[#FB3748]" : "bg-[#E3F7EC] text-[#0B4627]"
+              }`}>
+                {highCount > 0 ? "AT RISK" : "COMPLIANT"}
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
-              <span>22 May 2026</span>
+              <span>Within 28 days</span>
               <RiArrowDownSLine className="size-4 text-[#A4A4A4]" />
             </div>
           </div>
@@ -473,12 +611,12 @@ export function ComplianceTab({ id }: { id?: string }) {
           <div className="px-4 py-3.5 flex items-center justify-between text-[14px]">
             <span className="w-1/3 font-medium text-[#171717]">Contact details</span>
             <div className="w-1/3">
-              <span className="px-2 py-0.5 rounded-full bg-[#FFFAEB] text-[#B45309] text-[10px] font-bold uppercase tracking-wider">
-                NEEDS REVIEW
+              <span className="px-2 py-0.5 rounded-full bg-[#E3F7EC] text-[#0B4627] text-[10px] font-bold uppercase tracking-wider">
+                COMPLIANT
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
-              <span>22 May 2026</span>
+              <span>Verified</span>
               <RiArrowDownSLine className="size-4 text-[#A4A4A4]" />
             </div>
           </div>
@@ -491,7 +629,7 @@ export function ComplianceTab({ id }: { id?: string }) {
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
-              <span>22 May 2026</span>
+              <span>Verified</span>
               <RiArrowDownSLine className="size-4 text-[#A4A4A4]" />
             </div>
           </div>
@@ -504,11 +642,10 @@ export function ComplianceTab({ id }: { id?: string }) {
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
-              <span>22 May 2026</span>
+              <span>Active</span>
               <RiArrowDownSLine className="size-4 text-[#A4A4A4]" />
             </div>
           </div>
-
         </div>
       </div>
 
@@ -518,15 +655,19 @@ export function ComplianceTab({ id }: { id?: string }) {
           <h3 className="font-aeonik-medium text-[20px] leading-[32px] text-[#171717]">
             Required documents
           </h3>
-          <button type="button" className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onNavigateTab && onNavigateTab("Documents")}
+            className="text-[14px] font-medium text-[#5C5C5C] hover:text-[#171717] cursor-pointer bg-transparent border-0 p-0 h-auto"
+          >
             Go to Documents
-          </button>
+          </Button>
         </div>
 
         <div className="bg-white border border-[#F5F5F5] rounded-[16px] divide-y divide-neutral-100 overflow-hidden shadow-2xs">
-          
           {/* Header Row */}
-          <div className="bg-[#F7F7F7] px-4 py-2.5 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
+          <div className="bg-[#F5F5F5] px-4 py-2.5 flex items-center justify-between text-[11px] font-medium uppercase tracking-[0.04em] text-[#A4A4A4]">
             <span className="w-1/3">DOCUMENT</span>
             <div className="w-1/3 flex items-center gap-1">
               <span>STATUS</span>
@@ -542,8 +683,8 @@ export function ComplianceTab({ id }: { id?: string }) {
           <div className="px-4 py-3.5 flex items-center justify-between text-[14px]">
             <span className="w-1/3 font-medium text-[#171717]">Right to work share code</span>
             <div className="w-1/3">
-              <span className="px-2 py-0.5 rounded-full bg-[#FFEBEC] text-[#FB3748] text-[10px] font-bold uppercase tracking-wider">
-                MISSING
+              <span className="px-2 py-0.5 rounded-full bg-[#FFFAEB] text-[#B45309] text-[10px] font-bold uppercase tracking-wider">
+                IN PROGRESS
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
@@ -555,8 +696,8 @@ export function ComplianceTab({ id }: { id?: string }) {
           <div className="px-4 py-3.5 flex items-center justify-between text-[14px]">
             <span className="w-1/3 font-medium text-[#171717]">Proof of address</span>
             <div className="w-1/3">
-              <span className="px-2 py-0.5 rounded-full bg-[#FFFAEB] text-[#B45309] text-[10px] font-bold uppercase tracking-wider">
-                NEEDS REVIEW
+              <span className="px-2 py-0.5 rounded-full bg-[#E3F7EC] text-[#0B4627] text-[10px] font-bold uppercase tracking-wider">
+                VERIFIED
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
@@ -573,14 +714,12 @@ export function ComplianceTab({ id }: { id?: string }) {
               </span>
             </div>
             <div className="w-1/3 flex items-center justify-end gap-2 text-[13px] text-[#5C5C5C]">
-              <span>4 Feb 2027</span>
+              <span>{expiryDateString ? new Date(expiryDateString).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "Valid"}</span>
               <RiArrowRightSLine className="size-4 text-[#A4A4A4]" />
             </div>
           </div>
-
         </div>
       </div>
-
     </div>
   );
 }

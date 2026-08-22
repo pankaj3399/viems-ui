@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -165,6 +166,7 @@ export function TravelHistoryModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className="w-[480px] max-w-[95vw] p-0 gap-0 flex flex-col overflow-hidden rounded-[20px] bg-white border border-[#F5F5F5] shadow-card-large font-sans"
       >
         {/* Header */}
@@ -172,6 +174,16 @@ export function TravelHistoryModal({
           <DialogTitle className="text-[16px] font-medium leading-[24px] text-[#171717]">
             {isEditing ? "Edit Travel Record" : "Add Travel Record"}
           </DialogTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="Close"
+            onClick={() => onOpenChange(false)}
+            className="size-6 rounded-[6px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 flex items-center justify-center p-0"
+          >
+            <X size={16} strokeWidth={2} />
+          </Button>
         </div>
 
         {/* Form */}

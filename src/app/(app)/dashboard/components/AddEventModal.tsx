@@ -10,6 +10,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface AddEventModalProps {
   open: boolean;
@@ -55,8 +57,8 @@ function AddEventModalForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-lg py-md font-sans">
       <div className="flex flex-col gap-xs">
-        <label htmlFor="add-event-title" className="text-[13px] font-semibold text-[#171717]">Event Title</label>
-        <input
+        <Label htmlFor="add-event-title" className="text-[13px] font-semibold text-[#171717]">Event Title</Label>
+        <Input
           id="add-event-title"
           type="text"
           required
@@ -68,8 +70,8 @@ function AddEventModalForm({
       </div>
 
       <div className="flex flex-col gap-xs">
-        <label htmlFor="add-event-date" className="text-[13px] font-semibold text-[#171717]">Date</label>
-        <input
+        <Label htmlFor="add-event-date" className="text-[13px] font-semibold text-[#171717]">Date</Label>
+        <Input
           id="add-event-date"
           type="date"
           required
@@ -80,7 +82,7 @@ function AddEventModalForm({
       </div>
 
       <div className="flex flex-col gap-xs">
-        <label id="add-event-color-label" className="text-[13px] font-semibold text-[#171717]">Tag Color</label>
+        <Label id="add-event-color-label" className="text-[13px] font-semibold text-[#171717]">Tag Color</Label>
         <div role="group" aria-labelledby="add-event-color-label" className="flex items-center gap-md pt-xs">
           {[
             { name: "Purple", class: "bg-[#7D52F4]" },

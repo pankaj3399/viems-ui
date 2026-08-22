@@ -214,7 +214,7 @@ export function Flag({ country, className = "", ...props }: FlagProps) {
       const label = code.length > 2 ? code.slice(0, 2) : code || "?";
       return (
         <div 
-          className="size-5 rounded-full overflow-hidden flex items-center justify-center bg-neutral-100 border border-neutral-200 text-[10px] font-semibold text-[#5C5C5C] shrink-0 select-none uppercase font-sans"
+          className="size-5 rounded-full overflow-hidden flex items-center justify-center bg-neutral-100 border border-neutral-200 text-[10px] font-semibold text-[#5C5C5C] shrink-0 uppercase font-sans"
           style={{ width: "20px", height: "20px" }}
         >
           {label}

@@ -19,6 +19,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { buildMigrantPatchPayload } from "@/lib/migrantPatchHelper";
+import { formatTitleCase } from "@/lib/utils";
 import { XIcon } from "lucide-react";
 import { toast } from "sonner";
 
@@ -180,7 +181,7 @@ export function EditContactDetailsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showCloseButton={false}
-        className="w-[680px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-[20px] bg-white border border-[#EBEBEB] shadow-regular-medium flex flex-col font-sans select-none"
+        className="w-[680px] max-h-[90vh] p-0 gap-0 overflow-hidden rounded-[20px] bg-white border border-[#EBEBEB] shadow-regular-medium flex flex-col font-sans"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-[20px] py-[16px] border-b border-[#EBEBEB] shrink-0">
@@ -190,12 +191,12 @@ export function EditContactDetailsModal({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
+            size="icon-xs"
             aria-label="Close"
             onClick={() => onOpenChange(false)}
-            className="text-[#171717]/40 hover:text-[#171717] transition-colors p-0.5 rounded-full hover:bg-neutral-50 cursor-pointer h-7 w-7"
+            className="size-6 rounded-[6px] bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] transition-colors cursor-pointer border-0 flex items-center justify-center p-0"
           >
-            <XIcon className="size-5" />
+            <XIcon className="size-4" />
           </Button>
         </div>
 

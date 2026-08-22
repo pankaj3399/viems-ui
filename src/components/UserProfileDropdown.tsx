@@ -16,7 +16,6 @@ import {
   RiHeadphoneLine,
   RiNotification3Line,
   RiLogoutBoxRLine,
-  RiArrowRightSLine,
 } from "@remixicon/react";
 
 interface UserProfileDropdownProps {
@@ -72,7 +71,7 @@ export function UserProfileDropdown({
   const defaultTrigger = (
     <button
       type="button"
-      className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center select-none shadow-x-small shrink-0 cursor-pointer hover:opacity-90 transition-opacity border-0"
+      className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center select-none shadow-x-small shrink-0 cursor-pointer hover:opacity-90 transition-opacity border-0"
       title="User Profile Menu"
     >
       {getInitials()}
@@ -95,7 +94,7 @@ export function UserProfileDropdown({
       >
         {/* Header row / User Profile Card */}
         <div className="w-[284px] h-[56px] px-2 py-2 flex items-center gap-[12px] bg-white rounded-[10px] shrink-0">
-          <div className="size-10 rounded-full bg-[#CAC0FF] text-[#351A75] font-semibold text-base flex items-center justify-center shrink-0">
+          <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-[12px] flex items-center justify-center shrink-0">
             {getInitials()}
           </div>
           <div className="flex flex-col text-left min-w-0 flex-1">
@@ -126,13 +125,10 @@ export function UserProfileDropdown({
         {/* Item: Preferences */}
         <DropdownMenuItem
           onClick={() => router.push("/settings?tab=preferences")}
-          className="w-[284px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center justify-between cursor-pointer transition-colors border-0 bg-[#F7F7F7] rounded-[12px] font-medium text-[#171717] hover:bg-neutral-100"
+          className="w-[284px] h-9 px-2 py-2 text-left text-paragraph-sm flex items-center gap-[8px] cursor-pointer transition-colors border-0 bg-transparent rounded-[12px] font-medium text-[#5C5C5C] hover:bg-neutral-50 hover:text-neutral-900"
         >
-          <div className="flex items-center gap-[8px] min-w-0">
-            <RiEqualizerLine className="size-5 text-[#171717]" />
-            <span className="truncate">Preferences</span>
-          </div>
-          <RiArrowRightSLine className="size-5 text-[#A4A4A4]" />
+          <RiEqualizerLine className="size-5 text-[#A4A4A4]" />
+          <span className="flex-1">Preferences</span>
         </DropdownMenuItem>
 
         {/* Divider */}

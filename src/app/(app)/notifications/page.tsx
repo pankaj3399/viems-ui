@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { apiClient } from "@/lib/api-client";
 import { ENDPOINTS } from "@/lib/api-endpoints";
+import { Input } from "@/components/ui/input";
 import {
   getReadIds,
   persistReadId,
@@ -204,7 +205,7 @@ export default function NotificationsPage() {
   const hasUnread = items.some((i) => i.isUnread);
 
   return (
-    <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-xl font-sans bg-[#F7F7F7] min-h-screen select-none">
+    <div className="px-[40px] py-[32px] pb-[80px] flex flex-col gap-xl font-sans bg-[#F5F5F5] min-h-screen">
       {/* Top Header */}
       <div className="flex items-center justify-between border-b border-[#EBEBEB] pb-xl shrink-0">
         <div>
@@ -231,7 +232,9 @@ export default function NotificationsPage() {
         {/* Search Bar */}
         <div className="w-[348px] h-[32px] bg-white border border-[#EBEBEB] rounded-[8px] px-[8px] py-[6px] flex items-center gap-[6px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)]">
           <RiSearch2Line className="size-5 text-[#A4A4A4] shrink-0" />
-          <input
+          <Input
+            variant="unstyled"
+            size="none"
             type="text"
             aria-label="Search notifications"
             value={searchQuery}

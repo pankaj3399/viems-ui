@@ -6,6 +6,7 @@ import { Users } from "lucide-react";
 import {
   RiSearchLine,
   RiFilterLine,
+  RiFilter3Line,
   RiArrowDownSLine,
   RiArrowLeftSLine,
   RiArrowRightSLine,
@@ -14,6 +15,7 @@ import {
   RiMore2Line,
   RiAddLine,
   RiDownloadLine,
+  RiShareForwardBoxLine,
   RiGlobalLine,
   RiAlertLine,
   RiHashtag,
@@ -26,9 +28,12 @@ import {
   RiThumbDownLine,
   RiThumbDownFill,
   RiCloseLine,
+  RiEditLine,
+  RiGroupLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { ChangeCaseStatusModal } from "./components/ChangeCaseStatusModal";
 import { CaseStatusDropdown } from "./components/CaseStatusDropdown";
 import { MarkVisaRefusedModal } from "./components/MarkVisaRefusedModal";
@@ -36,16 +41,19 @@ import { CountryFilterDropdown } from "./components/CountryFilterDropdown";
 import { StatusFilterDropdown } from "./components/StatusFilterDropdown";
 import { CaseRowMenu } from "./components/CaseRowMenu";
 import { GroupRowMenu } from "./components/GroupRowMenu";
+import { EditGroupModal } from "./components/EditGroupModal";
 import { ArchiveCaseModal } from "./components/ArchiveCaseModal";
 import { DeleteCaseModal } from "./components/DeleteCaseModal";
 import { CaseActionModal } from "./components/CaseActionModal";
 import { CASE_STATUSES, REFUSAL_REASONS } from "./case-status-data";
 import { apiClient } from "@/lib/api-client";
 import { formatFullName, getInitials, classifyCaseStage, getCaseAction } from "@/lib/utils";
-import { CaseRow, mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefused } from "@/lib/case-mapper";
+import { CaseRow, mapBackendCaseToRow, getMappedCasesWithOverrides, isCaseRefused, isCaseInProgress } from "@/lib/case-mapper";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { getCountryInfo } from "@/lib/country";
 import { Flag } from "@/components/ui/flag";
+import { SortIcon } from "@/components/ui/sort-icon";
+import { ImportMigrantsModal } from "../dashboard/components/ImportMigrantsModal";
 import { toast } from "sonner";
 
 const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<SVGSVGElement>) => (
@@ -81,6 +89,9 @@ const CasesIcon = ({ active, ...props }: { active?: boolean } & React.SVGProps<S
     </svg>
   )
 );
+
+const UNGROUPED_SENTINEL = "__UNGROUPED__";
+const UNGROUPED_DISPLAY_NAME = "AX Studios";
 
 
 export default function CasesPage() {
@@ -152,6 +163,7 @@ export default function CasesPage() {
     setCaseIdFilter(null);
     setQuickFilter(null);
     setNeedsActionOnly(false);
+    setSelectedGroup(null);
     setFilterPanelOpen(false);
   };
 
@@ -198,66 +210,226 @@ export default function CasesPage() {
     loadCases();
   }, [loadCases]);
 
-  // Filter cases by tab first
-  const tabCases = React.useMemo(() => {
+  const initialGroupParam = searchParams?.get("group") || null;
+  const [selectedGroup, setSelectedGroup] = React.useState<string | null>(initialGroupParam);
+  const [editGroupModalOpen, setEditGroupModalOpen] = React.useState(false);
+
+  // Group metadata computation for selectedGroup
+  const selectedGroupData = React.useMemo(() => {
+    if (!selectedGroup) return null;
+    const isUngrouped = selectedGroup === UNGROUPED_SENTINEL;
+    const groupItems = cases.filter((c) => {
+      const hasNoGroup = !c.group || c.group === "No Group" || c.group.trim() === "";
+      if (isUngrouped) return hasNoGroup;
+      return (c.group || "").toLowerCase().trim() === selectedGroup.toLowerCase().trim();
+    });
+    const sortedIds = groupItems
+      .map((i) => i.caseId)
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+    const range =
+      sortedIds.length > 0
+        ? sortedIds.length === 1
+          ? `${sortedIds[0]} - ${sortedIds[0]}`
+          : `${sortedIds[0]} - ${sortedIds[sortedIds.length - 1]}`
+        : "—";
+
+    const displayName = isUngrouped ? UNGROUPED_DISPLAY_NAME : selectedGroup;
+
+    return {
+      groupName: selectedGroup,
+      displayName,
+      initial: displayName.charAt(0).toUpperCase(),
+      caseIdRange: range,
+      casesCount: groupItems.length,
+      items: groupItems,
+    };
+  }, [cases, selectedGroup]);
+
+  const handleUpdateGroupName = (newName: string) => {
+    if (!selectedGroup || !newName.trim()) return;
+    const oldName = selectedGroup;
+    setCases((prev) =>
+      prev.map((c) =>
+        (c.group || "").toLowerCase().trim() === oldName.toLowerCase().trim()
+          ? { ...c, group: newName.trim() }
+          : c
+      )
+    );
+    setSelectedGroup(newName.trim());
+  };
+
+  const handleArchiveGroup = async (groupName: string) => {
+    const groupCases = cases.filter(
+      (c) => (c.group || "").toLowerCase().trim() === groupName.toLowerCase().trim() && c.id
+    );
+    if (groupCases.length === 0) {
+      toast.info(`No active cases found in group "${groupName}"`);
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("moduleName", "cases");
+      formData.append(
+        "data",
+        JSON.stringify(groupCases.map((c) => ({ id: c.id, caseNumber: c.caseId })))
+      );
+      await apiClient.delete(ENDPOINTS.cases.toArchive, {
+        body: formData,
+      });
+      toast.success(`Group "${groupName}" (${groupCases.length} cases) archived`);
+      if (selectedGroup?.toLowerCase().trim() === groupName.toLowerCase().trim()) {
+        setSelectedGroup(null);
+      }
+      loadCases();
+    } catch (err) {
+      console.error("Failed to archive group:", err);
+      toast.error("Failed to archive group");
+    }
+  };
+
+  const handleDeleteGroup = async (groupName: string) => {
+    const groupCases = cases.filter(
+      (c) => (c.group || "").toLowerCase().trim() === groupName.toLowerCase().trim() && c.id
+    );
+    if (groupCases.length === 0) {
+      toast.info(`No active cases found in group "${groupName}"`);
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("moduleName", "cases");
+      formData.append(
+        "data",
+        JSON.stringify(groupCases.map((c) => ({ id: c.id, caseNumber: c.caseId })))
+      );
+      await apiClient.delete(ENDPOINTS.cases.archive, {
+        body: formData,
+      });
+      toast.success(`Group "${groupName}" (${groupCases.length} cases) deleted`);
+      if (selectedGroup?.toLowerCase().trim() === groupName.toLowerCase().trim()) {
+        setSelectedGroup(null);
+      }
+      loadCases();
+    } catch (err) {
+      console.error("Failed to delete group:", err);
+      toast.error("Failed to delete group");
+    }
+  };
+
+  const [importModalOpen, setImportModalOpen] = React.useState(false);
+
+  const handleImportSuccess = async (files: File[]) => {
+    if (!files || files.length === 0) return;
+    const toastId = toast.loading(`Importing ${files.length} file(s)...`);
+    try {
+      const formData = new FormData();
+      files.forEach((f) => formData.append("files", f));
+      formData.append("module", "cases");
+      await apiClient.post(ENDPOINTS.files.upload, {
+        body: formData,
+      });
+      toast.success(`Successfully imported ${files.length} file(s)`);
+      loadCases();
+    } catch (err: unknown) {
+      console.error("Import error:", err);
+      const msg = err instanceof Error ? err.message : "Failed to import files";
+      toast.error(msg);
+    } finally {
+      toast.dismiss(toastId);
+    }
+  };
+
+  const [sortColumn, setSortColumn] = React.useState<string | null>(null);
+  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("asc");
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else {
+        setSortColumn(null);
+        setSortDirection("asc");
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
+
+  const tabScopedCases = React.useMemo(() => {
     return cases.filter((item) => {
       const isRefused = isCaseRefused(item);
-
       if (activeTab === "refusals") {
         return isRefused;
-      } else if (activeTab === "cases") {
+      } else if (activeTab === "cases" || selectedGroup) {
+        if (selectedGroup) {
+          const isUngrouped = selectedGroup === UNGROUPED_SENTINEL;
+          const hasNoGroup = !item.group || item.group === "No Group" || item.group.trim() === "";
+          if (isUngrouped) {
+            if (!hasNoGroup) return false;
+          } else {
+            const matchesGrp = (item.group || "").toLowerCase().trim() === selectedGroup.toLowerCase().trim();
+            if (!matchesGrp) return false;
+          }
+        }
+        return true;
+      }
+      return true;
+    });
+  }, [cases, activeTab, selectedGroup]);
+
+  // Tab cases with status filter narrowing
+  const tabCases = React.useMemo(() => {
+    return tabScopedCases.filter((item) => {
+      const isRefused = isCaseRefused(item);
+      if (activeTab === "refusals") {
+        return isRefused;
+      } else if (activeTab === "cases" || selectedGroup) {
         const normStage = stageFilter ? stageFilter.toUpperCase().replace(/_/g, " ").trim() : null;
         if (statusFilter === "Visa Refused" || statusFilter === "refused" || normStage === "VISA") {
           return true;
         }
-        return !isRefused;
+        if (statusFilter) {
+          return true;
+        }
+        return isCaseInProgress(item);
       }
-      return true; // groups shows all
+      return true;
     });
-  }, [cases, activeTab, statusFilter, stageFilter]);
+  }, [tabScopedCases, activeTab, selectedGroup, statusFilter, stageFilter]);
 
-  // Derive unique countries and statuses for filter dropdowns
+  // Dynamically compute unique countries and statuses with their counts from tabScopedCases
   const uniqueCountries = React.useMemo(() => {
     const seen = new Map<string, { code: string; label: string; flag: string; count: number }>();
-    tabCases.forEach((c) => {
-      if (
-        !c.country ||
-        c.country.toUpperCase() === "ALL" ||
-        c.country === "All countries" ||
-        c.country.trim() === ""
-      ) {
-        return;
-      }
-      const existing = seen.get(c.country);
-      if (existing) {
-        existing.count += 1;
+    tabScopedCases.forEach((c) => {
+      const info = getCountryInfo(c.country);
+      const code = info?.code || c.countryCode || "UN";
+      const label = info?.name || c.country || "Unknown";
+      const flag = info?.flag || "🌐";
+      const key = code.toUpperCase();
+      if (!seen.has(key)) {
+        seen.set(key, { code, label, flag, count: 1 });
       } else {
-        seen.set(c.country, { code: c.countryCode || c.country, label: c.country, flag: c.flag, count: 1 });
+        seen.get(key)!.count += 1;
       }
     });
     return Array.from(seen.values());
-  }, [tabCases]);
+  }, [tabScopedCases]);
 
   const uniqueStatuses = React.useMemo(() => {
     const seen = new Map<string, { label: string; count: number }>();
-    tabCases.forEach((c) => {
-      if (
-        !c.status ||
-        c.status.toUpperCase() === "ALL" ||
-        c.status.toLowerCase() === "all status" ||
-        c.status.trim() === ""
-      ) {
-        return;
-      }
-      const existing = seen.get(c.status);
-      if (existing) {
-        existing.count += 1;
+    tabScopedCases.forEach((c) => {
+      const key = c.status.toLowerCase();
+      if (!seen.has(key)) {
+        seen.set(key, { label: c.status, count: 1 });
       } else {
-        seen.set(c.status, { label: c.status, count: 1 });
+        seen.get(key)!.count += 1;
       }
     });
     return Array.from(seen.values());
-  }, [tabCases]);
+  }, [tabScopedCases]);
 
   const statusColorMap = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -355,20 +527,22 @@ export default function CasesPage() {
     return result;
   }, [tabCases, searchQuery, needsActionOnly, countryFilter, statusFilter, migrationFilter, stageFilter, severityFilter, caseIdFilter, quickFilter]);
 
+  // Compute Group Summary data for the "Groups" tab
   const groupedData = React.useMemo(() => {
     const groupsMap = new Map<string, CaseRow[]>();
 
     cases.forEach((c) => {
-      const gName = c.group && c.group !== "No Group" ? c.group : "AX Studios";
-      if (!groupsMap.has(gName)) {
-        groupsMap.set(gName, []);
+      const isUngrouped = !c.group || c.group === "No Group" || c.group.trim() === "";
+      const gKey = isUngrouped ? UNGROUPED_SENTINEL : c.group;
+      if (!groupsMap.has(gKey)) {
+        groupsMap.set(gKey, []);
       }
-      groupsMap.get(gName)!.push(c);
+      groupsMap.get(gKey)!.push(c);
     });
 
-    const result: Array<{ groupName: string; initial: string; caseIdRange: string; migrantsCount: number; items: CaseRow[] }> = [];
+    const result: Array<{ groupName: string; displayName: string; initial: string; caseIdRange: string; migrantsCount: number; items: CaseRow[] }> = [];
 
-    groupsMap.forEach((items, gName) => {
+    groupsMap.forEach((items, gKey) => {
       const sortedIds = items
         .map((i) => i.caseId)
         .filter(Boolean)
@@ -381,9 +555,12 @@ export default function CasesPage() {
             : `${sortedIds[0]} - ${sortedIds[sortedIds.length - 1]}`
           : "—";
 
+      const displayName = gKey === UNGROUPED_SENTINEL ? UNGROUPED_DISPLAY_NAME : gKey;
+
       result.push({
-        groupName: gName,
-        initial: gName.charAt(0).toUpperCase(),
+        groupName: gKey,
+        displayName,
+        initial: displayName.charAt(0).toUpperCase(),
         caseIdRange: range,
         migrantsCount: items.length,
         items,
@@ -392,26 +569,74 @@ export default function CasesPage() {
 
     if (!searchQuery || !searchQuery.trim()) return result;
     return result.filter((g) =>
-      matchesSearchQuery([g.groupName, g.caseIdRange], searchQuery)
+      matchesSearchQuery([g.displayName, g.caseIdRange], searchQuery)
     );
-  }, [filteredCases, searchQuery]);
+  }, [cases, searchQuery]);
+
+
+  const sortedFilteredCases = React.useMemo(() => {
+    if (!sortColumn) return filteredCases;
+    return [...filteredCases].sort((a, b) => {
+      let comparison = 0;
+      if (sortColumn === "caseId") {
+        comparison = a.caseId.localeCompare(b.caseId, undefined, { numeric: true });
+      } else if (sortColumn === "country") {
+        comparison = (a.countryCode || a.country).localeCompare(b.countryCode || b.country);
+      } else if (sortColumn === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortColumn === "status") {
+        comparison = a.status.localeCompare(b.status);
+      } else if (sortColumn === "migration") {
+        comparison = a.migration.localeCompare(b.migration);
+      } else if (sortColumn === "passport") {
+        comparison = (a.passportNumber || "").localeCompare(b.passportNumber || "");
+      } else if (sortColumn === "refusalDate") {
+        comparison = (a.refusalDate || "").localeCompare(b.refusalDate || "");
+      } else if (sortColumn === "refusalReason") {
+        comparison = (a.refusalReason || "").localeCompare(b.refusalReason || "");
+      } else if (sortColumn === "action") {
+        comparison = a.action.localeCompare(b.action);
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [filteredCases, sortColumn, sortDirection]);
+
+  const sortedGroupedData = React.useMemo(() => {
+    if (!sortColumn) return groupedData;
+    return [...groupedData].sort((a, b) => {
+      let comparison = 0;
+      if (sortColumn === "caseIdRange") {
+        comparison = a.caseIdRange.localeCompare(b.caseIdRange, undefined, { numeric: true });
+      } else if (sortColumn === "groupName") {
+        comparison = a.groupName.localeCompare(b.groupName);
+      } else if (sortColumn === "migrants") {
+        comparison = a.migrantsCount - b.migrantsCount;
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [groupedData, sortColumn, sortDirection]);
 
   const [pageSize, setPageSize] = React.useState(10);
 
-  const isGroupSummaryView = activeTab === "groups";
-  const totalCount = isGroupSummaryView ? groupedData.length : filteredCases.length;
+  // Reset current page when filters, sorting, tab, or grouping changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, countryFilter, statusFilter, migrationFilter, stageFilter, severityFilter, caseIdFilter, quickFilter, activeTab, selectedGroup, sortColumn, sortDirection, pageSize]);
+
+  const isGroupSummaryView = activeTab === "groups" && !selectedGroup;
+  const totalCount = isGroupSummaryView ? sortedGroupedData.length : sortedFilteredCases.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const safePage = Math.max(1, Math.min(currentPage, totalPages));
 
   const paginatedCases = React.useMemo(() => {
     const start = (safePage - 1) * pageSize;
-    return filteredCases.slice(start, start + pageSize);
-  }, [filteredCases, safePage, pageSize]);
+    return sortedFilteredCases.slice(start, start + pageSize);
+  }, [sortedFilteredCases, safePage, pageSize]);
 
   const paginatedGroups = React.useMemo(() => {
     const start = (safePage - 1) * pageSize;
-    return groupedData.slice(start, start + pageSize);
-  }, [groupedData, safePage, pageSize]);
+    return sortedGroupedData.slice(start, start + pageSize);
+  }, [sortedGroupedData, safePage, pageSize]);
 
   // Helper: show custom styled success toast matching Figma
   const showSuccessToast = (name: string, statusText: string) => {
@@ -688,15 +913,15 @@ export default function CasesPage() {
   const getStatusBgAndText = (color: CaseRow["statusColor"]) => {
     switch (color) {
       case "warning":
-        return "bg-[#FFFAEB] text-[#624C18]";
+        return "bg-[#FFFAEB] text-[#624C18] hover:bg-[#FEEFC7] hover:text-[#4D3B12]";
       case "success":
-        return "bg-[#E3F7EC] text-[#0B4627]";
+        return "bg-[#E3F7EC] text-[#0B4627] hover:bg-[#D0F2DF] hover:text-[#06331C]";
       case "info":
-        return "bg-[#EBF5FF] text-[#1E429F]";
+        return "bg-[#EBF1FF] text-[#122368] hover:bg-[#D7E4FF] hover:text-[#0D194B]";
       case "error":
-        return "bg-[#FDE8E8] text-[#9B1C1C]";
+        return "bg-[#FFEBEC] text-[#681219] hover:bg-[#FDD5D7] hover:text-[#520C12]";
       default:
-        return "bg-[#F3F4F6] text-[#374151]";
+        return "bg-[#F5F5F5] text-[#7B7B7B] hover:bg-[#EBEBEB] hover:text-[#171717]";
     }
   };
 
@@ -707,11 +932,11 @@ export default function CasesPage() {
       case "success":
         return "bg-[#1FC16B]";
       case "info":
-        return "bg-[#3B82F6]";
+        return "bg-[#335CFF]";
       case "error":
-        return "bg-[#E02424]";
+        return "bg-[#FB3748]";
       default:
-        return "bg-[#9CA3AF]";
+        return "bg-[#7B7B7B]";
     }
   };
 
@@ -720,25 +945,31 @@ export default function CasesPage() {
   };
 
   const getMigrationDotColor = (status: string) => {
-    const s = status.toUpperCase();
-    if (s.includes("PENDING") || s.includes("REFUSED")) {
+    const s = (status || "").toUpperCase();
+    if (s.includes("PENDING") || s.includes("REFUSED") || s.includes("WITHDRAWN") || s.includes("SPONSORSHIP")) {
       return "bg-[#FB3748]";
     }
-    if (s.includes("ACTIVE") || s.includes("IN UK")) {
+    if (s.includes("ACTIVE") || s.includes("IN UK") || s.includes("APPROVED")) {
       return "bg-[#1FC16B]";
+    }
+    if (s.includes("PRE") || s.includes("ARRIVAL")) {
+      return "bg-[#F6B51E]";
     }
     return "bg-[#7B7B7B]";
   };
 
   const getMigrationTextColorClass = (status: string) => {
-    const s = status.toUpperCase();
-    if (s.includes("PENDING") || s.includes("REFUSED")) {
-      return "text-[#681219] font-semibold";
+    const s = (status || "").toUpperCase();
+    if (s.includes("PENDING") || s.includes("REFUSED") || s.includes("WITHDRAWN") || s.includes("SPONSORSHIP")) {
+      return "text-[#681219]";
     }
-    if (s.includes("ACTIVE") || s.includes("IN UK")) {
-      return "text-[#262626] font-semibold";
+    if (s.includes("ACTIVE") || s.includes("IN UK") || s.includes("APPROVED")) {
+      return "text-[#0B4627]";
     }
-    return "text-[#7B7B7B] font-semibold";
+    if (s.includes("PRE") || s.includes("ARRIVAL")) {
+      return "text-[#624C18]";
+    }
+    return "text-[#7B7B7B]";
   };
 
   if (loading) {
@@ -751,109 +982,176 @@ export default function CasesPage() {
   }
 
   return (
-    <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] select-none bg-[#F7F7F7] min-h-full">
+    <div className="w-full flex flex-col font-sans animate-fade-in text-[#171717] bg-[#F5F5F5] min-h-full">
       <div className="bg-white rounded-t-[16px] flex flex-col shrink-0">
-        <div className="px-6 md:px-[64px] pt-[40px] pb-[24px] flex flex-col gap-md md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-xs flex-1 min-w-0">
-            <h1 className="text-title-aeonik text-[#171717]">
-              Cases
-            </h1>
-            <p className="text-paragraph-sm text-neutral-500 max-w-[600px]">
-              Create, track, and manage visa cases for individual or grouped applicants.
-            </p>
-          </div>
-          <div className="flex items-center gap-md">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 px-xl text-label-sm font-semibold"
-            >
-              <RiDownloadLine className="size-4" data-icon="inline-start" />
-              Import
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => router.push("/migrants/create")}
-              className="h-9 px-xl text-label-sm font-semibold text-white cursor-pointer"
-            >
-              <RiAddLine className="size-4" data-icon="inline-start" />
-              New migrant
-            </Button>
-          </div>
-        </div>
+        {selectedGroup ? (
+          <div className="px-6 md:px-[64px] pt-[32px] pb-[24px] flex flex-col gap-md md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-lg flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => setSelectedGroup(null)}
+                className="size-8 rounded-full bg-white border border-[#EBEBEB] text-[#171717] hover:bg-neutral-100 flex items-center justify-center p-0 cursor-pointer shrink-0 shadow-x-small transition-colors"
+                aria-label="Back to groups"
+              >
+                <RiArrowLeftSLine className="size-5 text-[#171717]" />
+              </button>
 
-        <div className="px-6 md:px-[64px] flex items-center gap-6 h-[50px] select-none border-b border-[#EBEBEB]">
+              <div className="size-10 rounded-[10px] bg-[#EBEBEB] text-[#171717] font-medium text-paragraph-md flex items-center justify-center shrink-0">
+                {selectedGroupData?.initial || selectedGroup.charAt(0).toUpperCase()}
+              </div>
+
+              <div className="flex flex-col min-w-0">
+                <h1 className="font-aeonik-medium text-[20px] leading-[28px] tracking-[-0.006em] text-[#171717] truncate">
+                  {selectedGroup}
+                </h1>
+                <p className="text-paragraph-xs text-neutral-500 font-normal">
+                  {selectedGroupData?.caseIdRange || "—"} · {selectedGroupData?.casesCount || 0} cases
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-md">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditGroupModalOpen(true)}
+                className="h-9 px-xl text-label-sm font-medium text-[#171717] flex items-center gap-xs cursor-pointer"
+              >
+                <RiEditLine className="size-4 text-[#171717]" data-icon="inline-start" />
+                Edit
+              </Button>
+              <GroupRowMenu
+                onViewGroup={() => {}}
+                onEditGroup={() => setEditGroupModalOpen(true)}
+                onArchiveGroup={() => handleArchiveGroup(selectedGroup)}
+                onDeleteGroup={() => handleDeleteGroup(selectedGroup)}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="px-6 md:px-[64px] pt-[32px] pb-[24px] flex flex-col gap-md md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-xs flex-1 min-w-0">
+              <h1 className="font-aeonik-medium text-[24px] leading-[32px] tracking-[-0.006em] text-[#171717]">
+                Cases
+              </h1>
+              <p className="text-[14px] leading-[20px] tracking-[-0.006em] text-[#5C5C5C] font-normal max-w-[600px]">
+                Create, track, and manage visa cases for individual or grouped applicants.
+              </p>
+            </div>
+            <div className="flex items-center gap-[12px]">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setImportModalOpen(true)}
+                className="h-9 px-3 bg-[#F5F5F5] hover:bg-[#EBEBEB] text-[#171717] text-[14px] leading-5 font-medium border-0 rounded-[8px] flex items-center gap-1.5 shadow-x-small cursor-pointer transition-colors"
+              >
+                <RiShareForwardBoxLine className="size-5 text-[#171717] shrink-0" data-icon="inline-start" />
+                <span>Import</span>
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => router.push("/migrants/create")}
+                className="h-9 px-3 bg-[#7D52F4] hover:bg-[#6C3EE8] text-white text-[14px] leading-5 font-medium border-0 rounded-[8px] flex items-center gap-1.5 cursor-pointer transition-colors shadow-x-small"
+              >
+                <RiAddLine className="size-5 text-white shrink-0" data-icon="inline-start" />
+                <span>New migrant</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="px-6 md:px-[64px] flex items-center gap-6 h-[50px] border-b border-[#EBEBEB]">
           <Button
             variant="ghost"
             onClick={() => setActiveTab("cases")}
-            className={`h-full px-xs pb-2 border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-sm ${
+            className={`h-full px-xs pb-xs border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-xs cursor-pointer ${
               activeTab === "cases"
                 ? "border-[#171717] text-[#171717] hover:bg-transparent"
                 : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
-            <CasesIcon
-              active={activeTab === "cases"}
-              className={`size-4 shrink-0 ${activeTab === "cases" ? "text-[#171717]" : "text-neutral-400"}`}
-            />
-            <span>Cases</span>
-            <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {activeTab === "cases" ? filteredCases.length : cases.filter((c) => !isCaseRefused(c)).length}
+            <div className="size-5 flex items-center justify-center shrink-0">
+              <CasesIcon
+                active={activeTab === "cases"}
+                className={`size-5 shrink-0 ${activeTab === "cases" ? "text-[#171717]" : "text-neutral-400"}`}
+              />
             </div>
+            <span>Cases</span>
           </Button>
           <Button
             variant="ghost"
-            onClick={() => setActiveTab("groups")}
-            className={`h-full px-xs pb-2 border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-sm ${
-              activeTab === "groups"
+            onClick={() => {
+              setSelectedGroup(null);
+              setActiveTab("groups");
+            }}
+            className={`h-full px-xs pb-xs border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-xs cursor-pointer ${
+              activeTab === "groups" && !selectedGroup
                 ? "border-[#171717] text-[#171717] hover:bg-transparent"
                 : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
-            {activeTab === "groups" ? (
-              <Users className="size-4 shrink-0 text-[#171717] fill-current" />
-            ) : (
-              <Users className="size-4 shrink-0 text-neutral-400 fill-none" />
-            )}
-            <span>Groups</span>
-            <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {groupedData.length}
+            <div className="size-5 flex items-center justify-center shrink-0">
+              <RiGroupLine
+                size={20}
+                className={`size-5 shrink-0 ${
+                  activeTab === "groups" && !selectedGroup ? "text-[#171717]" : "text-neutral-400"
+                }`}
+              />
             </div>
+            <span>Groups</span>
           </Button>
           <Button
             variant="ghost"
-            onClick={() => setActiveTab("refusals")}
-            className={`h-full px-xs pb-2 border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-sm ${
+            onClick={() => {
+              setSelectedGroup(null);
+              setActiveTab("refusals");
+            }}
+            className={`h-full px-xs pb-xs border-b-2 border-x-0 border-t-0 text-label-sm font-semibold rounded-none transition-all inline-flex items-center gap-xs cursor-pointer ${
               activeTab === "refusals"
                 ? "border-[#171717] text-[#171717] hover:bg-transparent"
                 : "border-transparent text-neutral-400 hover:text-neutral-600 hover:bg-transparent"
             }`}
           >
-            {activeTab === "refusals" ? (
-              <RiThumbDownFill className="size-4 shrink-0 text-[#171717]" />
-            ) : (
-              <RiThumbDownLine className="size-4 shrink-0 text-neutral-400" />
-            )}
-            <span>Refusals</span>
-            <div className="w-5 h-[18px] bg-[#F5F5F5] rounded-[4px] text-[11px] font-medium text-[#171717] flex items-center justify-center shrink-0">
-              {activeTab === "refusals" ? filteredCases.length : cases.filter((c) => isCaseRefused(c)).length}
+            <div className="size-5 flex items-center justify-center shrink-0">
+              {activeTab === "refusals" ? (
+                <RiThumbDownFill size={20} className="size-5 shrink-0 text-[#171717]" />
+              ) : (
+                <RiThumbDownLine size={20} className="size-5 shrink-0 text-neutral-400" />
+              )}
             </div>
+            <span>Refusals</span>
           </Button>
         </div>
       </div>
 
-      <div className="px-6 md:px-[64px] py-[32px] flex flex-col gap-[24px] flex-1">
-        <div className="flex flex-wrap items-center gap-md">
-          <div className="relative w-full max-w-[348px]">
-            <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#A4A4A4] z-10" />
+      <div className="px-6 md:px-[64px] py-[32px] flex flex-col gap-[32px] flex-1">
+        <div className="flex flex-wrap items-center gap-[12px] h-[32px]">
+          <div className="relative w-full max-w-[348px] h-[32px] flex items-center bg-white shadow-x-small rounded-[8px] border border-neutral-200/40 focus-within:border-[#7D52F4]">
+            <RiSearchLine className="absolute left-2.5 top-1/2 -translate-y-1/2 size-5 text-[#A4A4A4] z-10 pointer-events-none" />
+            {selectedGroup && (
+              <div className="ml-8 my-1 mr-1 pl-2 pr-1 py-0.5 bg-[#F5F5F5] text-[#171717] rounded-[6px] text-[12px] font-medium flex items-center gap-1 shrink-0 border border-[#EBEBEB]">
+                <span className="truncate max-w-[120px]">{selectedGroup}</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedGroup(null)}
+                  className="size-3.5 rounded-full hover:bg-neutral-300 flex items-center justify-center text-[#5C5C5C] border-0 bg-transparent p-0 cursor-pointer"
+                  title="Clear group filter"
+                >
+                  <RiCloseLine className="size-3" />
+                </button>
+              </div>
+            )}
             <Input
+              variant="unstyled"
+              size="none"
               type="text"
-              placeholder="Search..."
+              placeholder={selectedGroup ? "Search in group..." : "Search..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-8 pl-9 pr-8 bg-white text-paragraph-sm placeholder-[#A4A4A4] shadow-x-small rounded-[8px]"
+              className={`w-full h-full ${selectedGroup ? "pl-2" : "pl-9"} pr-8 bg-transparent text-[14px] leading-5 text-[#171717] placeholder-[#A4A4A4] border-0 shadow-none focus-visible:ring-0`}
             />
             {searchQuery && (
               <button
@@ -874,15 +1172,14 @@ export default function CasesPage() {
                 <button
                   type="button"
                   onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-                  className={`h-8 px-2.5 rounded-[8px] flex items-center gap-1.5 text-xs font-medium transition-all border-0 cursor-pointer ${
+                  className={`size-8 rounded-[8px] flex items-center justify-center transition-all border-0 shadow-x-small cursor-pointer ${
                     activeFilterCount > 0
-                      ? "bg-[#171717] text-white shadow-x-small"
-                      : "bg-white text-[#5C5C5C] hover:bg-neutral-100 border border-neutral-200/40 shadow-x-small"
+                      ? "bg-[#171717] text-white"
+                      : "bg-white text-[#5C5C5C] hover:bg-neutral-50"
                   }`}
+                  title="Open filters"
                 >
-                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className="size-4 shrink-0">
-                    <path d="M8.5 14.5H11.5V13H8.5V14.5ZM3.25 5.5V7H16.75V5.5H3.25ZM5.5 10.75H14.5V9.25H5.5V10.75Z" fill="currentColor" />
-                  </svg>
+                  <RiFilter3Line className="size-5 shrink-0" />
                   {activeFilterCount > 0 && (
                     <span className="w-4 h-4 rounded-full bg-white text-[#171717] text-[10px] font-bold flex items-center justify-center">
                       {activeFilterCount}
@@ -893,7 +1190,7 @@ export default function CasesPage() {
             })()}
             
             {filterPanelOpen && (
-              <div className="absolute top-[40px] left-0 w-[696px] h-[528px] bg-white border border-[#F5F5F5] rounded-[20px] shadow-card-large z-50 flex font-sans select-none overflow-hidden text-left" style={{ boxShadow: '0px 1px 1px 0.5px rgba(51, 51, 51, 0.04), 0px 3px 3px -1.5px rgba(51, 51, 51, 0.02), 0px 6px 6px -3px rgba(51, 51, 51, 0.04), 0px 12px 12px -6px rgba(51, 51, 51, 0.04), 0px 24px 24px -12px rgba(51, 51, 51, 0.04), 0px 48px 48px -24px rgba(51, 51, 51, 0.04), 0px 0px 0px 1px #F5F5F5, inset 0px -1px 1px -0.5px rgba(51, 51, 51, 0.06)' }}>
+              <div className="absolute top-[40px] left-0 w-[696px] h-[528px] bg-white border border-[#F5F5F5] rounded-[20px] shadow-card-large z-50 flex font-sans overflow-hidden text-left" style={{ boxShadow: '0px 1px 1px 0.5px rgba(51, 51, 51, 0.04), 0px 3px 3px -1.5px rgba(51, 51, 51, 0.02), 0px 6px 6px -3px rgba(51, 51, 51, 0.04), 0px 12px 12px -6px rgba(51, 51, 51, 0.04), 0px 24px 24px -12px rgba(51, 51, 51, 0.04), 0px 48px 48px -24px rgba(51, 51, 51, 0.04), 0px 0px 0px 1px #F5F5F5, inset 0px -1px 1px -0.5px rgba(51, 51, 51, 0.06)' }}>
                 {/* Menus sidebar: width 224px */}
                 <div className="w-[224px] h-[528px] bg-white border-r border-[#EBEBEB] p-[12px] flex flex-col gap-[8px] shrink-0">
                   {[
@@ -913,7 +1210,7 @@ export default function CasesPage() {
                         onClick={() => setSelectedCategory(item.key)}
                         className={`w-[200px] h-[36px] px-[8px] gap-[8px] rounded-[8px] flex items-center justify-start cursor-pointer transition-all border-0 ${
                           isActive 
-                            ? "bg-[#F5F5F5] text-[#171717] font-semibold" 
+                            ? "bg-[#F5F5F5] text-[#171717] font-medium" 
                             : "bg-white text-[#5C5C5C] hover:bg-neutral-50"
                         }`}
                       >
@@ -952,7 +1249,7 @@ export default function CasesPage() {
                           const checked = tempStatus === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempStatus(opt.value)}>
+                              <Label className="flex items-center justify-between cursor-pointer w-full group py-1 px-1 -mx-1 rounded-[6px] hover:bg-neutral-50 transition-colors" onClick={() => setTempStatus(opt.value)}>
                                 <input
                                   type="radio"
                                   name="statusFilter"
@@ -964,15 +1261,15 @@ export default function CasesPage() {
                                 <div className="flex items-center gap-[8px]">
                                   {/* Custom Radio Button */}
                                   <div className="relative size-5 shrink-0 flex items-center justify-center">
-                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-neutral-300"}`} />
                                     <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                                   </div>
-                                  <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                                  <span className={`text-[14px] leading-[20px] text-[#171717] group-hover:font-medium ${checked ? "font-medium" : "font-normal"}`}>{opt.label}</span>
                                 </div>
                                 <span className={`px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] ${opt.colorClass}`}>
                                   {opt.count}
                                 </span>
-                              </label>
+                              </Label>
                               {i < 5 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -984,7 +1281,7 @@ export default function CasesPage() {
                       <div className="flex flex-col gap-[12px] w-full">
                         {/* Option 1: All countries */}
                         <React.Fragment key="all">
-                          <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempCountry("all")}>
+                          <Label className="flex items-center justify-between cursor-pointer w-full group py-1 px-1 -mx-1 rounded-[6px] hover:bg-neutral-50 transition-colors" onClick={() => setTempCountry("all")}>
                             <input
                               type="radio"
                               name="countryFilter"
@@ -995,15 +1292,15 @@ export default function CasesPage() {
                             />
                             <div className="flex items-center gap-[8px]">
                               <div className="relative size-5 shrink-0 flex items-center justify-center">
-                                <div className={`absolute inset-0 rounded-full transition-colors ${tempCountry === "all" ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                <div className={`absolute inset-0 rounded-full transition-colors ${tempCountry === "all" ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-neutral-300"}`} />
                                 <div className={`absolute rounded-full bg-white transition-all ${tempCountry === "all" ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                               </div>
-                              <span className="text-[14px] leading-[20px] text-[#171717]">All countries</span>
+                              <span className={`text-[14px] leading-[20px] text-[#171717] group-hover:font-medium ${tempCountry === "all" ? "font-medium" : "font-normal"}`}>All countries</span>
                             </div>
                             <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
                               {cases.length}
                             </span>
-                          </label>
+                          </Label>
                           <div className="w-full h-0 border-b border-[#EBEBEB]" />
                         </React.Fragment>
 
@@ -1043,12 +1340,12 @@ export default function CasesPage() {
                                     (c) =>
                                       c.countryCode === opt.value ||
                                       c.country === opt.label.split(" ")[0]
-                                  ).length;
+                                    ).length;
 
                             return (
                               <React.Fragment key={opt.value}>
-                                <label
-                                  className="flex items-center justify-between cursor-pointer w-full group py-0.5"
+                                <Label
+                                  className="flex items-center justify-between cursor-pointer w-full group py-1 px-1 -mx-1 rounded-[6px] hover:bg-neutral-50 transition-colors"
                                   onClick={() => setTempCountry(opt.value)}
                                 >
                                   <input
@@ -1063,7 +1360,7 @@ export default function CasesPage() {
                                     <div className="relative size-5 shrink-0 flex items-center justify-center">
                                       <div
                                         className={`absolute inset-0 rounded-full transition-colors ${
-                                          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"
+                                          checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-neutral-300"
                                         }`}
                                       />
                                       <div
@@ -1075,14 +1372,14 @@ export default function CasesPage() {
                                       />
                                     </div>
                                     <Flag country={opt.value} className="size-4 shrink-0" />
-                                    <span className="text-[14px] leading-[20px] text-[#171717]">
+                                    <span className={`text-[14px] leading-[20px] text-[#171717] group-hover:font-medium ${checked ? "font-medium" : "font-normal"}`}>
                                       {opt.label}
                                     </span>
                                   </div>
                                   <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#7B7B7B]">
                                     {count}
                                   </span>
-                                </label>
+                                </Label>
                                 {i < countryList.length - 1 && (
                                   <div className="w-full h-0 border-b border-[#EBEBEB]" />
                                 )}
@@ -1104,7 +1401,7 @@ export default function CasesPage() {
                           const checked = tempMigration === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempMigration(opt.value)}>
+                              <Label className="flex items-center gap-[8px] cursor-pointer w-full py-1 px-1 -mx-1 rounded-[6px] hover:bg-neutral-50 transition-colors group" onClick={() => setTempMigration(opt.value)}>
                                 <input
                                   type="radio"
                                   name="migrationFilter"
@@ -1114,11 +1411,11 @@ export default function CasesPage() {
                                   className="sr-only"
                                 />
                                 <div className="relative size-5 shrink-0 flex items-center justify-center">
-                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-neutral-300"}`} />
                                   <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                                 </div>
-                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                              </label>
+                                <span className={`text-[14px] leading-[20px] text-[#171717] group-hover:font-medium ${checked ? "font-medium" : "font-normal"}`}>{opt.label}</span>
+                              </Label>
                               {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -1138,7 +1435,7 @@ export default function CasesPage() {
                           const checked = tempSeverity === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center justify-between cursor-pointer w-full group py-0.5" onClick={() => setTempSeverity(opt.value)}>
+                              <Label className="flex items-center justify-between cursor-pointer w-full group py-1 px-1 -mx-1 rounded-[6px] hover:bg-neutral-50 transition-colors" onClick={() => setTempSeverity(opt.value)}>
                                 <input
                                   type="radio"
                                   name="severityFilter"
@@ -1149,20 +1446,20 @@ export default function CasesPage() {
                                 />
                                 <div className="flex items-center gap-[8px]">
                                   <div className="relative size-5 shrink-0 flex items-center justify-center">
-                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                    <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-neutral-300"}`} />
                                     <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                                   </div>
                                   <div className="flex items-center gap-[6px]">
                                     {opt.dot && (
                                       <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: opt.dot }} />
                                     )}
-                                    <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
+                                    <span className={`text-[14px] leading-[20px] text-[#171717] group-hover:font-medium ${checked ? "font-medium" : "font-normal"}`}>{opt.label}</span>
                                   </div>
                                 </div>
                                 <span className="px-[8px] py-[2px] rounded-full text-[11px] font-medium tracking-[0.02em] bg-[#F5F5F5] text-[#0B4627]">
                                   {opt.count}
                                 </span>
-                              </label>
+                              </Label>
                               {i < 4 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -1181,7 +1478,7 @@ export default function CasesPage() {
                           const checked = tempQuickFilter === opt.value;
                           return (
                             <React.Fragment key={opt.value}>
-                              <label className="flex items-center gap-[8px] cursor-pointer w-full py-0.5" onClick={() => setTempQuickFilter(opt.value)}>
+                              <Label className="flex items-center gap-[8px] cursor-pointer w-full py-1 px-1 -mx-1 rounded-[6px] hover:bg-neutral-50 transition-colors group" onClick={() => setTempQuickFilter(opt.value)}>
                                 <input
                                   type="radio"
                                   name="quickFilter"
@@ -1191,11 +1488,11 @@ export default function CasesPage() {
                                   className="sr-only"
                                 />
                                 <div className="relative size-5 shrink-0 flex items-center justify-center">
-                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB]"}`} />
+                                  <div className={`absolute inset-0 rounded-full transition-colors ${checked ? "bg-[#7D52F4]" : "bg-[#EBEBEB] group-hover:bg-neutral-300"}`} />
                                   <div className={`absolute rounded-full bg-white transition-all ${checked ? "inset-[6px]" : "inset-[3.5px] shadow-[0px_2px_4px_-2px_rgba(27,28,29,0.12)]"}`} />
                                 </div>
-                                <span className="text-[14px] leading-[20px] text-[#171717]">{opt.label}</span>
-                              </label>
+                                <span className={`text-[14px] leading-[20px] text-[#171717] group-hover:font-medium ${checked ? "font-medium" : "font-normal"}`}>{opt.label}</span>
+                              </Label>
                               {i < 3 && <div className="w-full h-0 border-b border-[#EBEBEB]" />}
                             </React.Fragment>
                           );
@@ -1243,35 +1540,39 @@ export default function CasesPage() {
               </div>
             )}
           </div>
-          <CountryFilterDropdown
-            countries={uniqueCountries}
-            value={countryFilter}
-            onChange={setCountryFilter}
-          />
+          {(!isGroupSummaryView || selectedGroup) && (
+            <>
+              <CountryFilterDropdown
+                countries={uniqueCountries}
+                value={countryFilter}
+                onChange={setCountryFilter}
+              />
 
-          <StatusFilterDropdown
-            statuses={uniqueStatuses}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            statusColors={statusColorMap}
-          />
+              <StatusFilterDropdown
+                statuses={uniqueStatuses}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                statusColors={statusColorMap}
+              />
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setNeedsActionOnly(!needsActionOnly)}
-            className={`w-[108px] text-[13px] font-medium justify-center ${
-              needsActionOnly
-                ? "bg-[#FEF3C7] border-[#FDE68A] text-[#D97706] hover:bg-[#FEF3C7] hover:text-[#D97706]"
-                : "text-[#5C5C5C]"
-            }`}
-          >
-            Needs action
-          </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setNeedsActionOnly(!needsActionOnly)}
+                className={`h-8 px-3 text-[14px] font-medium justify-center rounded-[8px] border-0 shadow-x-small cursor-pointer transition-colors ${
+                  needsActionOnly
+                    ? "bg-[#FEF3C7] text-[#D97706] hover:bg-[#FEF3C7]"
+                    : "bg-white text-[#171717] hover:bg-neutral-50"
+                }`}
+              >
+                Needs action
+              </Button>
+            </>
+          )}
 
           {/* View mode switcher [Frame 2087326895] */}
-          {isGroupSummaryView && (
+          {isGroupSummaryView && !selectedGroup && (
             <div className="flex items-center gap-[4px] ml-auto p-[2px] bg-white rounded-[8px] border border-[#EBEBEB]">
               <button
                 type="button"
@@ -1304,7 +1605,7 @@ export default function CasesPage() {
         </div>
 
         {filteredCases.length === 0 && !isGroupSummaryView ? (
-          <div className="flex flex-col items-center justify-center h-[592px] bg-white rounded-card shadow-x-small border border-neutral-200/20 select-none">
+          <div className="flex flex-col items-center justify-center h-[592px] bg-white rounded-card shadow-x-small border border-neutral-200/20">
             {/* Group 9: Figma-matching stacked vector cards */}
             <div className="w-[77px] h-[88px] flex items-center justify-center relative mb-[24px]">
               <svg width="77" height="88" viewBox="0 0 77 88" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1327,115 +1628,157 @@ export default function CasesPage() {
             </h3>
             
             {/* Subtitle: Paragraph/Small style */}
-            <p className="text-[14px] font-normal leading-[20px] tracking-[-0.006em] text-[#5C5C5C] text-center w-[191px] h-[40px] mb-[24px] font-sans">
+            <p className="text-[14px] font-normal leading-[20px] tracking-[-0.006em] text-[#5C5C5C] text-center w-[260px] mb-[24px] font-sans">
               Change your filters or add a new migrant
             </p>
             
-            {/* Button: [1.1] style */}
-            <button
-              type="button"
-              onClick={() => router.push("/migrants/create")}
-              className="w-[133px] h-[36px] bg-[#262626] hover:bg-[#333333] text-white text-[14px] font-medium leading-[20px] tracking-[-0.006em] rounded-[8px] flex items-center justify-center gap-[4px] p-[8px] cursor-pointer border-0 transition-colors font-sans"
-            >
-              <RiAddLine className="size-5 text-white shrink-0" />
-              <span className="text-white">New migrant</span>
-            </button>
+            {/* Buttons */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClearFilters}
+                className="h-9 px-3 text-[14px] font-medium text-[#171717] rounded-[8px] cursor-pointer"
+              >
+                Clear filters
+              </Button>
+              <Button
+                type="button"
+                onClick={() => router.push("/migrants/create")}
+                className="h-9 px-3 bg-[#262626] hover:bg-[#333333] text-white text-[14px] font-medium rounded-[8px] flex items-center justify-center gap-[4px] cursor-pointer border-0 transition-colors font-sans"
+              >
+                <RiAddLine className="size-5 text-white shrink-0" data-icon="inline-start" />
+                <span>New migrant</span>
+              </Button>
+            </div>
           </div>
         ) : (
           <>
-            <div className="w-full select-none">
-              <div className="flex flex-col gap-sm">
+            <div className="w-full">
+              <div className="flex flex-col gap-[8px]">
                 {activeTab === "refusals" ? (
-                  <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs select-none">
-                    <div className="basis-[94px] shrink-0 grow-0">Case ID #</div>
-                    <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
+                  <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex items-center text-[12px] tracking-[-0.006em] text-[#A4A4A4] font-medium">
+                    <div className="w-[94px] px-3 py-2 shrink-0">Case ID #</div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("country")}
+                      className="w-[112px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Country
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      <SortIcon active={sortColumn === "country"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("name")}
+                      className="flex-[1.5] min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Name
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      <SortIcon active={sortColumn === "name"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("passport")}
+                      className="flex-1 min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Passport #
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
-                      Date of Refusal
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-[1.5] min-w-0">Reason</div>
-                    <div className="w-[48px] shrink-0"></div>
+                      <SortIcon active={sortColumn === "passport"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("refusalDate")}
+                      className="flex-1 min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
+                      Date of refusal
+                      <SortIcon active={sortColumn === "refusalDate"} direction={sortDirection} />
+                    </Button>
+                    <div className="flex-[1.5] min-w-0 px-3 py-2">Reason</div>
+                    <div className="w-[48px] px-3 py-2 shrink-0"></div>
                   </div>
                 ) : isGroupSummaryView ? (
-                  <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs select-none">
-                    <div className="basis-[198px] shrink-0 grow-0">CASE ID RANGE #</div>
-                    <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
-                      GROUP NAME
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
-                      MIGRANTS
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="w-[48px] shrink-0"></div>
+                  <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex items-center text-[12px] tracking-[-0.006em] text-[#A4A4A4] font-medium">
+                    <div className="w-[198px] px-3 py-2 shrink-0">Case ID range #</div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("groupName")}
+                      className="flex-[1.5] min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
+                      Group name
+                      <SortIcon active={sortColumn === "groupName"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("migrants")}
+                      className="flex-1 min-w-0 h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
+                      Migrants
+                      <SortIcon active={sortColumn === "migrants"} direction={sortDirection} />
+                    </Button>
+                    <div className="w-[48px] px-3 py-2 shrink-0"></div>
                   </div>
                 ) : (
-                  <div className="px-xl h-11 flex items-center bg-[#F7F7F7] shrink-0 text-[12px] uppercase tracking-[0.04em] text-[#A4A4A4] font-medium mb-xs">
-                    <div className="basis-[94px] shrink-0 grow-0">Case ID #</div>
-                    <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-[4px] cursor-pointer">
+                  <div className="h-[36px] bg-[#F5F5F5] rounded-[8px] px-[4px] flex items-center text-[12px] tracking-[-0.006em] text-[#A4A4A4] font-medium">
+                    <div className="w-[94px] px-3 py-2 shrink-0">Case ID #</div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("country")}
+                      className="w-[112px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Country
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-[1.5] min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      <SortIcon active={sortColumn === "country"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("name")}
+                      className="w-[269.5px] flex-1 min-w-[269px] h-auto p-0 px-3 py-2 justify-start flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Name
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      <SortIcon active={sortColumn === "name"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("status")}
+                      className="w-[197.5px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Case Status
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0 flex items-center gap-[4px] cursor-pointer">
+                      <SortIcon active={sortColumn === "status"} direction={sortDirection} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={() => handleSort("migration")}
+                      className="w-[193.5px] h-auto p-0 px-3 py-2 justify-start shrink-0 flex items-center gap-1 font-medium text-[12px] text-[#A4A4A4] hover:text-[#171717] cursor-pointer"
+                    >
                       Migration Status
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#A4A4A4] shrink-0">
-                        <path d="m7 15 5 5 5-5"/>
-                        <path d="m7 9 5-5 5 5"/>
-                      </svg>
+                      <SortIcon active={sortColumn === "migration"} direction={sortDirection} />
+                    </Button>
+                    <div className="w-[182px] px-3 py-2 shrink-0 flex items-center">
+                      Compliance Action
                     </div>
-                    <div className="flex-1 min-w-0">Compliance Action</div>
-                    <div className="w-[48px] shrink-0"></div>
+                    <div className="w-[48px] px-3 py-2 shrink-0"></div>
                   </div>
                 )}
 
                 {activeTab === "refusals" ? (
-                  <div className="flex flex-col gap-sm select-none">
+                  <div className="flex flex-col gap-[4px]">
                     {paginatedCases.map((row, idx) => (
                       <div
                         key={row.id ? `case-refusal-${row.id}` : `case-refusal-${row.caseId}-${idx}`}
@@ -1448,18 +1791,18 @@ export default function CasesPage() {
                             if (row.id) router.push(`/cases/${row.id}`);
                           }
                         }}
-                        className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                        className="bg-white rounded-[16px] h-[72px] p-1 flex items-center border-2 border-transparent hover:border-white hover:bg-[#F5F5F5] transition-all cursor-pointer shadow-x-small group"
                       >
-                        <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                        <div className="w-[94px] h-16 p-3 flex items-center font-mono text-[14px] text-[#5C5C5C] shrink-0 truncate">
                           {row.caseId}
                         </div>
 
-                        <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-sm">
-                          {renderCircularFlag(row.country, row.flag)}
-                          <span className="font-normal text-[#171717] font-sans text-paragraph-sm">{row.countryCode}</span>
+                        <div className="w-[112px] h-16 p-3 flex items-center gap-2 shrink-0">
+                          <Flag country={row.country} className="size-6 rounded-full shrink-0" />
+                          <span className="font-normal text-[#171717] font-sans text-[14px] leading-5">{row.countryCode || row.country}</span>
                         </div>
 
-                        <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
+                        <div className="flex-[1.5] min-w-0 h-16 p-3 flex items-center gap-3">
                           {row.avatarUrl ? (
                             <img 
                               src={row.avatarUrl} 
@@ -1467,33 +1810,33 @@ export default function CasesPage() {
                               className="size-10 rounded-full object-cover shrink-0"
                             />
                           ) : (
-                            <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
-                              {row.avatarText}
+                            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0">
+                              {row.avatarText || getInitials(row.name) || "A"}
                             </div>
                           )}
-                          <div className="flex flex-col min-w-0 gap-[2px]">
-                            <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm font-sans">
+                          <div className="flex flex-col justify-center min-w-0 gap-0.5 flex-1">
+                            <span className="font-medium text-[#171717] truncate leading-5 text-[14px] tracking-[-0.006em]">
                               {row.name}
                             </span>
-                            <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-normal font-sans">
-                              {row.group}
+                            <span className="text-[12px] leading-4 text-[#5C5C5C] truncate font-normal">
+                              {row.group || "No group"}
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex-1 min-w-0 font-medium text-[#171717] font-mono text-paragraph-sm font-sans">
+                        <div className="flex-1 min-w-0 h-16 p-3 flex items-center font-medium text-[#171717] font-mono text-[14px]">
                           {row.passportNumber}
                         </div>
 
-                        <div className="flex-1 min-w-0 font-normal text-[#171717] text-paragraph-sm font-sans">
+                        <div className="flex-1 min-w-0 h-16 p-3 flex items-center font-normal text-[#171717] text-[14px]">
                           {row.refusalDate}
                         </div>
 
-                        <div className="flex-[1.5] min-w-0 font-normal text-[#171717] text-paragraph-sm font-sans truncate">
+                        <div className="flex-[1.5] min-w-0 h-16 p-3 flex items-center font-normal text-[#171717] text-[14px] truncate">
                           {row.refusalReason}
                         </div>
 
-                        <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-[48px] h-16 p-3 flex items-center justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
                           <CaseRowMenu
                             onViewDetails={() => { if (row.id) router.push(`/cases/${row.id}`); }}
                             onChangeStatus={() => {
@@ -1519,20 +1862,20 @@ export default function CasesPage() {
                   </div>
                 ) : isGroupSummaryView ? (
                   viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-lg w-full select-none">
-                      {paginatedGroups.map((group, idx) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+                      {paginatedGroups.map((group) => (
                         <div
-                          key={group.groupName + "-" + idx}
+                          key={group.groupName}
                           role="button"
                           tabIndex={0}
                           onClick={() => {
-                            setSearchQuery(group.groupName);
+                            setSelectedGroup(group.groupName);
                             setActiveTab("cases");
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              setSearchQuery(group.groupName);
+                              setSelectedGroup(group.groupName);
                               setActiveTab("cases");
                             }
                           }}
@@ -1546,16 +1889,22 @@ export default function CasesPage() {
                             <div onClick={(e) => e.stopPropagation()}>
                               <GroupRowMenu
                                 onViewGroup={() => {
-                                  setSearchQuery(group.groupName);
+                                  setSelectedGroup(group.groupName);
                                   setActiveTab("cases");
                                 }}
+                                onEditGroup={() => {
+                                  setSelectedGroup(group.groupName);
+                                  setEditGroupModalOpen(true);
+                                }}
+                                onArchiveGroup={() => handleArchiveGroup(group.groupName)}
+                                onDeleteGroup={() => handleDeleteGroup(group.groupName)}
                               />
                             </div>
                           </div>
 
-                          {/* Middle: Circle Avatar */}
+                          {/* Middle: Square/Rounded Initial Avatar */}
                           <div className="flex items-center">
-                            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-paragraph-sm flex items-center justify-center shrink-0">
+                            <div className="size-10 rounded-[10px] bg-[#EBEBEB] text-[#171717] font-medium text-paragraph-sm flex items-center justify-center shrink-0">
                               {group.initial}
                             </div>
                           </div>
@@ -1563,7 +1912,7 @@ export default function CasesPage() {
                           {/* Bottom Row: Group Name + Migrants Badge */}
                           <div className="flex items-center justify-between gap-sm min-w-0">
                             <span className="font-medium text-[#171717] truncate text-paragraph-sm">
-                              {group.groupName}
+                              {group.displayName || group.groupName}
                             </span>
                             <div className="w-5 h-[18px] bg-[#EBEBEB] rounded-[4px] text-[11px] font-medium text-[#5C5C5C] flex items-center justify-center shrink-0">
                               {group.migrantsCount}
@@ -1573,48 +1922,54 @@ export default function CasesPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-sm select-none">
-                      {paginatedGroups.map((group, idx) => (
+                    <div className="flex flex-col gap-[4px]">
+                      {paginatedGroups.map((group) => (
                         <div
-                          key={`${group.groupName}-${idx}`}
+                          key={group.groupName}
                           role="button"
                           tabIndex={0}
                           onClick={() => {
-                            setSearchQuery(group.groupName);
+                            setSelectedGroup(group.groupName);
                             setActiveTab("cases");
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              setSearchQuery(group.groupName);
+                              setSelectedGroup(group.groupName);
                               setActiveTab("cases");
                             }
                           }}
-                          className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                          className="bg-white rounded-[16px] h-[72px] p-1 flex items-center border-2 border-transparent hover:border-white hover:bg-[#F5F5F5] transition-all cursor-pointer shadow-x-small group"
                         >
-                          <div className="basis-[198px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                          <div className="w-[198px] h-16 p-3 flex items-center font-mono text-[14px] text-[#5C5C5C] shrink-0 truncate">
                             {group.caseIdRange}
                           </div>
 
-                          <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
-                            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] font-medium text-paragraph-sm flex items-center justify-center shrink-0">
+                          <div className="flex-[1.5] min-w-0 h-16 p-3 flex items-center gap-3">
+                            <div className="size-10 rounded-[10px] bg-[#EBEBEB] text-[#171717] font-medium text-[16px] flex items-center justify-center shrink-0">
                               {group.initial}
                             </div>
-                            <span className="font-medium text-[#171717] truncate text-paragraph-sm">
-                              {group.groupName}
+                            <span className="font-medium text-[#171717] truncate text-[14px]">
+                              {group.displayName || group.groupName}
                             </span>
                           </div>
 
-                          <div className="flex-1 min-w-0 flex items-center font-normal text-[#171717] text-paragraph-sm">
+                          <div className="flex-1 min-w-0 h-16 p-3 flex items-center font-normal text-[#171717] text-[14px]">
                             {group.migrantsCount}
                           </div>
 
-                          <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                          <div className="w-[48px] h-16 p-3 flex items-center justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
                             <GroupRowMenu
                               onViewGroup={() => {
-                                setSearchQuery(group.groupName);
+                                setSelectedGroup(group.groupName);
                                 setActiveTab("cases");
                               }}
+                              onEditGroup={() => {
+                                setSelectedGroup(group.groupName);
+                                setEditGroupModalOpen(true);
+                              }}
+                              onArchiveGroup={() => handleArchiveGroup(group.groupName)}
+                              onDeleteGroup={() => handleDeleteGroup(group.groupName)}
                             />
                           </div>
                         </div>
@@ -1622,7 +1977,7 @@ export default function CasesPage() {
                     </div>
                   )
                 ) : (
-                  <div className="flex flex-col gap-sm">
+                  <div className="flex flex-col gap-[4px]">
                     {paginatedCases.map((row, idx) => (
                       <div
                         key={row.id ? `case-row-${row.id}` : `case-row-${row.caseId}-${idx}`}
@@ -1635,18 +1990,18 @@ export default function CasesPage() {
                             if (row.id) router.push(`/cases/${row.id}`);
                           }
                         }}
-                        className="bg-white rounded-[16px] h-[72px] px-xl flex items-center shadow-x-small border border-neutral-200/20 hover:border-neutral-200/50 hover:shadow-custom-medium transition-all cursor-pointer"
+                        className="bg-white rounded-[16px] h-[72px] p-1 flex items-center border-2 border-transparent hover:border-white hover:bg-[#F5F5F5] transition-all cursor-pointer shadow-x-small group"
                       >
-                        <div className="basis-[94px] shrink-0 grow-0 font-normal text-[#5C5C5C] font-mono text-paragraph-sm">
+                        <div className="w-[94px] h-16 p-3 flex items-center font-mono text-[14px] text-[#5C5C5C] shrink-0 truncate">
                           {row.caseId}
                         </div>
 
-                        <div className="basis-[112px] shrink-0 grow-0 flex items-center gap-sm">
-                          {renderCircularFlag(row.country, row.flag)}
-                          <span className="font-normal text-[#171717] font-sans text-paragraph-sm">{row.country}</span>
+                        <div className="w-[112px] h-16 p-3 flex items-center gap-2 shrink-0">
+                          <Flag country={row.country} className="size-6 rounded-full shrink-0" />
+                          <span className="font-normal text-[#171717] font-sans text-[14px] leading-5">{row.countryCode || row.country}</span>
                         </div>
 
-                        <div className="flex-[1.5] min-w-0 flex items-center gap-lg">
+                        <div className="w-[269.5px] flex-1 min-w-[269px] h-16 p-3 flex items-center gap-3 shrink-0">
                           {row.avatarUrl ? (
                             <img 
                               src={row.avatarUrl} 
@@ -1654,21 +2009,21 @@ export default function CasesPage() {
                               className="size-10 rounded-full object-cover shrink-0"
                             />
                           ) : (
-                            <div className={`size-10 rounded-full flex items-center justify-center font-semibold text-xs shrink-0 select-none ${getAvatarBg(row.avatarText || "AM")}`}>
-                              {row.avatarText}
+                            <div className="size-10 rounded-full bg-[#EBEBEB] text-[#171717] flex items-center justify-center font-medium text-[12px] shrink-0">
+                              {row.avatarText || getInitials(row.name) || "A"}
                             </div>
                           )}
-                          <div className="flex flex-col min-w-0 gap-[2px]">
-                            <span className="font-medium text-[#171717] truncate leading-normal text-paragraph-sm">
+                          <div className="flex flex-col justify-center min-w-0 gap-0.5 flex-1">
+                            <span className="font-medium text-[#171717] truncate leading-5 text-[14px] tracking-[-0.006em]">
                               {row.name}
                             </span>
-                            <span className="text-paragraph-xs text-[#5C5C5C] truncate font-normal leading-normal">
-                              {row.group}
+                            <span className="text-[12px] leading-4 text-[#5C5C5C] truncate font-normal">
+                              {row.group || "No group"}
                             </span>
                           </div>
                         </div>
 
-                        <div className="flex-1 min-w-0 flex items-center">
+                        <div className="w-[197.5px] h-16 p-3 flex items-center shrink-0">
                           <CaseStatusDropdown
                             currentStatus={row.status}
                             statusColor={row.statusColor}
@@ -1688,37 +2043,43 @@ export default function CasesPage() {
                           />
                         </div>
 
-                        <div className="flex-1 min-w-0 flex items-center">
-                          <span className="inline-flex items-center gap-xs text-[11px] font-medium uppercase tracking-[0.02em]">
-                            <span className={`size-1.5 rounded-full ${getMigrationDotColor(row.migration)}`} />
-                            <span className={getMigrationTextColorClass(row.migration)}>{row.migration}</span>
-                          </span>
+                        <div className="w-[193.5px] h-16 p-3 flex items-center shrink-0">
+                          <div className="h-5 rounded-full px-2 py-0.5 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.02em] bg-white whitespace-nowrap shrink-0">
+                            <div className="size-4 flex items-center justify-center shrink-0">
+                              <span className={`size-1.5 rounded-full ${getMigrationDotColor(row.migration)}`} />
+                            </div>
+                            <span className={`${getMigrationTextColorClass(row.migration)} whitespace-nowrap`}>{row.migration}</span>
+                          </div>
                         </div>
 
-                        <div className="flex-1 min-w-0 flex items-center gap-xs">
-                          {row.actionColor !== "gray" && (
-                            <span className={`size-1.5 rounded-full shrink-0 ${getActionDotColor(row.actionColor)}`} />
-                          )}
-                          {row.actionColor !== "gray" && row.action !== "No action required" ? (
-                            <button
-                              type="button"
-                              className={`${getActionTextClass(row.actionColor)} cursor-pointer text-left border-0 bg-transparent p-0 font-inherit focus:outline-none focus:ring-1 focus:ring-[#7D52F4] rounded-xs`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActionModalRow(row);
-                                actionModalOpen ? null : setActionModalOpen(true);
-                              }}
-                            >
-                              {row.action}
-                            </button>
-                          ) : (
-                            <span className={getActionTextClass(row.actionColor)}>
-                              {row.action}
-                            </span>
-                          )}
+                        <div className="w-[182px] h-16 p-3 flex items-center shrink-0">
+                          <div className="h-6 rounded-full px-2 py-0.5 inline-flex items-center gap-1 bg-white whitespace-nowrap shrink-0">
+                            {row.actionColor !== "gray" && row.action !== "No action required" && row.action !== "No action needed" && (
+                              <div className="size-4 flex items-center justify-center shrink-0">
+                                <span className={`size-1.5 rounded-full ${getActionDotColor(row.actionColor)}`} />
+                              </div>
+                            )}
+                            {row.actionColor !== "gray" && row.action !== "No action required" && row.action !== "No action needed" ? (
+                              <button
+                                type="button"
+                                className="text-[14px] leading-5 font-medium tracking-[-0.006em] text-[#262626] hover:text-[#171717] hover:underline cursor-pointer text-left border-0 bg-transparent p-0 font-inherit focus:outline-none whitespace-nowrap truncate max-w-[150px]"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionModalRow(row);
+                                  actionModalOpen ? null : setActionModalOpen(true);
+                                }}
+                              >
+                                {row.action}
+                              </button>
+                            ) : (
+                              <span className="text-[14px] leading-5 font-medium tracking-[-0.006em] text-[#A4A4A4] whitespace-nowrap">
+                                No action needed
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <div className="w-[48px] shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-[48px] h-16 p-3 flex items-center justify-center shrink-0" onClick={(e) => e.stopPropagation()}>
                           <CaseRowMenu
                             onViewDetails={() => { if (row.id) router.push(`/cases/${row.id}`); }}
                             onChangeStatus={() => {
@@ -1746,105 +2107,107 @@ export default function CasesPage() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-md md:flex-row md:items-center pt-lg border-t border-neutral-200/40 text-paragraph-sm text-neutral-500 select-none justify-between relative">
-              <span className="text-neutral-400 font-medium w-[150px] shrink-0">
+            <div className="h-8 flex items-center justify-between gap-6 text-[14px] text-[#5C5C5C]">
+              <div className="w-[200px] text-left shrink-0 font-normal">
                 Page {currentPage} of {totalPages}
-              </span>
+              </div>
 
-              <div className="flex items-center gap-xs justify-center flex-1">
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+              <div className="flex items-center justify-center gap-2 flex-1">
+                <button
+                  type="button"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage(1)}
-                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
+                  className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-white hover:shadow-x-small disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none border-0 bg-transparent cursor-pointer transition-all"
+                  title="First page"
                 >
-                  <RiArrowLeftDoubleLine className="size-4" />
-                </Button>
+                  <RiArrowLeftDoubleLine className="size-5" />
+                </button>
 
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+                <button
+                  type="button"
                   disabled={currentPage === 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
+                  className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-white hover:shadow-x-small disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none border-0 bg-transparent cursor-pointer transition-all"
+                  title="Previous page"
                 >
-                  <RiArrowLeftSLine className="size-4" />
-                </Button>
+                  <RiArrowLeftSLine className="size-5" />
+                </button>
 
-                <div className="flex items-center gap-xs">
+                <div className="flex items-center gap-2">
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let pageNum = i + 1;
                     if (totalPages > 5 && currentPage > 3) {
                       pageNum = Math.min(totalPages - 4 + i, currentPage - 2 + i);
                     }
+                    const isActive = currentPage === pageNum;
                     return (
-                      <Button
+                      <button
                         key={pageNum}
-                        variant={currentPage === pageNum ? "ghost" : "outline"}
-                        size="icon-sm"
+                        type="button"
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`text-paragraph-sm font-semibold ${
-                          currentPage === pageNum
-                            ? "bg-neutral-950 text-white hover:bg-neutral-950 hover:text-white"
-                            : "text-neutral-700 hover:text-neutral-900"
+                        className={`size-8 rounded-[8px] text-[14px] font-medium flex items-center justify-center transition-all cursor-pointer ${
+                          isActive
+                            ? "bg-[#171717] text-white border-0"
+                            : "bg-white border border-[#EBEBEB] text-[#171717] hover:bg-neutral-50"
                         }`}
                       >
                         {pageNum}
-                      </Button>
+                      </button>
                     );
                   })}
                   {totalPages > 5 && currentPage < totalPages - 2 && (
                     <>
-                      <span className="size-8 flex items-center justify-center text-neutral-400 font-semibold select-none">...</span>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
+                      <span className="size-8 flex items-center justify-center text-[#A4A4A4] font-medium">...</span>
+                      <button
+                        type="button"
                         onClick={() => setCurrentPage(totalPages)}
-                        className="text-paragraph-sm font-semibold text-neutral-400 hover:text-neutral-900"
+                        className="size-8 rounded-[8px] bg-white border border-[#EBEBEB] text-[#5C5C5C] hover:text-[#171717] hover:bg-neutral-50 text-[14px] font-medium flex items-center justify-center cursor-pointer transition-all"
                       >
                         {totalPages}
-                      </Button>
+                      </button>
                     </>
                   )}
                 </div>
 
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+                <button
+                  type="button"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
+                  className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-white hover:shadow-x-small disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none border-0 bg-transparent cursor-pointer transition-all"
+                  title="Next page"
                 >
-                  <RiArrowRightSLine className="size-4" />
-                </Button>
+                  <RiArrowRightSLine className="size-5" />
+                </button>
 
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
+                <button
+                  type="button"
                   disabled={currentPage === totalPages}
                   onClick={() => setCurrentPage(totalPages)}
-                  className="text-neutral-400 hover:text-neutral-900 disabled:opacity-40"
+                  className="size-8 rounded-[8px] flex items-center justify-center text-[#5C5C5C] hover:bg-white hover:shadow-x-small disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none border-0 bg-transparent cursor-pointer transition-all"
+                  title="Last page"
                 >
-                  <RiArrowRightDoubleLine className="size-4" />
-                </Button>
+                  <RiArrowRightDoubleLine className="size-5" />
+                </button>
               </div>
 
-              <div className="w-[150px] shrink-0 flex justify-end">
-                <select
-                  value={pageSize}
-                  aria-label="Rows per page"
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="h-8 px-2.5 bg-white border border-neutral-200/60 rounded-[8px] text-[13px] font-medium text-[#5C5C5C] hover:border-neutral-300 focus:outline-none cursor-pointer"
-                >
-                  <option value={10}>10 / page</option>
-                  <option value={25}>25 / page</option>
-                  <option value={50}>50 / page</option>
-                  <option value={100}>100 / page</option>
-                </select>
+              <div className="w-[200px] flex justify-end shrink-0">
+                <div className="relative">
+                  <select
+                    value={pageSize}
+                    aria-label="Rows per page"
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="w-[99px] h-8 bg-white border border-[#EBEBEB] shadow-x-small rounded-[8px] pl-2.5 pr-7 py-1.5 text-[14px] font-normal text-[#5C5C5C] hover:border-neutral-300 focus:outline-none cursor-pointer appearance-none"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={48}>48</option>
+                    <option value={100}>100</option>
+                  </select>
+                  <RiArrowDownSLine className="absolute right-2 top-1/2 -translate-y-1/2 size-5 text-[#A4A4A4] pointer-events-none" />
+                </div>
               </div>
             </div>
           </>
@@ -1934,6 +2297,19 @@ export default function CasesPage() {
         onOpenChange={setActionModalOpen}
         row={actionModalRow}
         onSuccess={handleActionCompleted}
+      />
+
+      <EditGroupModal
+        open={editGroupModalOpen}
+        onOpenChange={setEditGroupModalOpen}
+        groupName={selectedGroup || ""}
+        onSave={handleUpdateGroupName}
+      />
+
+      <ImportMigrantsModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onSuccess={loadCases}
       />
     </div>
   );

@@ -14,7 +14,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="input-group"
       role="group"
       className={cn(
-        "group/input-group relative flex h-10 w-full min-w-0 items-center rounded-input border border-neutral-200 bg-white transition-all outline-none focus-within:border-neutral-900 focus-within:shadow-important-focus has-[[data-slot][aria-invalid=true]]:border-error-dark has-[[data-slot][aria-invalid=true]]:border-2 dark:bg-neutral-900/30 dark:border-neutral-800 dark:focus-within:border-neutral-100",
+        "group/input-group relative flex h-10 w-full min-w-0 items-center rounded-input border border-neutral-200 bg-white transition-all outline-none hover:border-neutral-400 focus-within:border-neutral-900 focus-within:shadow-important-focus has-[[data-slot][aria-invalid=true]]:border-error-dark has-[[data-slot][aria-invalid=true]]:border-2 dark:bg-neutral-900/30 dark:border-neutral-800 dark:hover:border-neutral-600 dark:focus-within:border-neutral-100",
         className
       )}
       {...props}
@@ -23,7 +23,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 const inputGroupAddonVariants = cva(
-  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
+  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground  group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
   {
     variants: {
       align: {
@@ -118,13 +118,17 @@ function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
 
 function InputGroupInput({
   className,
+  variant = "unstyled",
+  size = "none",
   ...props
-}: React.ComponentProps<"input">) {
+}: React.ComponentProps<typeof Input>) {
   return (
     <Input
+      variant={variant}
+      size={size}
       data-slot="input-group-control"
       className={cn(
-        "flex-1 h-full py-0 border-0 bg-transparent! shadow-none ring-0 focus-visible:ring-0 focus-visible:shadow-none focus-visible:border-transparent outline-none disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
+        "flex-1 h-full py-0 border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 focus-visible:shadow-none focus-visible:border-transparent outline-none disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
         className
       )}
       {...props}

@@ -33,7 +33,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import { formatFullName } from "@/lib/utils";
+import { formatFullName, formatTitleCase, getInitials } from "@/lib/utils";
 import { getCountryInfo } from "@/lib/country";
 import { ENDPOINTS } from "@/lib/api-endpoints";
 import { Flag } from "@/components/ui/flag";
@@ -45,6 +45,8 @@ import { EditWorkAddressModal } from "../components/EditWorkAddressModal";
 import { ChangeCaseStatusModal } from "../components/ChangeCaseStatusModal";
 import { CASE_STATUSES, isMatchingStatus } from "../case-status-data";
 import { toast } from "sonner";
+import { ArchiveCaseModal } from "../components/ArchiveCaseModal";
+import { DeleteCaseModal } from "../components/DeleteCaseModal";
 import { AddNoteModal } from "../components/AddNoteModal";
 import { CaseHeader } from "./components/CaseHeader";
 import { MigrationStatusCard, PersonalDetailsCard, PriorityActionsCard, TimelineCard, ProfileCard } from "./components/OverviewCards";
@@ -104,8 +106,16 @@ function mapBackendCaseToDetail(c: any) {
 
   const rawFirstName = m.first_name || pInfo.firstName || m.firstName || "";
   const rawLastName = m.last_name || pInfo.lastName || m.lastName || "";
-  const { firstName, lastName } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
-  const name = formatFullName(firstName, lastName) || m.stage_name || m.stageName || "Unknown Migrant";
+  const { firstName: cleanFirst, lastName: cleanLast } = sanitizeFirstAndLastName(rawFirstName, rawLastName);
+  const firstName = formatTitleCase(cleanFirst);
+  const lastName = formatTitleCase(cleanLast);
+  const name =
+    (cleanFirst || cleanLast ? formatFullName(firstName, lastName) : "") ||
+    m.stage_name ||
+    m.stageName ||
+    m.name ||
+    c.name ||
+    "Unknown Migrant";
 
   const rawGender = m.gender || pInfo.sex || m.sex || "";
   const genderDisplay = rawGender ? (rawGender.charAt(0).toUpperCase() + rawGender.slice(1).toLowerCase()) : "";
@@ -398,7 +408,7 @@ function SectionHeader({ title, badge, action }: { title: string; badge?: React.
 function TimelineIcon({ type }: { type: string }) {
   const iconClass = "size-5 text-[#171717]";
   return (
-    <div className="size-8 rounded-full bg-[#F7F7F7] shadow-x-small flex items-center justify-center shrink-0">
+    <div className="size-8 rounded-full bg-[#F5F5F5] shadow-x-small flex items-center justify-center shrink-0">
       {type === "note" && <RiStickyNoteLine className={iconClass} />}
       {type === "task" && <RiClipboardLine className={iconClass} />}
       {type === "migration" && <CasesIcon className={iconClass} />}
@@ -462,6 +472,38 @@ export default function MigrantOverviewPage() {
   const [isWorkAddressModalOpen, setIsWorkAddressModalOpen] = React.useState(false);
   const [isChangeStatusOpen, setIsChangeStatusOpen] = React.useState(false);
   const [isAddNoteOpen, setIsAddNoteOpen] = React.useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = React.useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+
+  const handleArchiveCase = async () => {
+    if (!id) return;
+    try {
+      const formData = new FormData();
+      formData.append("moduleName", "cases");
+      formData.append("data", JSON.stringify([{ id, caseNumber: migrant.caseId }]));
+      await apiClient.delete(ENDPOINTS.cases.toArchive, { body: formData });
+      toast.success("Case archived");
+      router.push("/cases");
+    } catch (err) {
+      console.error("Failed to archive case:", err);
+      toast.error("Failed to archive case");
+    }
+  };
+
+  const handleDeleteCase = async () => {
+    if (!id) return;
+    try {
+      const formData = new FormData();
+      formData.append("moduleName", "cases");
+      formData.append("data", JSON.stringify([{ id, caseNumber: migrant.caseId }]));
+      await apiClient.delete(ENDPOINTS.cases.archive, { body: formData });
+      toast.success("Case deleted");
+      router.push("/cases");
+    } catch (err) {
+      console.error("Failed to delete case:", err);
+      toast.error("Failed to delete case");
+    }
+  };
 
   const loadCaseDetail = React.useCallback(async () => {
     if (!id) return;
@@ -518,7 +560,7 @@ export default function MigrantOverviewPage() {
   const visaProgress = ((migrant.visa.totalDays - migrant.visa.daysLeft) / migrant.visa.totalDays) * 100;
 
   return (
-    <div className="w-full flex flex-col font-sans text-[#171717] select-none bg-[#F5F5F5] min-h-full overflow-x-hidden">
+    <div className="w-full flex flex-col font-sans text-[#171717] bg-[#F5F5F5] min-h-full overflow-x-hidden">
       {/* ====== WHITE HEADER ====== */}
       <div className="bg-white rounded-t-card flex flex-col shrink-0">
         <CaseHeader
@@ -532,7 +574,11 @@ export default function MigrantOverviewPage() {
           approvalStatus={migrant.approvalStatus}
           onBack={() => router.push("/cases")}
           onChangeStatus={() => setIsChangeStatusOpen(true)}
+          onEditHeader={() => setIsPersonalModalOpen(true)}
           onAddNote={() => setIsAddNoteOpen(true)}
+          onUpload={() => setActiveTab("Documents")}
+          onArchive={() => setIsArchiveOpen(true)}
+          onDelete={() => setIsDeleteOpen(true)}
         />
 
         {/* ====== TAB MENU ====== */}
@@ -567,7 +613,7 @@ export default function MigrantOverviewPage() {
             <div className="w-[303px] shrink-0 flex flex-col gap-[24px]">
               <ProfileCard
                 name={migrant.name}
-                initials={migrant.name ? migrant.name.split(" ").filter(Boolean).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) : "—"}
+                initials={getInitials(migrant.name) || "—"}
                 avatar={migrant.avatar}
                 employer={migrant.employer}
                 status={migrant.approvalStatus === "VISA APPROVED" ? "VISA APPROVED" : "AWAITING APPLICANT DOCS"}
@@ -602,11 +648,12 @@ export default function MigrantOverviewPage() {
                 tasks={migrant.compliance.tasks}
                 docs={migrant.compliance.docs}
                 items={migrant.compliance.items}
+                onViewAll={() => setActiveTab("Compliance")}
               />
             </div>
           </div>
         ) : activeTab === "Personal Details" ? (
-          <div className="flex gap-[24px] items-start w-full font-inter select-none max-w-full">
+          <div className="flex gap-[24px] items-start w-full font-inter max-w-full">
             {/* LEFT COLUMN: Personal details widget */}
             <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
               <div className="flex items-center justify-between h-[30px]">
@@ -625,7 +672,7 @@ export default function MigrantOverviewPage() {
               {/* Outer white card */}
               <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[450px]">
                 {/* Inner gray container */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-[8px_20px_16px] w-full h-[442px] flex flex-col gap-[8px] justify-between">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-[8px_20px_16px] w-full h-[442px] flex flex-col gap-[8px] justify-between">
                   <KVRow label="First Name" value={migrant.personalInfo.firstName} />
                   <KVRow label="Last Name" value={migrant.personalInfo.lastName} />
                   <KVRow label="Date of Birth" value={migrant.personalInfo.dob} />
@@ -684,7 +731,7 @@ export default function MigrantOverviewPage() {
                 </div>
                 
                 <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[80px]">
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[72px] flex items-center gap-[8px]">
+                  <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] w-full h-[72px] flex items-center gap-[8px]">
                     <RiMapPinLine className="size-5 text-[#171717] shrink-0" />
                     <div className="flex flex-col text-left font-inter">
                       {migrant.contact.addressLine1 || migrant.contact.addressLine2 ? (
@@ -726,7 +773,7 @@ export default function MigrantOverviewPage() {
                 <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[424px]">
                   <div className="w-full h-[416px] flex flex-col gap-[4px]">
                     {/* PRIMARY CONTACT Section */}
-                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
+                    <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
                       <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-inter">
                         Primary Contact
                       </span>
@@ -741,7 +788,7 @@ export default function MigrantOverviewPage() {
                     </div>
 
                     {/* EMERGENCY CONTACT Section */}
-                    <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
+                    <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px_20px] w-full h-[206px] flex flex-col justify-between font-inter">
                       <span className="text-[12px] font-semibold tracking-[0.04em] text-[#171717] uppercase mb-xs font-inter">
                         Emergency Contact
                       </span>
@@ -756,7 +803,7 @@ export default function MigrantOverviewPage() {
             </div>
           </div>
         ) : activeTab === "Employment" ? (
-          <div className="flex gap-[24px] items-start w-full font-inter select-none max-w-full">
+          <div className="flex gap-[24px] items-start w-full font-inter max-w-full">
             {/* LEFT COLUMN: Employment details widget */}
             <div className="flex-1 min-w-0 max-w-[540px] flex flex-col gap-[12px]">
               <div className="flex items-center justify-between h-[30px]">
@@ -775,7 +822,7 @@ export default function MigrantOverviewPage() {
               {/* Outer white card */}
               <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[340px]">
                 {/* Inner gray container */}
-                <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[332px] flex flex-col justify-between">
+                <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] w-full h-[332px] flex flex-col justify-between">
                   <KVRow label="CoS Reference" value={migrant.employment?.cosReference} />
                   <KVRow label="SOC Code" value={migrant.employment?.socCode} />
                   <KVRow label="Employer" value={migrant.employment?.employer} />
@@ -807,7 +854,7 @@ export default function MigrantOverviewPage() {
               <div className="bg-white border border-[#FFFFFF] rounded-[16px] shadow-[0px_1px_2px_rgba(10,13,20,0.03)] p-[4px] w-full h-[220px]">
                 <div className="w-full h-[212px] flex flex-col gap-[4px]">
                   {/* MAIN ADDRESS Section */}
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
+                  <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
                     <span className="text-[12px] font-medium tracking-[0.04em] text-[#171717] uppercase font-inter">
                       MAIN ADDRESS
                     </span>
@@ -825,7 +872,7 @@ export default function MigrantOverviewPage() {
                   </div>
 
                   {/* SECOND ADDRESS Section */}
-                  <div className="bg-[#F7F7F7] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
+                  <div className="bg-[#F5F5F5] rounded-[16px] p-[16px_20px] w-full h-[104px] flex flex-col justify-between font-inter">
                     <div className="flex items-center gap-[8px]">
                       <span className="text-[12px] font-medium tracking-[0.04em] text-[#171717] uppercase font-inter">
                         SECOND ADDRESS
@@ -863,11 +910,11 @@ export default function MigrantOverviewPage() {
         ) : activeTab === "Timeline" ? (
           <TimelineTab id={id} />
         ) : activeTab === "Compliance" ? (
-          <ComplianceTab id={id} />
+          <ComplianceTab id={id} onNavigateTab={(tab) => setActiveTab(tab)} />
         ) : activeTab === "Notes" ? (
           <NotesTab id={id} />
         ) : (
-          <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small font-sans select-none text-left">
+          <div className="bg-white border border-[#F5F5F5] rounded-card p-xl shadow-x-small font-sans text-left">
             <h3 className="text-h6-title text-[#171717]">{activeTab} Section</h3>
             <p className="text-paragraph-sm text-[#7B7B7B] mt-xs">Content for {activeTab} is not yet implemented.</p>
           </div>
@@ -945,6 +992,26 @@ export default function MigrantOverviewPage() {
             onClose={() => setIsAddNoteOpen(false)}
             caseId={id}
             onNoteAdded={loadCaseDetail}
+          />
+          <ArchiveCaseModal
+            open={isArchiveOpen}
+            onOpenChange={setIsArchiveOpen}
+            caseInfo={{
+              caseId: migrant.caseId ? migrant.caseId.replace(/^#/, "") : migrant.caseId,
+              name: migrant.name,
+              avatarUrl: migrant.avatar,
+            }}
+            onConfirm={handleArchiveCase}
+          />
+          <DeleteCaseModal
+            open={isDeleteOpen}
+            onOpenChange={setIsDeleteOpen}
+            caseInfo={{
+              caseId: migrant.caseId ? migrant.caseId.replace(/^#/, "") : migrant.caseId,
+              name: migrant.name,
+              avatarUrl: migrant.avatar,
+            }}
+            onConfirm={handleDeleteCase}
           />
         </>
       )}

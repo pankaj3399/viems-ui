@@ -107,7 +107,7 @@ function PaginationEllipsis({
       aria-hidden
       data-slot="pagination-ellipsis"
       className={cn(
-        "flex size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        "flex size-8 items-center justify-center rounded-md transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-800 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}

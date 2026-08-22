@@ -10,6 +10,8 @@ import {
   RiCheckLine,
   RiExternalLinkLine,
 } from "@remixicon/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export default function SupportPage() {
@@ -22,7 +24,7 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="w-full min-h-full bg-[#F7F7F7] text-[#171717] font-sans pb-24">
+    <div className="w-full min-h-full bg-[#F5F5F5] text-[#171717] font-sans pb-24">
       {/* Top Banner / Header */}
       <div className="bg-white border-b border-[#EBEBEB] px-6 lg:px-12 py-8">
         <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -49,22 +51,22 @@ export default function SupportPage() {
         <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 shadow-sm">
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-center gap-3">
             <div className="relative flex-1 w-full flex items-center">
-              <RiSearchLine className="size-5 text-[#5C5C5C] absolute left-4 pointer-events-none" />
-              <input
+              <RiSearchLine className="size-5 text-[#5C5C5C] absolute left-4 pointer-events-none z-10" />
+              <Input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search help articles, visa guidelines, RTW compliance procedures..."
                 aria-label="Search knowledge base"
-                className="w-full h-[44px] pl-11 pr-4 text-[14px] text-[#171717] bg-[#F7F7F7] border border-[#EBEBEB] rounded-[10px] outline-none focus:border-[#7D52F4] transition-colors"
+                className="w-full h-[44px] pl-11 pr-4 text-[14px] text-[#171717] bg-[#F5F5F5] border border-[#EBEBEB] rounded-[10px] outline-none focus-visible:border-[#7D52F4] transition-colors"
               />
             </div>
-            <button
+            <Button
               type="submit"
               className="w-full md:w-auto px-5 h-[44px] bg-[#171717] hover:bg-[#262626] text-white text-[14px] font-medium rounded-[10px] transition-colors cursor-pointer shrink-0"
             >
               Search Knowledge Base
-            </button>
+            </Button>
           </form>
         </div>
 
@@ -122,7 +124,7 @@ export default function SupportPage() {
           {/* Priority Hub / Live Support */}
           <div className="bg-white border border-[#EBEBEB] rounded-[16px] p-6 shadow-sm flex flex-col justify-between gap-6">
             <div className="flex flex-col gap-4">
-              <div className="w-12 h-12 rounded-[12px] bg-[#F7F7F7] text-[#171717] flex items-center justify-center">
+              <div className="w-12 h-12 rounded-[12px] bg-[#F5F5F5] text-[#171717] flex items-center justify-center">
                 <RiCustomerService2Line className="size-6" />
               </div>
               <div className="flex flex-col gap-1">

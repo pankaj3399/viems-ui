@@ -33,271 +33,12 @@ import { DocumentItem } from "@/app/(app)/cases/components/types";
 export type { DocumentItem };
 
 const defaultFolders: FolderItem[] = [
-  { id: "f1", name: "Appendix D", countText: "6 of 9", completed: 6, total: 9 },
-  { id: "f2", name: "Migrant documents", countText: "3 of 5", completed: 3, total: 5 },
-  { id: "f3", name: "Engagement evidence", countText: "5 of 6", completed: 5, total: 6 },
-  { id: "f4", name: "Travel & Logistics", countText: "4 of 4", completed: 4, total: 4 },
-  { id: "f5", name: "Supporting letters", countText: "3 of 3", completed: 3, total: 3 },
+  { id: "f1", name: "Appendix D", countText: "0 of 0", completed: 0, total: 0 },
+  { id: "f2", name: "Migrant documents", countText: "0 of 0", completed: 0, total: 0 },
+  { id: "f3", name: "Engagement evidence", countText: "0 of 0", completed: 0, total: 0 },
+  { id: "f4", name: "Travel & Logistics", countText: "0 of 0", completed: 0, total: 0 },
+  { id: "f5", name: "Supporting letters", countText: "0 of 0", completed: 0, total: 0 },
 ];
-
-const defaultDocuments: DocumentItem[] = [
-  // ─── Appendix D (f1) ──────────────────────────────────────────────────────
-  {
-    id: "d1",
-    name: "Passport",
-    subtitle: "TJ_Passport_Scan.pdf · 3.4 MB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "uploaded",
-    date: "Mar 8, 2026",
-    fileUrl: "/sample-files/TJ_Passport_Scan.pdf",
-  },
-  {
-    id: "d2",
-    name: "E-Visa confirmation",
-    subtitle: "TJ_eVisa_confirmation.pdf · 420 KB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "uploaded",
-    date: "Mar 8, 2026",
-    fileUrl: "/sample-files/TJ_eVisa_confirmation.pdf",
-  },
-  {
-    id: "d3",
-    name: "Right to work check",
-    subtitle: "UKVI_ShareCode_Verification.pdf · 1.2 MB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "under_review",
-    dateWarning: "Uploaded by: Mar 28, 2028",
-    isAlert: true,
-    fileUrl: "/sample-files/walkthrough.pdf",
-  },
-  {
-    id: "d4",
-    name: "Employment contract",
-    subtitle: "AX_Studios_Contract_TJ.pdf · 2.1 MB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "not_uploaded",
-    fileUrl: "/sample-files/AX_Studios_Contract_TJ.pdf",
-  },
-  {
-    id: "d5",
-    name: "Certificate of sponsorship",
-    subtitle: "COS2026-00430.pdf · 3.4 MB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-    fileUrl: "/sample-files/COS2026-00430.pdf",
-  },
-  {
-    id: "d6",
-    name: "Share code",
-    subtitle: "Right to work verification code issued by UKVI · 180 KB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "required_asap",
-    fileUrl: "/sample-files/TJ_eVisa_confirmation.pdf",
-  },
-  {
-    id: "d18",
-    name: "Passport renewal receipt",
-    subtitle: "Passport_Renewal_Receipt.pdf · 1.2 MB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-    fileUrl: "/sample-files/TJ_Passport_Scan.pdf",
-  },
-  {
-    id: "d19",
-    name: "National ID card",
-    subtitle: "National_ID_Card.pdf · 850 KB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d20",
-    name: "Birth certificate copy",
-    subtitle: "Birth_Certificate_Scan.pdf · 1.8 MB",
-    folderId: "f1",
-    folderName: "Appendix D",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-
-  // ─── Migrant documents (f2) ────────────────────────────────────────────────
-  {
-    id: "d7",
-    name: "CV / Profile documents",
-    subtitle: "TJ_Professional_CV_2026.pdf · 1.1 MB",
-    folderId: "f2",
-    folderName: "Migrant documents",
-    status: "uploaded",
-    date: "Mar 6, 2028",
-  },
-  {
-    id: "d8",
-    name: "Migrant signed declaration",
-    subtitle: "TJ_MSD_signed.pdf · 890 KB",
-    folderId: "f2",
-    folderName: "Migrant documents",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d21",
-    name: "Proof of funds / Bank statement",
-    subtitle: "Bank_Statement_6Months.pdf · 2.9 MB",
-    folderId: "f2",
-    folderName: "Migrant documents",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d25",
-    name: "English language qualification",
-    subtitle: "IELTS_Academic_Certificate.pdf · 950 KB",
-    folderId: "f2",
-    folderName: "Migrant documents",
-    status: "under_review",
-    date: "Mar 7, 2028",
-  },
-  {
-    id: "d26",
-    name: "Police clearance certificate",
-    subtitle: "ACRO_Police_Certificate_UK.pdf · 1.4 MB",
-    folderId: "f2",
-    folderName: "Migrant documents",
-    status: "not_uploaded",
-  },
-
-  // ─── Engagement evidence (f3) ──────────────────────────────────────────────
-  {
-    id: "d9",
-    name: "Event posters",
-    subtitle: "RAH_Concert_Poster_Var2026.jpg · 4.2 MB",
-    folderId: "f3",
-    folderName: "Engagement evidence",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d10",
-    name: "Dates of engagement",
-    subtitle: "TJ_UK_Tour_Schedule_2026.pdf · 1.5 MB",
-    folderId: "f3",
-    folderName: "Engagement evidence",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d11",
-    name: "Sponsorship agreement",
-    subtitle: "ENT_Sponsorship_Agreement_TJ.pdf · 1.9 MB",
-    folderId: "f3",
-    folderName: "Engagement evidence",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d12",
-    name: "Promoter payment letter",
-    subtitle: "Promoter_Payment_Guarantee.pdf · 680 KB",
-    folderId: "f3",
-    folderName: "Engagement evidence",
-    status: "not_uploaded",
-  },
-  {
-    id: "d22",
-    name: "Performance license",
-    subtitle: "Performance_License_UK2026.pdf · 750 KB",
-    folderId: "f3",
-    folderName: "Engagement evidence",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d23",
-    name: "Venue confirmation letter",
-    subtitle: "Venue_Booking_Confirmation.pdf · 1.1 MB",
-    folderId: "f3",
-    folderName: "Engagement evidence",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-
-  // ─── Travel & Logistics (f4) ───────────────────────────────────────────────
-  {
-    id: "d13",
-    name: "Flight / Travel details",
-    subtitle: "TJ_Flight_LAX_LHR_Var2026.pdf · 620 KB",
-    folderId: "f4",
-    folderName: "Travel & Logistics",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d14",
-    name: "Accommodation",
-    subtitle: "RAH_Tenancy_Agreement.pdf · 1.5 MB",
-    folderId: "f4",
-    folderName: "Travel & Logistics",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d15",
-    name: "Boarding passes / stamps",
-    subtitle: "TJ_Boarding_Pass_14Mar.pdf · 280 KB",
-    folderId: "f4",
-    folderName: "Travel & Logistics",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d24",
-    name: "Travel insurance policy",
-    subtitle: "Travel_Insurance_Policy.pdf · 640 KB",
-    folderId: "f4",
-    folderName: "Travel & Logistics",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-
-  // ─── Supporting letters (f5) ───────────────────────────────────────────────
-  {
-    id: "d16",
-    name: "ENT Imm immigration cover letter",
-    subtitle: "ENT_Cover_Letter_TJ.pdf · 450 KB",
-    folderId: "f5",
-    folderName: "Supporting letters",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d17",
-    name: "Lead artist cover letter",
-    subtitle: "Lead_Artist_Letter_TJ.pdf · 380 KB",
-    folderId: "f5",
-    folderName: "Supporting letters",
-    status: "uploaded",
-    date: "Mar 5, 2028",
-  },
-  {
-    id: "d27",
-    name: "Legal representative endorsement",
-    subtitle: "Legal_Endorsement_Letter.pdf · 520 KB",
-    folderId: "f5",
-    folderName: "Supporting letters",
-    status: "uploaded",
-    date: "Mar 9, 2028",
-  },
-].map((doc) => ({ ...doc, isMockFixture: true } as DocumentItem));
 
 export function DocumentsTab({ caseId }: { caseId?: string }) {
   const [viewMode, setViewMode] = React.useState<"checklist" | "folders">("checklist");
@@ -376,7 +117,7 @@ interface BackendFileResponse {
     try {
       const [foldersRes, filesRes] = await Promise.allSettled([
         apiClient.get<BackendFolderResponse[]>(ENDPOINTS.folders.system),
-        apiClient.get<BackendFileResponse[]>(`${ENDPOINTS.files.base}/list/cases/${caseId}`),
+        apiClient.get<BackendFileResponse[]>(ENDPOINTS.files.listByCase(caseId)),
       ]);
 
       const rawFolders: BackendFolderResponse[] =
@@ -554,7 +295,7 @@ interface BackendFileResponse {
   }, [computedFolders, selectedFolderId]);
 
   return (
-    <div className="w-full flex flex-col gap-10 font-sans select-none animate-fade-in text-left">
+    <div className="w-full flex flex-col gap-10 font-sans animate-fade-in text-left">
       {/* Smart Upload Modal */}
       <SmartUploadModal
         isOpen={isUploadModalOpen}
@@ -671,7 +412,7 @@ interface BackendFileResponse {
                     <img
                       src="/folder-3d.png"
                       alt={folder.name}
-                      className="w-[80px] h-[56px] object-contain shrink-0 select-none mb-1"
+                      className="w-[80px] h-[56px] object-contain shrink-0 mb-1"
                     />
                     <span className="text-[14px] font-medium text-[#171717] truncate w-full px-1">
                       {folder.name}
@@ -708,7 +449,7 @@ interface BackendFileResponse {
                   </div>
 
                   {/* Table Header Bar */}
-                  <div className="w-full bg-[#F7F7F7] rounded-[8px] h-[36px] flex items-center px-4 text-[12px] font-medium tracking-[0.04em] uppercase text-[#A4A4A4] select-none mb-2">
+                  <div className="w-full bg-[#F5F5F5] rounded-[8px] h-[36px] flex items-center px-4 text-[12px] font-medium tracking-[0.04em] uppercase text-[#A4A4A4] mb-2">
                     <div className="flex-1 flex items-center gap-1 min-w-0">
                       <span>DOCUMENT</span>
                       <RiExpandUpDownLine className="size-4 shrink-0" />
@@ -726,7 +467,7 @@ interface BackendFileResponse {
 
                   {/* Document Card Rows OR Empty State */}
                   {groupDocs.length === 0 ? (
-                    <div className="w-full bg-[#F9FAFB] border border-dashed border-[#E5E7EB] rounded-[16px] p-6 flex flex-col items-center justify-center text-center my-1 select-none">
+                    <div className="w-full bg-[#F9FAFB] border border-dashed border-[#E5E7EB] rounded-[16px] p-6 flex flex-col items-center justify-center text-center my-1">
                       <div className="size-10 rounded-full bg-[#F3E8FF] flex items-center justify-center text-[#7D52F4] mb-2">
                         <RiFile3Fill className="size-5" />
                       </div>
@@ -896,7 +637,7 @@ interface BackendFileResponse {
               </button>
 
               {/* Gray Outer Frame Container (Frame 110) */}
-              <div className="bg-[#F7F7F7] rounded-[16px] p-6 flex flex-col gap-8 w-full border border-neutral-100">
+              <div className="bg-[#F5F5F5] rounded-[16px] p-6 flex flex-col gap-8 w-full border border-neutral-100">
                 {/* Vertical Grid of 208px x 336px Document Cards (Frame 208) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full">
                   {documents
@@ -1027,7 +768,7 @@ interface BackendFileResponse {
                 </div>
 
                 {/* Inner Folder Summary Bar (4 Uploaded · 1 Pending · 2 Not uploaded) */}
-                <div className="flex items-center gap-8 pt-4 select-none border-t border-[#E5E7EB]">
+                <div className="flex items-center gap-8 pt-4 border-t border-[#E5E7EB]">
                   <div className="flex items-center gap-2">
                     <span className="size-2 rounded-full bg-[#1FC16B] shrink-0" />
                     <span className="text-[14px] font-medium text-[#171717]">
@@ -1086,7 +827,7 @@ interface BackendFileResponse {
                         <img
                           src="/folder-3d.png"
                           alt={folder.name}
-                          className="w-[80px] h-[56px] object-contain shrink-0 select-none mb-1"
+                          className="w-[80px] h-[56px] object-contain shrink-0 mb-1"
                         />
                         <span className="text-[14px] font-medium text-[#171717] truncate w-full px-1">
                           {folder.name}
@@ -1114,7 +855,7 @@ interface BackendFileResponse {
               </div>
 
               {/* Status Dots Summary Bar */}
-              <div className="flex items-center gap-8 pt-2 select-none">
+              <div className="flex items-center gap-8 pt-2">
                 <div className="flex items-center gap-2">
                   <span className="size-2 rounded-full bg-[#1FC16B] shrink-0" />
                   <span className="text-[14px] font-medium text-[#171717]">
